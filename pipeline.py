@@ -5,6 +5,7 @@ continues, so a single site changing layout never blocks the rest of the report.
 """
 from __future__ import annotations
 
+import json
 import logging
 from datetime import date
 from typing import Any, Optional
@@ -216,6 +217,10 @@ class Pipeline:
             self.run_new_ev()
 
         picks = self.cost_picks() if wanted & {"costs", "summary"} else []
+        self.change_reasons: list[str] = []
+        if "summary" in wanted and self.cfg["telegram"].get("send_only_on_change", False):
+            raw = self.db.get_state("last_sent_signature")
+            self.change_reasons = self.describe_changes(json.loads(raw) if raw else None, self.signature())
         sections: list[ReportSection] = []
         for key in self.cfg["telegram"]["section_order"]:
             if key not in wanted:
@@ -225,10 +230,13 @@ class Pipeline:
                 if picks:
                     b, url = min(picks, key=lambda p: p[0].total_low)
                     best = (b.label, url, f"Lowest estimated annual cost, {fmt_money(b.total_low, '$')} to {fmt_money(b.total_high, '$')}.")
-                sections.append(report.summary_section(
+                summary = report.summary_section(
                     self.run_date, self.stats["new"], self.stats["drops"], self.stats["gone"], self.coe_line(), best,
                     unavailable=sorted(self.unavailable),
-                ))
+                )
+                if self.change_reasons:
+                    summary.html += "\n\nSince the last report: " + report.escape("; ".join(self.change_reasons)) + "."
+                sections.append(summary)
             elif key == "coe":
                 sections.append(self.coe_section())
             elif key == "new_ev":
@@ -289,3 +297,68 @@ class Pipeline:
                 ]
                 sections.append(report.considerations_section(self.cfg, self.premium("A"), self.premium("B"), links))
         return sections
+
+
+    # Change detection
+
+    def signature(self) -> dict[str, Any]:
+        """Structured snapshot of the watched sections. Two runs with the same snapshot show the
+        same cars at the same prices and the same COE tender, whatever the date."""
+        sig: dict[str, Any] = {}
+        watched = set(self.cfg["telegram"].get("change_sections", ["coe", "new_ev", "used_ev", "used_ice"]))
+        if "coe" in watched:
+            sig["coe"] = {r.category.value: r.quota_premium for r in self.coe_latest}
+            sig["coe_tender"] = self.coe_latest[0].tender_date.isoformat() if self.coe_latest else None
+        if "new_ev" in watched:
+            items = [v for _, vs in (self.new_ev_groups or []) for v in vs] if self.new_ev_groups else self.new_evs
+            sig["new_ev"] = sorted([v.make, v.model, v.variant, v.price_with_coe or 0] for v in items)
+        if "used_ev" in watched:
+            sig["used_ev"] = sorted([l.source, l.listing_id, l.price] for l, _ in self.used_ev)
+        if "used_ice" in watched:
+            sig["used_ice"] = sorted([l.source, l.listing_id, l.price] for l, _ in self.used_ice)
+        return sig
+
+    def describe_changes(self, previous: dict[str, Any] | None, current: dict[str, Any]) -> list[str]:
+        """Human readable list of what differs between the last sent snapshot and this one."""
+        if previous is None:
+            return ["first report"]
+        out = []
+        if "coe" in current and previous.get("coe_tender") != current.get("coe_tender"):
+            out.append(f"new COE tender {current.get('coe_tender')}")
+        elif "coe" in current and previous.get("coe") != current.get("coe"):
+            out.append("COE premiums corrected")
+        if "new_ev" in current and previous.get("new_ev") != current.get("new_ev"):
+            prev = {tuple(x[:3]): x[3] for x in previous.get("new_ev", [])}
+            cur = {tuple(x[:3]): x[3] for x in current["new_ev"]}
+            added = len(set(cur) - set(prev))
+            removed = len(set(prev) - set(cur))
+            repriced = sum(1 for k in cur if k in prev and prev[k] != cur[k])
+            bits = [f"{n} {w}" for n, w in ((added, "added"), (removed, "removed"), (repriced, "repriced")) if n]
+            out.append("new EV list: " + ", ".join(bits) if bits else "new EV list reordered")
+        for key, label in (("used_ev", "used EV shortlist"), ("used_ice", "used petrol and hybrid shortlist")):
+            if key in current and previous.get(key) != current.get(key):
+                prev = {tuple(x[:2]): x[2] for x in previous.get(key, [])}
+                cur = {tuple(x[:2]): x[2] for x in current[key]}
+                added = len(set(cur) - set(prev))
+                removed = len(set(prev) - set(cur))
+                dropped = sum(1 for k in cur if k in prev and cur[k] < prev[k])
+                bits = [f"{n} {w}" for n, w in ((added, "new"), (removed, "gone"), (dropped, "price drops")) if n]
+                out.append(f"{label}: " + (", ".join(bits) if bits else "changed"))
+        return out
+
+
+def should_send(cfg: dict[str, Any], db: Database, pipe: "Pipeline", run_date: date, force: bool) -> tuple[bool, list[str], dict[str, Any]]:
+    """Decide whether to send today. Returns (send, reasons, signature)."""
+    sig = pipe.signature()
+    if force or not cfg["telegram"].get("send_only_on_change", False):
+        return True, ["sending regardless of changes"], sig
+    raw = db.get_state("last_sent_signature")
+    previous = json.loads(raw) if raw else None
+    changes = pipe.describe_changes(previous, sig)
+    if changes:
+        return True, changes, sig
+    heartbeat = int(cfg["telegram"].get("heartbeat_after_days", 0) or 0)
+    last = db.last_sent_date()
+    if heartbeat and (last is None or (run_date - last).days >= heartbeat):
+        return True, [f"no changes, heartbeat after {heartbeat} quiet days"], sig
+    return False, [], sig

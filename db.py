@@ -94,6 +94,11 @@ CREATE TABLE IF NOT EXISTS price_history (
     price INTEGER NOT NULL,
     PRIMARY KEY (source, listing_id, seen_on)
 );
+CREATE TABLE IF NOT EXISTS sent_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS fuel_prices (
     observed_on TEXT PRIMARY KEY,
     ron95_per_litre REAL NOT NULL,
@@ -337,6 +342,24 @@ class Database:
             (since.isoformat(),),
         ).fetchone()
         return int(row["n"])
+
+    # Sent state, used to decide whether today's report differs from the last one sent
+
+    def get_state(self, key: str) -> Optional[str]:
+        row = self.conn.execute("SELECT value FROM sent_state WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else None
+
+    def set_state(self, key: str, value: str) -> None:
+        with self.tx() as c:
+            c.execute(
+                "INSERT INTO sent_state (key, value, updated_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+                (key, value, datetime.now().isoformat(timespec="seconds")),
+            )
+
+    def last_sent_date(self) -> Optional[date]:
+        row = self.conn.execute("SELECT MAX(run_date) AS d FROM runs WHERE sent_at IS NOT NULL").fetchone()
+        return date.fromisoformat(row["d"]) if row and row["d"] else None
 
     # Fuel
 

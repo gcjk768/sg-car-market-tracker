@@ -17,6 +17,14 @@ general:
   honour_robots_txt: true
 
 telegram:
+  # Send only when something in the watched sections changed since the last report that was
+  # sent. The job still runs daily so the database keeps tracking prices. --force always sends.
+  send_only_on_change: true
+  # Sections compared against the last sent report. Fuel prices are deliberately left out
+  # because they move every week and would trigger a message on their own.
+  change_sections: [coe, new_ev, used_ev, used_ice]
+  # Send a report anyway after this many quiet days. 0 turns the heartbeat off.
+  heartbeat_after_days: 0
   max_message_length: 4096
   # Character width of each fixed width table. Sixty reads well on a phone in portrait.
   table_width: 60

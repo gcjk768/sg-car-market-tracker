@@ -18,7 +18,9 @@ from rich.console import Console
 
 from db import Database
 from models import ReportSection
-from pipeline import Pipeline
+import json
+
+from pipeline import Pipeline, should_send
 from report import render_console, sample_report
 from settings import load_config, load_secrets, user_agent
 from telegram_bot import TelegramClient, TelegramError
@@ -48,9 +50,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-def build_report(cfg: dict, db: Database, run_date: date, section: str, since: date | None, force: bool) -> list[ReportSection]:
+def build_report(cfg: dict, db: Database, run_date: date, section: str, since: date | None, force: bool) -> tuple[list[ReportSection], Pipeline]:
     """Run the scrapers and assemble the requested sections."""
-    return Pipeline(cfg, db, run_date, user_agent(cfg), force=force, since=since).build(section)
+    pipe = Pipeline(cfg, db, run_date, user_agent(cfg), force=force, since=since)
+    return pipe.build(section), pipe
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -63,11 +66,12 @@ def main(argv: list[str] | None = None) -> int:
     console = Console()
 
     try:
+        pipe = None
         if args.sample:
             sections = sample_report(cfg, run_date)
         else:
             db.start_run(run_date)
-            sections = build_report(cfg, db, run_date, args.section, args.since, args.force)
+            sections, pipe = build_report(cfg, db, run_date, args.section, args.since, args.force)
 
         limit = cfg["telegram"]["max_message_length"]
         for s in sections:
@@ -76,7 +80,10 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.dry_run:
             render_console(sections, console)
-            if not args.sample:
+            if pipe is not None:
+                send, reasons, _ = should_send(cfg, db, pipe, run_date, args.force)
+                verdict = "would send" if send else "would not send, nothing changed since the last report"
+                console.print(f"[cyan]{verdict}[/cyan]" + (f": {'; '.join(reasons)}" if reasons else ""))
                 db.finish_run(run_date, "dry-run")
             return 0
 
@@ -84,6 +91,16 @@ def main(argv: list[str] | None = None) -> int:
             console.print("[yellow]Report already sent today. Use --force to resend.[/yellow]")
             db.finish_run(run_date, "skipped")
             return 0
+
+        signature = None
+        if pipe is not None:
+            send, reasons, signature = should_send(cfg, db, pipe, run_date, args.force)
+            if not send:
+                console.print("[yellow]Nothing changed since the last report. Not sending.[/yellow]")
+                log.info("no changes since last sent report, skipping send")
+                db.finish_run(run_date, "no-change")
+                return 0
+            log.info("sending because: %s", "; ".join(reasons))
 
         secrets = load_secrets()
         try:
@@ -102,6 +119,8 @@ def main(argv: list[str] | None = None) -> int:
         console.print(f"[green]Sent {sent} Telegram messages.[/green]")
         if not args.sample:
             db.mark_sent(run_date)
+            if signature is not None:
+                db.set_state("last_sent_signature", json.dumps(signature))
             db.finish_run(run_date, "ok")
         return 0
     finally:

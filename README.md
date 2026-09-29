@@ -78,6 +78,14 @@ uv run python main.py --force              # ignore today's page cache and resen
 uv run python main.py --since 2026-09-20   # tag NEW and DROP relative to that date
 ```
 
+By default the report is only sent when something changed since the last report that went
+out: a new COE tender, a change in the new EV price list, or a change in either used car
+shortlist (a new car, a car gone, a price drop). The job still runs every day so prices keep
+being tracked. `telegram.send_only_on_change` in `config.yaml` turns this off,
+`change_sections` chooses what is compared, and `heartbeat_after_days` sends a report anyway
+after that many quiet days (0 keeps it silent). `--force` always sends. A dry run prints
+whether the report would have been sent and why.
+
 Rerunning on the same day is safe. Pages fetched today are cached under `data/cache/YYYY-MM-DD/`,
 database writes are upserts, and the report is not resent unless you pass `--force`.
 
