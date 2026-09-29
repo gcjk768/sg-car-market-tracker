@@ -16,7 +16,8 @@ from filters import shortlist, tagged
 from models import CoeResult, CostBreakdown, Drivetrain, NewEvVariant, ReportSection, UsedListing
 from scrapers.base import ScraperUnavailable
 from scrapers.coe import next_tender_date, scrape_coe
-from scrapers.fuel_price import scrape_fuel_price
+from scrapers.fuel_cnergy import scrape_cnergy
+from scrapers.fuel_price import pick_price, scrape_fuel_price
 from scrapers.new_ev import group_by_body_type, rank_new_evs, scrape_new_evs
 from scrapers.used_carro import CarroUsedScraper
 from scrapers.used_motorist import MotoristUsedScraper
@@ -64,7 +65,24 @@ class Pipeline:
 
     def run_fuel(self) -> None:
         fp = scrape_fuel_price(self.cfg, self.ua, self.run_date, self.force)
-        if fp:
+        ice_cfg = self.cfg["costs"]["energy"]["ice"]
+        station = ice_cfg.get("preferred_station")
+        board = scrape_cnergy(self.cfg, self.ua, self.run_date, self.force) if station and station.lower() == "cnergy" else {}
+        if board:
+            if fp is None:
+                from models import FuelPrice
+
+                fp = FuelPrice(observed_on=self.run_date, ron95_per_litre=0.0, source=self.cfg["sources"]["cnergy"])
+            fp.station_prices = board
+            grade95 = board.get("95", {})
+            if grade95:
+                use_member = ice_cfg.get("preferred_station_use_member_price", True)
+                fp.by_brand.setdefault(station, grade95.get("member" if use_member and "member" in grade95 else "public", grade95.get("public")))
+            if fp.by_brand:
+                fp.ron95_per_litre = round(pick_price(fp.by_brand, ice_cfg.get("price_pick", "median"), ice_cfg.get("price_brand")), 2)
+        elif station:
+            self.unavailable["fuel " + station] = "price board could not be read"
+        if fp and fp.ron95_per_litre:
             self.db.upsert_fuel_price(fp)
         latest = self.db.latest_fuel_price()
         self.petrol_price = latest.ron95_per_litre if latest else None
@@ -238,6 +256,24 @@ class Pipeline:
                                         f" before card or loyalty discounts, {fuel.observed_on.isoformat()}).")
                         if brands:
                             assumptions += f" By brand: {brands}."
+                        if fuel.station_prices:
+                            station = self.cfg["costs"]["energy"]["ice"].get("preferred_station", "Station")
+                            parts_ = []
+                            for grade in ("92", "95", "98", "diesel"):
+                                g = fuel.station_prices.get(grade)
+                                if not g:
+                                    continue
+                                text = f"{grade} {g['public']:.2f}" if "public" in g else f"{grade} member {g.get('member', 0):.2f}"
+                                if "public" in g and "member" in g:
+                                    text += f" (member {g['member']:.2f})"
+                                parts_.append(text)
+                            assumptions += f" {station} today: " + ", ".join(parts_) + "."
+                            member95 = fuel.station_prices.get("95", {}).get("member")
+                            if member95:
+                                for b, _ in picks:
+                                    if b.drivetrain != Drivetrain.ev:
+                                        alt = costs.energy_cost(b.drivetrain, self.cfg, member95)
+                                        assumptions += f" {b.label} fuelled at {station} member price: {fmt_money(alt, '$')} a year instead of {fmt_money(b.energy, '$')}."
                     links = [(i["name"], i["url"]) for i in self.cfg["sources"]["insurance_comparison"]]
                     sections.append(report.costs_section(picks, assumptions, links, self.cfg["telegram"]["table_width"], financing=self.financing))
                 else:

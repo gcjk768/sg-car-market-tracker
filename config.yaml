@@ -45,6 +45,9 @@ sources:
   motorist_coe: "https://www.motorist.sg/coe-results"
   fuel_price: "https://www.motorist.sg/petrol-prices"
   fuel_price_fallback: "https://petrolprice.sg/"
+  # Cnergy (Union Gas) publishes its own board. Scraped separately because comparison pages
+  # do not always list it.
+  cnergy: "https://www.cnergy.sg/"
   lta_tax_structure: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/upfront-vehicle-costs/tax-structure.html"
   lta_parf: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/rebates/parf-coe-rebate.html"
   mas_loan_rules: "https://www.mas.gov.sg/regulation/explainers/motor-vehicle-loans"
@@ -293,9 +296,14 @@ costs:
       fallback_petrol_95_price: 3.48
       # Which brand price feeds the running cost: min (cheapest brand), median or avg across brands.
       # Median is the default because Cnergy is far cheaper but has only a handful of stations.
+      # brand uses the brand named in price_brand when it was scraped, else falls back to median.
       price_pick: median
+      price_brand: Cnergy
       # Brands expected on the comparison page. Missing ones are logged, extra ones are kept.
       brands: [SPC, Shell, Esso, Caltex, Sinopec, Cnergy]
+      # A station the report always shows on its own line with public and member prices.
+      preferred_station: Cnergy
+      preferred_station_use_member_price: true
     hybrid:
       litres_per_100km: 5.5
   financing:

@@ -36,8 +36,13 @@ def parse_ron95_prices(html: str) -> dict[str, float]:
     return {}
 
 
-def pick_price(prices: dict[str, float], pick: str) -> float:
+def pick_price(prices: dict[str, float], pick: str, brand: str | None = None) -> float:
     values = sorted(prices.values())
+    if pick == "brand" and brand:
+        for name, value in prices.items():
+            if brand.lower() in name.lower():
+                return value
+        pick = "median"
     if pick == "min":
         return values[0]
     if pick == "avg":
@@ -57,7 +62,7 @@ class FuelPriceScraper(BaseScraper):
         missing = [b for b in expected if not any(b in k.lower() for k in prices)]
         if missing:
             log.warning("fuel page is missing brands: %s", ", ".join(missing))
-        value = pick_price(prices, ice_cfg.get("price_pick", "median"))
+        value = pick_price(prices, ice_cfg.get("price_pick", "median"), ice_cfg.get("price_brand"))
         return [FuelPrice(observed_on=self.run_date, ron95_per_litre=round(value, 2), by_brand=prices, source=self._source, scraped_at=datetime.now())]
 
     def run(self) -> list[FuelPrice]:

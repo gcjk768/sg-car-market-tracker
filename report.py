@@ -421,6 +421,9 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         (CostBreakdown(label="Toyota Altis Hybrid 2021", drivetrain="hybrid", road_tax=742, insurance_low=1400, insurance_high=2300, depreciation=11200, energy=2351, fixed_extras=3300), used_ice[0][0].url),
     ]
     insurance_links = [(i["name"], i["url"]) for i in cfg["sources"]["insurance_comparison"]]
+    fuel_note = (" Petrol 95 at 3.48 per litre (median of listed pump prices before discounts). "
+                 "Cnergy today: 95 2.64 (member 2.54), 98 2.90 (member 2.80), diesel 1.80 (member 1.70). "
+                 "Toyota Altis Hybrid 2021 fuelled at Cnergy member price: $2,096 a year instead of $2,871.")
     sources = [
         ("LTA OneMotoring COE results", cfg["sources"]["onemotoring_coe"]),
         ("Sgcarmart used cars", cfg["sources"]["sgcarmart_used_listing"]),
@@ -435,7 +438,7 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         new_ev_section(new_evs, cfg=cfg, groups=new_ev_groups if cfg["new_ev"].get("group_by_body_type") else None),
         used_section("used_ev", used_ev, cfg=cfg),
         used_section("used_ice", used_ice, cfg=cfg),
-        costs_section(costs, cfg["costs"]["insurance"]["assumptions"].strip(), insurance_links,
+        costs_section(costs, cfg["costs"]["insurance"]["assumptions"].strip() + fuel_note, insurance_links,
                       financing=[_fin(cfg, new_evs[0].price_with_coe, None, True), _fin(cfg, used_ev[0][0].price, used_ev[0][0].omv, False), _fin(cfg, used_ice[0][0].price, used_ice[0][0].omv, False)]),
         considerations_section(cfg, 131890, 133000, sources),
     ]

@@ -122,3 +122,24 @@ def test_model_page_sets_body_type(cfg):
     s = SgcarmartNewEvScraper(cfg, "ua", RUN)
     v = s.parse_model((FIX / "sgcarmart_new_model.html").read_text(), "https://x/model3")[0]
     assert v.body_type == "Sedan"
+
+
+def test_cnergy_table_and_text_parsing(cfg):
+    from scrapers.fuel_cnergy import CnergyScraper, parse_cnergy_prices
+
+    html = (FIX / "cnergy_prices.html").read_text()
+    prices = parse_cnergy_prices(html)
+    assert prices == {"95": {"public": 2.64, "member": 2.54}, "98": {"public": 2.90, "member": 2.80}, "diesel": {"public": 1.80, "member": 1.70}}
+    text_only = "<html><body><p>RON 95 is $2.64, members pay $2.54.</p><p>Diesel $1.80.</p></body></html>"
+    assert parse_cnergy_prices(text_only) == {"95": {"member": 2.54, "public": 2.64}, "diesel": {"public": 1.80}}
+    s = CnergyScraper(cfg, "ua", RUN)
+    assert s.parse(html)[0]["95"]["member"] == 2.54
+
+
+def test_pick_price_by_brand(cfg):
+    from scrapers.fuel_price import pick_price
+
+    prices = {"SPC": 3.46, "Shell": 3.49, "Cnergy": 2.54}
+    assert pick_price(prices, "brand", "Cnergy") == 2.54
+    assert pick_price(prices, "brand", "Nowhere") == 3.46   # falls back to the median
+    assert pick_price(prices, "min") == 2.54

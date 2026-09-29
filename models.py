@@ -134,6 +134,7 @@ class FuelPrice(BaseModel):
     observed_on: date
     ron95_per_litre: float
     by_brand: dict[str, float] = Field(default_factory=dict, description="Listed 95 octane price per brand before discounts")
+    station_prices: dict[str, dict[str, float]] = Field(default_factory=dict, description="Preferred station board: grade to public and member price")
     source: str
     scraped_at: datetime = Field(default_factory=datetime.now)
 

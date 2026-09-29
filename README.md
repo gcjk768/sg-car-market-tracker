@@ -183,7 +183,8 @@ scrapers/coe.py       COE results from OneMotoring, Sgcarmart or Motorist, next 
 scrapers/used_common.py  shared used car scraper logic
 scrapers/used_sgcarmart.py, used_carro.py, used_motorist.py
 scrapers/new_ev.py    new EV price list and brand page cross check
-scrapers/fuel_price.py  daily 95 octane price
+scrapers/fuel_price.py  daily 95 octane price per brand from a comparison page
+scrapers/fuel_cnergy.py  Cnergy price board, public and member prices per grade
 fixtures/             HTML pages used by parser tests
 tests/                pytest suite
 data/                 database and page cache (ignored by git)
@@ -247,6 +248,9 @@ already refuses any path that `robots.txt` disallows for its user agent).
   check `robots.txt`, which the scraper honours automatically.
 * Petrol prices: Motorist's petrol page and petrolprice.sg are comparison pages updated for
   public reading. One request per day.
+* Cnergy (cnergy.sg): the station's own price board, one request per day. Its terms could
+  not be read from the build environment. Cnergy prices are shown on their own line in the
+  cost section, with the member price, and `preferred_station` in `config.yaml` controls it.
 
 Nothing in this project bypasses anti bot measures, CAPTCHAs or login walls. If a site
 disallows automated access, remove it from `coe.source_order` or `used.searches` in
