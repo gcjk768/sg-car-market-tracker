@@ -286,8 +286,9 @@ def fuel_section(fuel: FuelPrice, preferred_station: str | None = None, max_widt
     for brand, by_grade in sorted(fuel.grades.items(), key=lambda t: t[1].get("95", 99)):
         rows.append([brand] + [f"{by_grade[g]:.2f}" if g in by_grade else "n/a" for g in grades])
     intro = f"Listed before card or loyalty discounts, per litre, {fuel.observed_on.strftime('%d %b %Y')}."
+    note = f"{preferred_station} does not publish its pump prices online." if preferred_station and not fuel.station_prices else ""
     title = SECTION_TITLES["fuel"]
-    return ReportSection(key="fuel", title=title, html=build_section(title, [intro, pre_block(render_table(cols, rows, max_width))]))
+    return ReportSection(key="fuel", title=title, html=build_section(title, [intro, pre_block(render_table(cols, rows, max_width)), note]))
 
 
 # Section 6: cost of ownership

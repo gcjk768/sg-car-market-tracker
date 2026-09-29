@@ -84,7 +84,8 @@ class Pipeline:
             if fp.by_brand:
                 fp.ron95_per_litre = round(pick_price(fp.by_brand, ice_cfg.get("price_pick", "median"), ice_cfg.get("price_brand")), 2)
         elif station:
-            self.unavailable["fuel " + station] = "price board could not be read"
+            # Not a failure worth flagging daily: Cnergy stopped publishing prices online in 2026.
+            log.info("no %s price board today", station)
         if fp and fp.ron95_per_litre:
             self.db.upsert_fuel_price(fp)
         latest = self.db.latest_fuel_price()
