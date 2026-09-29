@@ -57,6 +57,7 @@ class Pipeline:
         self.used_ev: list[tuple[UsedListing, str]] = []
         self.used_ice: list[tuple[UsedListing, str]] = []
         self.rejections: dict[str, int] = {}
+        self.financing: list = []
 
     # Steps
 
@@ -167,15 +168,19 @@ class Pipeline:
 
     def cost_picks(self) -> list[tuple[CostBreakdown, str]]:
         picks = []
+        self.financing = []
         if self.new_evs:
             v = self.new_evs[0]
             picks.append((costs.for_new_ev(v, self.cfg, self.run_date), v.listing_url))
+            self.financing.append(costs.financing_for_new(v, self.cfg))
         if self.used_ev:
             l = self.used_ev[0][0]
             picks.append((costs.for_used(l, self.cfg, self.run_date, self.petrol_price), l.url))
+            self.financing.append(costs.financing_for_used(l, self.cfg))
         if self.used_ice:
             l = self.used_ice[0][0]
             picks.append((costs.for_used(l, self.cfg, self.run_date, self.petrol_price), l.url))
+            self.financing.append(costs.financing_for_used(l, self.cfg))
         return picks
 
     def build(self, section: str = "all") -> list[ReportSection]:
@@ -207,7 +212,7 @@ class Pipeline:
                 sections.append(self.coe_section())
             elif key == "new_ev":
                 if self.new_evs:
-                    s = report.new_ev_section(self.new_evs, self.cfg["telegram"]["table_width"])
+                    s = report.new_ev_section(self.new_evs, self.cfg["telegram"]["table_width"], cfg=self.cfg)
                     if self.brand_notes:
                         s.html += "\n\nBrand page check: " + "; ".join(f"{k}: {v}" for k, v in sorted(self.brand_notes.items()))
                     sections.append(s)
@@ -216,17 +221,22 @@ class Pipeline:
             elif key in ("used_ev", "used_ice"):
                 rows = self.used_ev if key == "used_ev" else self.used_ice
                 if rows:
-                    sections.append(report.used_section(key, rows, self.cfg["telegram"]["table_width"]))
+                    sections.append(report.used_section(key, rows, self.cfg["telegram"]["table_width"], cfg=self.cfg))
                 else:
                     reason = "; ".join(v for k, v in self.unavailable.items() if k.startswith("used")) or "no listing passed the filters"
                     sections.append(report.unavailable_section(key, reason))
             elif key == "costs":
                 if picks:
                     assumptions = self.cfg["costs"]["insurance"]["assumptions"].strip()
-                    if self.petrol_price:
-                        assumptions += f" Petrol 95 at {self.petrol_price:.2f} per litre."
+                    fuel = self.db.latest_fuel_price()
+                    if fuel:
+                        brands = ", ".join(f"{b} {p:.2f}" for b, p in sorted(fuel.by_brand.items(), key=lambda t: t[1]))
+                        assumptions += (f" Petrol 95 at {fuel.ron95_per_litre:.2f} per litre ({self.cfg['costs']['energy']['ice'].get('price_pick', 'median')} of listed pump prices"
+                                        f" before card or loyalty discounts, {fuel.observed_on.isoformat()}).")
+                        if brands:
+                            assumptions += f" By brand: {brands}."
                     links = [(i["name"], i["url"]) for i in self.cfg["sources"]["insurance_comparison"]]
-                    sections.append(report.costs_section(picks, assumptions, links, self.cfg["telegram"]["table_width"]))
+                    sections.append(report.costs_section(picks, assumptions, links, self.cfg["telegram"]["table_width"], financing=self.financing))
                 else:
                     sections.append(report.unavailable_section("costs", "no shortlisted cars to compare"))
             elif key == "considerations":

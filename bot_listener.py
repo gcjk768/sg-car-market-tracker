@@ -31,6 +31,7 @@ def filters_text(cfg: dict) -> str:
         f"Age: EV under {f['max_age_years']['ev']}, petrol or hybrid under {f['max_age_years']['ice']}",
         "Excluded words: " + escape(", ".join(f["exclude_keywords"])),
         "Bonus words: " + escape(", ".join(f.get("bonus_keywords", []))),
+        f"Loan: {cfg['costs']['financing']['flat_rate_new'] * 100:.2f}% new, {cfg['costs']['financing']['flat_rate_used'] * 100:.2f}% used, flat, up to {cfg['costs']['financing']['max_tenure_years']} years",
         "Edit config.yaml to change them.",
     ]
     return "\n".join(lines)

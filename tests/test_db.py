@@ -49,3 +49,12 @@ def test_run_bookkeeping(tmp_path):
     assert db.already_sent(today) is True
     db.start_run(today)  # rerun on the same day keeps the sent marker
     assert db.already_sent(today) is True
+
+
+def test_fuel_price_roundtrip(tmp_path):
+    from models import FuelPrice
+
+    db = Database(tmp_path / "t.db")
+    db.upsert_fuel_price(FuelPrice(observed_on=date(2026, 9, 29), ron95_per_litre=3.48, by_brand={"SPC": 3.46, "Cnergy": 2.54}, source="t"))
+    latest = db.latest_fuel_price()
+    assert latest.ron95_per_litre == 3.48 and latest.by_brand == {"SPC": 3.46, "Cnergy": 2.54}

@@ -53,6 +53,7 @@ class NewEvVariant(BaseModel):
     battery_warranty: Optional[str] = None
     battery_warranty_years: Optional[float] = None
     promotion: Optional[str] = None
+    price_includes_rebates: bool = Field(default=True, description="True when the price is net of VES and EEAI rebates")
     listing_url: str
     price_source_url: str
     source: str
@@ -131,6 +132,7 @@ class PricePoint(BaseModel):
 class FuelPrice(BaseModel):
     observed_on: date
     ron95_per_litre: float
+    by_brand: dict[str, float] = Field(default_factory=dict, description="Listed 95 octane price per brand before discounts")
     source: str
     scraped_at: datetime = Field(default_factory=datetime.now)
 
@@ -154,6 +156,20 @@ class CostBreakdown(BaseModel):
     @property
     def total_high(self) -> int:
         return self.road_tax + self.insurance_high + self.depreciation + self.energy + self.fixed_extras
+
+
+class Financing(BaseModel):
+    """Deposit and instalment under the MAS loan to value rules, flat rate car loan."""
+
+    price: int
+    ltv: float
+    deposit: int
+    loan: int
+    rate_flat: float
+    tenure_years: int
+    monthly: int
+    short_tenure_years: int
+    monthly_short: int
 
 
 class ReportSection(BaseModel):

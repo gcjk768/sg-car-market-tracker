@@ -85,6 +85,9 @@ coe:
 
 new_ev:
   top_n: 10
+  # Dealer prices in Singapore are advertised with COE and already net of the VES and EEAI
+  # rebates, which are applied to ARF at registration. The report says so on every price.
+  prices_include_rebates: true
   max_model_pages: 40
   # VES rebates by band for cars registered this year. Single band A from 2026. Verified 2026-09-29.
   ves_rebates:
@@ -258,10 +261,27 @@ costs:
       litres_per_100km: 8.0
       # Pump price per litre before discounts, seen on 22 September 2026.
       fallback_petrol_95_price: 3.48
-      # min takes the cheapest brand, avg the mean across brands.
-      price_pick: min
+      # Which brand price feeds the running cost: min (cheapest brand), median or avg across brands.
+      # Median is the default because Cnergy is far cheaper but has only a handful of stations.
+      price_pick: median
+      # Brands expected on the comparison page. Missing ones are logged, extra ones are kept.
+      brands: [SPC, Shell, Esso, Caltex, Sinopec, Cnergy]
     hybrid:
       litres_per_100km: 5.5
+  financing:
+    verified_on: "2026-09-29"
+    # MAS loan to value limits: 70 percent when OMV is 20,000 or less, else 60 percent.
+    ltv_omv_threshold: 20000
+    ltv_low_omv: 0.70
+    ltv_high_omv: 0.60
+    # When a listing does not show OMV, assume it is above the threshold (true for every EV on sale).
+    assume_omv_above_threshold: true
+    max_tenure_years: 7
+    short_tenure_years: 5
+    # Flat rates per annum quoted by the big three banks in September 2026. Bank rates change
+    # monthly, so check MoneySmart or Singsaver before you sign.
+    flat_rate_new: 0.0248
+    flat_rate_used: 0.0278
   fixed_extras:
     servicing:
       ev: 800

@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Optional
 
-from models import CostBreakdown, Drivetrain, NewEvVariant, UsedListing
+from models import CostBreakdown, Drivetrain, Financing, NewEvVariant, UsedListing
 
 
 def _band_amount(value: float, bands: list[dict[str, Any]]) -> float:
@@ -183,3 +183,43 @@ def for_new_ev(variant: NewEvVariant, cfg: dict[str, Any], today: date, arf: flo
     price = variant.price_with_coe or 0
     dep = depreciation_new(price, arf, cfg, today)
     return breakdown(f"{variant.display_name} (new)", Drivetrain.ev, price, None, variant.power_kw, dep, cfg)
+
+
+# Financing
+
+
+def loan_to_value(omv: float | None, cfg: dict[str, Any]) -> float:
+    f = cfg["costs"]["financing"]
+    if omv is None:
+        return f["ltv_high_omv"] if f.get("assume_omv_above_threshold", True) else f["ltv_low_omv"]
+    return f["ltv_low_omv"] if omv <= f["ltv_omv_threshold"] else f["ltv_high_omv"]
+
+
+def monthly_instalment(principal: float, flat_rate: float, years: int) -> int:
+    """Flat rate loan: total interest is principal x rate x years, repaid in equal months."""
+    if years <= 0 or principal <= 0:
+        return 0
+    return int(round(principal * (1 + flat_rate * years) / (years * 12)))
+
+
+def financing(price: float, omv: float | None, cfg: dict[str, Any], new_car: bool) -> Financing:
+    f = cfg["costs"]["financing"]
+    ltv = loan_to_value(omv, cfg)
+    loan = int(round(price * ltv))
+    deposit = int(round(price - loan))
+    rate = f["flat_rate_new"] if new_car else f["flat_rate_used"]
+    tenure = int(f["max_tenure_years"])
+    short = int(f["short_tenure_years"])
+    return Financing(
+        price=int(round(price)), ltv=ltv, deposit=deposit, loan=loan, rate_flat=rate,
+        tenure_years=tenure, monthly=monthly_instalment(loan, rate, tenure),
+        short_tenure_years=short, monthly_short=monthly_instalment(loan, rate, short),
+    )
+
+
+def financing_for_used(listing: UsedListing, cfg: dict[str, Any]) -> Financing:
+    return financing(listing.price, listing.omv, cfg, new_car=False)
+
+
+def financing_for_new(variant: NewEvVariant, cfg: dict[str, Any]) -> Financing:
+    return financing(variant.price_with_coe or 0, None, cfg, new_car=True)

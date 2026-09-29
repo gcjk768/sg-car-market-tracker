@@ -14,7 +14,7 @@ from typing import Any, Iterable, Sequence
 from rich.console import Console
 from rich.panel import Panel
 
-from models import CostBreakdown, NewEvVariant, ReportSection, UsedListing
+from models import CostBreakdown, Financing, NewEvVariant, ReportSection, UsedListing
 from telegram_bot import (
     Column,
     build_section,
@@ -132,7 +132,13 @@ def coe_section(
 # Section 3: new EVs
 
 
-def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60) -> ReportSection:
+def _finance_note(fin: Financing | None) -> str:
+    if fin is None:
+        return ""
+    return f", deposit {fmt_money(fin.deposit, '$')}, {fmt_money(fin.monthly, '$')}/mth over {fin.tenure_years}y"
+
+
+def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60, cfg: dict[str, Any] | None = None) -> ReportSection:
     cols = [
         Column("#", 2, "right"),
         Column("Model", 21),
@@ -155,8 +161,20 @@ def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60) -> Rep
                 f"{v.battery_warranty_years:g}y" if v.battery_warranty_years else "n/a",
             ]
         )
-        links.append((f"{v.display_name} {fmt_money(v.price_with_coe, '$')}", v.listing_url))
+        fin = _fin(cfg, v.price_with_coe, None, True)
+        dep = ""
+        if cfg and v.price_with_coe:
+            from costs import depreciation_new
+
+            dep = f", dep -{fmt_int(depreciation_new(v.price_with_coe, None, cfg, date.today()))}/yr"
+        links.append((f"{v.display_name} {fmt_money(v.price_with_coe, '$')}{_finance_note(fin)}{dep}", v.listing_url))
     intro = "Price with COE. Score is price divided by claimed range, lower is better."
+    if variants and all(v.price_includes_rebates for v in variants):
+        intro = "Price with COE, net of the VES and EEAI rebates (the figure dealers advertise). " + intro[len("Price with COE. "):]
+    elif variants:
+        intro = "Price with COE, before rebates where marked. " + intro[len("Price with COE. "):]
+    if cfg:
+        intro += " " + _finance_intro(cfg, True) + " Depreciation is indicative only, over 10 years, and does not affect the ranking."
     return ReportSection(
         key="new_ev",
         title=SECTION_TITLES["new_ev"],
@@ -167,7 +185,22 @@ def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60) -> Rep
 # Section 4 and 5: used cars
 
 
-def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_width: int = 60) -> ReportSection:
+def _fin(cfg: dict[str, Any] | None, price: int | None, omv: int | None, new_car: bool) -> Financing | None:
+    if not cfg or not price:
+        return None
+    from costs import financing
+
+    return financing(price, omv, cfg, new_car)
+
+
+def _finance_intro(cfg: dict[str, Any], new_car: bool) -> str:
+    f = cfg["costs"]["financing"]
+    rate = f["flat_rate_new"] if new_car else f["flat_rate_used"]
+    return (f"Deposit is the minimum under the MAS loan rules, instalment at {rate * 100:.2f}% flat "
+            f"over {f['max_tenure_years']} years.")
+
+
+def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_width: int = 60, cfg: dict[str, Any] | None = None) -> ReportSection:
     """listings: (listing, tag) pairs where tag is NEW, DROP ▼1,000 or empty."""
     cols = [
         Column("#", 2, "right"),
@@ -196,9 +229,12 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
             detail += f", {l.owners} owner" + ("s" if l.owners != 1 else "")
         if l.seller_type:
             detail += f", {l.seller_type}"
+        detail += _finance_note(_fin(cfg, l.price, l.omv, False))
         links.append((detail, l.url))
     title = SECTION_TITLES[key]
     intro = "Ranked by lowest depreciation per year, then lowest mileage. COE is years left."
+    if cfg:
+        intro += " " + _finance_intro(cfg, False)
     return ReportSection(
         key=key,
         title=title,
@@ -209,8 +245,9 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
 # Section 6: cost of ownership
 
 
-def costs_section(picks: Sequence[tuple[CostBreakdown, str]], assumptions: str, insurance_links: Sequence[tuple[str, str]] = (), max_width: int = 60) -> ReportSection:
-    """picks: (breakdown, url) for best new EV, best used EV, best used ICE or hybrid, in that order."""
+def costs_section(picks: Sequence[tuple[CostBreakdown, str]], assumptions: str, insurance_links: Sequence[tuple[str, str]] = (), max_width: int = 60, financing: Sequence[Financing | None] = ()) -> ReportSection:
+    """picks: (breakdown, url) for best new EV, best used EV, best used ICE or hybrid, in that order.
+    financing: one Financing per pick, in the same order, or empty to leave the rows out."""
     headers = ["New EV", "Used EV", "Used ICE"][: len(picks)]
     cols = [Column("Per year", 14)] + [Column(h, 14, "right") for h in headers]
 
@@ -227,8 +264,24 @@ def costs_section(picks: Sequence[tuple[CostBreakdown, str]], assumptions: str, 
         row("Total low", lambda b: fmt_money(b.total_low)),
         row("Total high", lambda b: fmt_money(b.total_high)),
     ]
+    fins = list(financing)
+    if fins and any(fins):
+        def frow(label: str, getter) -> list:
+            return [label] + [getter(f) if f else "n/a" for f in fins]
+
+        rows += [
+            frow("Deposit", lambda f: f"{fmt_int(f.deposit)} ({f.ltv * 100:.0f}% LTV)".replace("(60% LTV)", "(40%)").replace("(70% LTV)", "(30%)")),
+            frow("Loan", lambda f: fmt_money(f.loan)),
+            frow(f"Mth {fins[0].tenure_years if fins[0] else 7}y loan", lambda f: fmt_money(f.monthly)),
+            frow(f"Mth {fins[0].short_tenure_years if fins[0] else 5}y loan", lambda f: fmt_money(f.monthly_short)),
+        ]
     links = [(f"{h}: {b.label}", url) for h, (b, url) in zip(headers, picks)]
     parts = [pre_block(render_table(cols, rows, max_width)), link_list(links), escape(assumptions)]
+    if fins and any(fins):
+        rates = sorted({f.rate_flat for f in fins if f})
+        parts.append(escape("Deposit is the minimum under the MAS rules: 40% of price when OMV is above 20,000, 30% otherwise. "
+                            "Instalments use a flat rate of " + " and ".join(f"{r * 100:.2f}%" for r in rates) + " per year. "
+                            "The 7 year loan costs the most interest; the 5 year figure shows the trade off."))
     if insurance_links:
         parts.append("Get a real insurance quote: " + ", ".join(
             f'<a href="{html_lib.escape(u, quote=True)}">{escape(n)}</a>' for n, u in insurance_links
@@ -356,10 +409,11 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
             best_pick=("BYD Atto 3 2023, 28,000 km, $118,800", used_ev[0][0].url, "Lowest depreciation per year in the used EV list with 7.4 years of COE left."),
         ),
         coe_section(tender, "sample tender", coe_rows, tender + timedelta(days=14), cfg["sources"]["onemotoring_coe"]),
-        new_ev_section(new_evs),
-        used_section("used_ev", used_ev),
-        used_section("used_ice", used_ice),
-        costs_section(costs, cfg["costs"]["insurance"]["assumptions"].strip(), insurance_links),
+        new_ev_section(new_evs, cfg=cfg),
+        used_section("used_ev", used_ev, cfg=cfg),
+        used_section("used_ice", used_ice, cfg=cfg),
+        costs_section(costs, cfg["costs"]["insurance"]["assumptions"].strip(), insurance_links,
+                      financing=[_fin(cfg, new_evs[0].price_with_coe, None, True), _fin(cfg, used_ev[0][0].price, used_ev[0][0].omv, False), _fin(cfg, used_ice[0][0].price, used_ice[0][0].omv, False)]),
         considerations_section(cfg, 131890, 133000, sources),
     ]
     for s in sections:

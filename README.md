@@ -140,8 +140,16 @@ Everything lives in `config.yaml`:
   site, then paste the URL of the first results page with `{page}` in place of the page number.
 * `new_ev` holds the ranking score, the models that are always shown and the VES rebates.
 * `costs` holds every road tax band, the insurance lookup table, both PARF schedules, the ARF
-  tiers, energy prices and fixed extras. Each block has a `verified_on` date. Update the date
-  when you check the values against LTA or IRAS.
+  tiers, energy prices, the loan rules and flat rates, and fixed extras. Each block has a
+  `verified_on` date. Update the date when you check the values against LTA, MAS or IRAS.
+* `costs.energy.ice.price_pick` chooses which brand's 95 octane price feeds the running cost:
+  `median` (default), `min` or `avg`. Cnergy is included in the comparison but sells far below
+  the majors at a handful of stations, which is why the default is the median.
+
+Prices in the report: new EV prices are with COE and net of the VES and EEAI rebates, which is
+how dealers advertise them, and the section says so. Pump prices are the listed prices before
+card or loyalty discounts. Deposits are the minimum under the MAS loan to value rules and
+instalments use flat rates, so the effective interest rate is higher than the figure shown.
 * `buying_considerations` holds the reference text printed at the end of the report.
 
 ## Project layout

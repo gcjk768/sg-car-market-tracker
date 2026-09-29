@@ -59,3 +59,18 @@ def test_unavailable_section_is_flagged():
 def test_html_to_text_shows_links_and_unescapes():
     text = html_to_text('<b>Hi</b> &amp; <a href="https://x.y/z">go</a>')
     assert text == "Hi & go <https://x.y/z>"
+
+
+def test_financing_rows_and_link_notes(cfg):
+    sections = {s.key: s for s in sample_report(cfg, date(2026, 9, 29))}
+    costs_html = sections["costs"].html
+    for label in ("Deposit", "Loan", "Mth 7y loan", "Mth 5y loan"):
+        assert label in costs_html
+    assert "72,000 (40%)" in costs_html
+    assert "deposit $72,000, $1,509/mth over 7y" in sections["new_ev"].html
+    assert "/mth over 7y" in sections["used_ev"].html
+    for key in ("new_ev", "used_ev", "used_ice", "costs"):
+        assert len(sections[key].html) <= MAX_MESSAGE_LENGTH
+        for block in re.findall(r"<pre>(.*?)</pre>", sections[key].html, flags=re.S):
+            for line in block.split("\n"):
+                assert len(line) <= 60, line

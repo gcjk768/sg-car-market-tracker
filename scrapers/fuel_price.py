@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+import statistics
 from datetime import date, datetime
 from typing import Any, Optional
 
@@ -35,6 +36,15 @@ def parse_ron95_prices(html: str) -> dict[str, float]:
     return {}
 
 
+def pick_price(prices: dict[str, float], pick: str) -> float:
+    values = sorted(prices.values())
+    if pick == "min":
+        return values[0]
+    if pick == "avg":
+        return sum(values) / len(values)
+    return statistics.median(values)
+
+
 class FuelPriceScraper(BaseScraper):
     name = "fuel"
 
@@ -42,9 +52,13 @@ class FuelPriceScraper(BaseScraper):
         prices = parse_ron95_prices(html)
         if not prices:
             raise ScraperUnavailable("no 95 octane table found")
-        pick = self.cfg["costs"]["energy"]["ice"].get("price_pick", "min")
-        value = min(prices.values()) if pick == "min" else sum(prices.values()) / len(prices)
-        return [FuelPrice(observed_on=self.run_date, ron95_per_litre=round(value, 2), source=self._source, scraped_at=datetime.now())]
+        ice_cfg = self.cfg["costs"]["energy"]["ice"]
+        expected = [b.lower() for b in ice_cfg.get("brands", [])]
+        missing = [b for b in expected if not any(b in k.lower() for k in prices)]
+        if missing:
+            log.warning("fuel page is missing brands: %s", ", ".join(missing))
+        value = pick_price(prices, ice_cfg.get("price_pick", "median"))
+        return [FuelPrice(observed_on=self.run_date, ron95_per_litre=round(value, 2), by_brand=prices, source=self._source, scraped_at=datetime.now())]
 
     def run(self) -> list[FuelPrice]:
         errors = []

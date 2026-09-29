@@ -76,10 +76,14 @@ def test_tiebreak_longer_battery_warranty(cfg):
 def test_fuel_price_table(cfg):
     html = (FIX / "motorist_fuel.html").read_text()
     prices = parse_ron95_prices(html)
-    assert prices["SPC"] == 3.46 and prices["Shell"] == 3.49
+    assert prices["SPC"] == 3.46 and prices["Shell"] == 3.49 and prices["Cnergy"] == 2.54
     s = FuelPriceScraper(cfg, "ua", RUN)
     s._source = "fixture"
     fp = s.parse(html)[0]
-    assert fp.ron95_per_litre == 3.46
+    # Median of 2.54, 3.46, 3.47, 3.48, 3.48, 3.49 is 3.475, so Cnergy does not drag the estimate down.
+    assert fp.ron95_per_litre == 3.48
+    assert fp.by_brand["Cnergy"] == 2.54 and len(fp.by_brand) == 6
+    cfg["costs"]["energy"]["ice"]["price_pick"] = "min"
+    assert s.parse(html)[0].ron95_per_litre == 2.54
     cfg["costs"]["energy"]["ice"]["price_pick"] = "avg"
-    assert s.parse(html)[0].ron95_per_litre == 3.48
+    assert s.parse(html)[0].ron95_per_litre == 3.32

@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS price_history (
 CREATE TABLE IF NOT EXISTS fuel_prices (
     observed_on TEXT PRIMARY KEY,
     ron95_per_litre REAL NOT NULL,
+    by_brand TEXT NOT NULL DEFAULT '{}',
     source TEXT NOT NULL,
     scraped_at TEXT NOT NULL
 );
@@ -340,10 +341,14 @@ class Database:
     def upsert_fuel_price(self, fp: FuelPrice) -> None:
         with self.tx() as c:
             c.execute(
-                "INSERT OR REPLACE INTO fuel_prices (observed_on, ron95_per_litre, source, scraped_at) VALUES (?, ?, ?, ?)",
-                (fp.observed_on.isoformat(), fp.ron95_per_litre, fp.source, fp.scraped_at.isoformat(timespec="seconds")),
+                "INSERT OR REPLACE INTO fuel_prices (observed_on, ron95_per_litre, by_brand, source, scraped_at) VALUES (?, ?, ?, ?, ?)",
+                (fp.observed_on.isoformat(), fp.ron95_per_litre, json.dumps(fp.by_brand), fp.source, fp.scraped_at.isoformat(timespec="seconds")),
             )
 
     def latest_fuel_price(self) -> Optional[FuelPrice]:
         row = self.conn.execute("SELECT * FROM fuel_prices ORDER BY observed_on DESC LIMIT 1").fetchone()
-        return FuelPrice(**dict(row)) if row else None
+        if not row:
+            return None
+        d = dict(row)
+        d["by_brand"] = json.loads(d.get("by_brand") or "{}")
+        return FuelPrice(**d)

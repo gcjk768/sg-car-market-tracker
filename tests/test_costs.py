@@ -131,3 +131,23 @@ def test_breakdowns(cfg):
                        range_km=534, listing_url="u", price_source_url="u", source="t")
     nb = for_new_ev(new, cfg, TODAY)
     assert nb.road_tax == 1678 and nb.depreciation == 18000 and nb.label == "Tesla Model 3 RWD 110 (new)"
+
+
+def test_financing_rules(cfg):
+    from costs import financing, loan_to_value, monthly_instalment
+
+    assert loan_to_value(None, cfg) == 0.60
+    assert loan_to_value(18000, cfg) == 0.70
+    assert loan_to_value(20000, cfg) == 0.70
+    assert loan_to_value(20001, cfg) == 0.60
+    # 107,999 at 2.48 percent flat over 7 years: 107,999 x 1.1736 / 84.
+    assert monthly_instalment(107999, 0.0248, 7) == 1509
+    assert monthly_instalment(0, 0.0248, 7) == 0
+    f = financing(179999, None, cfg, new_car=True)
+    assert f.deposit == 72000 and f.loan == 107999 and f.ltv == 0.60
+    assert f.monthly == 1509 and f.tenure_years == 7
+    assert f.monthly_short == monthly_instalment(107999, 0.0248, 5) == 2023
+    u = financing(98800, 22540, cfg, new_car=False)
+    assert u.deposit == 39520 and u.rate_flat == 0.0278
+    cheap = financing(60000, 15000, cfg, new_car=False)
+    assert cheap.deposit == 18000 and cheap.loan == 42000
