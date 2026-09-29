@@ -217,17 +217,19 @@ used:
   # Search URLs per source and drivetrain group. Apply your filters on the site, then paste the
   # URL of the first results page here. {page} is replaced with the page number.
   searches:
+    # Sgcarmart cat=18 is PARF Cars: passenger cars only, so vans and lorries never cost a
+    # 30 s detail page. Cars on a renewed COE have no PARF and drop out too.
     ev:
       fuel_types: [electric]
       urls:
-        sgcarmart: "https://www.sgcarmart.com/used-cars/listing?q=Electric&avl=a&ord=DEP_ASC&page={page}"
+        sgcarmart: "https://www.sgcarmart.com/used-cars/listing?q=Electric&cat=18&avl=a&ord=DEP_ASC&page={page}"
         carro: "https://carro.co/sg/en/buy?fuel_type=electric&page={page}"
         motorist: "https://www.motorist.sg/used-cars/electric-car?page={page}"
     ice:
       fuel_types: [petrol, hybrid, petrol-electric]
       urls:
         # No fuel filter on the new site: every available car, EVs dropped by the detail page.
-        sgcarmart: "https://www.sgcarmart.com/used-cars/listing?avl=a&ord=DEP_ASC&page={page}"
+        sgcarmart: "https://www.sgcarmart.com/used-cars/listing?cat=18&avl=a&ord=DEP_ASC&page={page}"
         carro: "https://carro.co/sg/en/buy?fuel_type=petrol,hybrid&page={page}"
         motorist: "https://www.motorist.sg/used-cars?page={page}"
 
