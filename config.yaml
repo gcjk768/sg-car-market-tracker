@@ -112,7 +112,8 @@ coe:
   cat_a_max_engine_power_kw: 97
   verified_on: "2026-09-29"
   # Scrapers are tried in this order until one returns results.
-  source_order: [onemotoring, sgcarmart, motorist]
+  # Motorist first: it shows the change since the previous tender. LTA is the fallback.
+  source_order: [motorist, onemotoring, sgcarmart]
 
 new_ev:
   top_n: 10

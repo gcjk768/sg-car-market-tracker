@@ -102,7 +102,9 @@ def find_tender_date(html: str, today: date | None = None) -> Optional[date]:
             d = parse_date(m.group(0))
             if d and d <= today:
                 candidates.append(d)
-    return max(candidates) if candidates else None
+    # Snap to a real results day: headers such as "Results Sep 26 September 2026" otherwise
+    # read as 26 September, a Saturday.
+    return last_tender_on_or_before(max(candidates)) if candidates else None
 
 
 def exercise_label(tender_date: date) -> str:
@@ -136,6 +138,19 @@ def next_tender_date(after: date, weeks: tuple[int, ...] = (1, 3), results_weekd
         m += 1
         if m > 12:
             m, y = 1, y + 1
+    raise RuntimeError("no tender date found")
+
+
+def last_tender_on_or_before(day: date, weeks: tuple[int, ...] = (1, 3), results_weekday: int = 2) -> date:
+    """Latest scheduled result day on or before `day`."""
+    y, m = day.year, day.month
+    for _ in range(4):
+        found = [d for d in tender_result_dates(y, m, weeks, results_weekday) if d <= day]
+        if found:
+            return max(found)
+        m -= 1
+        if m < 1:
+            m, y = 12, y - 1
     raise RuntimeError("no tender date found")
 
 
@@ -198,6 +213,27 @@ class SgcarmartCoeScraper(CoeScraperBase):
 class MotoristCoeScraper(CoeScraperBase):
     name = "motorist"
     url_key = "motorist_coe"
+
+    # The row under the premiums: <i class="icon-arrow-down-2"></i> $1,119, one per category.
+    CHANGE_RE = re.compile(r"icon-arrow-(up|down)[^$]{0,80}\$\s*([\d,]+)")
+
+    def parse(self, html: str) -> list[CoeResult]:
+        """Latest results plus the previous tender, worked out from the change row, so the report
+        shows a change from the first run instead of waiting two weeks for history."""
+        latest = super().parse(html)
+        table = html[html.find("Quota Premium"):]
+        changes = self.CHANGE_RE.findall(table)[: len(latest)]
+        if len(changes) != len(latest):
+            return latest
+        prev_date = last_tender_on_or_before(latest[0].tender_date - timedelta(days=1))
+        previous = []
+        for r, (direction, amount) in zip(latest, changes):
+            delta = parse_int(amount) or 0
+            premium = r.quota_premium + delta if direction == "down" else r.quota_premium - delta
+            previous.append(r.model_copy(update={"tender_date": prev_date, "exercise": exercise_label(prev_date),
+                                                 "quota_premium": premium, "quota": None, "bids_received": None,
+                                                 "bids_successful": None}))
+        return latest + previous
 
 
 SCRAPERS = {

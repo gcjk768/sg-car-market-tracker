@@ -182,9 +182,9 @@ class Database:
                        ON CONFLICT(tender_date, category) DO UPDATE SET
                          exercise = excluded.exercise,
                          quota_premium = excluded.quota_premium,
-                         quota = excluded.quota,
-                         bids_received = excluded.bids_received,
-                         bids_successful = excluded.bids_successful,
+                         quota = COALESCE(excluded.quota, coe_results.quota),
+                         bids_received = COALESCE(excluded.bids_received, coe_results.bids_received),
+                         bids_successful = COALESCE(excluded.bids_successful, coe_results.bids_successful),
                          source = excluded.source,
                          scraped_at = excluded.scraped_at""",
                     (

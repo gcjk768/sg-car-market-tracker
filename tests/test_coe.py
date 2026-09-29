@@ -70,3 +70,18 @@ def test_tender_result_dates_september_2026():
 )
 def test_next_tender_date(after, expected):
     assert next_tender_date(after) == expected
+
+
+def test_motorist_live_page_date_and_previous_tender():
+    # Saved 2026-09-29. The header "Results Sep 26 September 2026" used to read as 26 September.
+    from datetime import date
+    from pathlib import Path
+
+    from scrapers.coe import MotoristCoeScraper
+    from settings import load_config
+
+    html = (Path(__file__).resolve().parent.parent / "fixtures" / "motorist_coe_live.html").read_text(encoding="utf-8")
+    rows = MotoristCoeScraper(load_config(), "ua", date(2026, 9, 29)).parse(html)
+    by = {(r.tender_date, r.category.value): r for r in rows}
+    assert by[(date(2026, 9, 23), "A")].quota_premium == 131890
+    assert by[(date(2026, 9, 9), "A")].quota_premium == 133009

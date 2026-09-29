@@ -149,7 +149,7 @@ def test_full_run_sends_every_section_to_the_mock_bot_api(e2e_config, capsys):
     assert all(len(t) <= MAX_MESSAGE_LENGTH for t in texts)
     assert all(m["chat_id"] == "42" and m["message_thread_id"] == 7 and m["parse_mode"] == "HTML" for m in Handler.sent)
     joined = "\n".join(texts)
-    for title in ("SG car market daily", "COE tracker", "New EV Car Best Value list", "Used EV Car Best Value list", "Used Petrol Car Best Value list", "Cost of ownership"):
+    for title in ("SG car market daily", "COE position", "New EV Car Best Value list", "Used EV Car Best Value list", "Used Petrol Car Best Value list", "Cost of ownership"):
         assert title in joined, title
     # Real data flowed through: the COE fixture, the Tesla model page, the used listings and Cnergy.
     assert "131,890" in joined

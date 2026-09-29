@@ -30,7 +30,7 @@ from telegram_bot import (
 
 SECTION_TITLES = {
     "summary": "SG car market daily",
-    "coe": "COE tracker",
+    "coe": "COE position",
     "new_ev": "New EV Car Best Value list",
     "used_ev": "Used EV Car Best Value list",
     "used_ice": "Used Petrol Car Best Value list",
@@ -98,28 +98,24 @@ def coe_section(
         Column("Cat", 3),
         Column("Premium", 8, "right"),
         Column("Change", 15, "right"),
-        Column("Trend", 6),
-        Column("Bids/Quota", 11, "right"),
+        Column("Quota", 6, "right"),
+        Column("Bids", 6, "right"),
     ]
     table_rows = []
     for r in rows:
-        bids = r.get("bids")
-        quota = r.get("quota")
-        bq = f"{fmt_int(bids)}/{fmt_int(quota)}" if bids is not None and quota is not None else "n/a"
         table_rows.append(
             [
                 r["category"],
                 fmt_money(r["premium"]),
                 fmt_delta(r.get("delta"), r.get("delta_pct")),
-                trend_arrows(r.get("history", [])),
-                bq,
+                fmt_int(r.get("quota")),
+                fmt_int(r.get("bids")),
             ]
         )
-    intro = f"Latest tender: {tender_date.strftime('%d %b %Y')}, {escape(exercise)}"
+    intro = f"Latest tender is {tender_date.day} {tender_date.strftime('%B %Y')} ({escape(exercise.replace(f' {tender_date.year}', ''))})."
     footer = []
     if next_tender:
         footer.append(f"Next results expected: {next_tender.strftime('%a %d %b %Y')}")
-    footer.append("Trend reads oldest to newest over the last six tenders.")
     if source_url:
         footer.append(f'Source: <a href="{html_lib.escape(source_url, quote=True)}">COE results</a>')
     return ReportSection(
