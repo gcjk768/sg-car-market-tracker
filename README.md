@@ -179,11 +179,13 @@ token from `claude setup-token`, or on an API key:
   list missed, and it knows that "accident free" is not a warning.
 * `ai.analyst_note: true` adds three plain sentences to the summary section.
 
-Set `ai.enabled: true`, make sure the `claude` command is on the path (in Docker, build with
-`WITH_CLAUDE=1`), and put `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in `.env`. Calls are
-capped per run by `ai.max_calls_per_run`, input is trimmed to `ai.max_input_chars`, and every
-call runs with `--max-turns 1` and no tools. The run log reports which fields the model
-filled. If the CLI is missing or fails, the pipeline carries on without it.
+`ai.enabled` and `ai.analyst_note` are on by default and `docker-compose.yml` builds the image
+with the CLI (`WITH_CLAUDE: "1"`). Put `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in
+`.env`. Calls are capped per run by `ai.max_calls_per_run`, input is trimmed to
+`ai.max_input_chars`, and every call runs with `--max-turns 1`, `--tools ""` (no tools) and
+`--no-session-persistence`. A call costs about one cent at the CLI's default model. The run
+log reports which fields the model filled. If the CLI is missing, the token is absent or a
+call fails, the pipeline carries on without it, so a run never breaks because of the model.
 
 ## Run the tests
 

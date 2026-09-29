@@ -4,7 +4,7 @@ services:
       context: .
       args:
         # 1 installs the Claude Code CLI for the optional ai features.
-        WITH_CLAUDE: "0"
+        WITH_CLAUDE: "1"
     container_name: sg-car-scraper
     restart: unless-stopped
     env_file: .env

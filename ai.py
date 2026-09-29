@@ -60,7 +60,7 @@ class ClaudeCli:
             log.warning("ai: call budget of %d per run reached", self.max_calls)
             return None
         self.calls += 1
-        args = [self.command, "-p", prompt, "--output-format", "json", "--max-turns", "1"]
+        args = [self.command, "-p", prompt, "--output-format", "json", "--max-turns", "1", "--tools", "", "--no-session-persistence"]
         if self.model:
             args += ["--model", self.model]
         args += self.extra_args

@@ -21,7 +21,8 @@ def _fake_run(result: dict | str, returncode: int = 0):
     return run, calls
 
 
-def test_disabled_by_default(cfg):
+def test_disabled_when_switched_off(cfg):
+    cfg["ai"]["enabled"] = False
     cli = ClaudeCli(cfg)
     assert cli.available() is False
     assert cli.ask("hi") is None
@@ -36,6 +37,7 @@ def test_ask_parses_cli_envelope_and_counts_calls(cfg, monkeypatch):
     assert cli.ask_json("read this", "page text") == {"price": 118800, "mileage_km": 28000}
     assert calls[0]["args"][:3] == ["claude", "-p", "read this"]
     assert "--output-format" in calls[0]["args"] and "--max-turns" in calls[0]["args"]
+    assert "--tools" in calls[0]["args"] and "--no-session-persistence" in calls[0]["args"]
     assert calls[0]["args"][calls[0]["args"].index("--model") + 1] == "sonnet"
     assert calls[0]["input"] == "page text"
     assert cli.ask("again") is not None

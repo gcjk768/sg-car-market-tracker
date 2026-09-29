@@ -10,7 +10,10 @@ ROOT = Path(__file__).resolve().parent.parent
 @pytest.fixture
 def cfg():
     with open(ROOT / "config.yaml", encoding="utf-8") as fh:
-        return yaml.safe_load(fh)
+        data = yaml.safe_load(fh)
+    # Tests never call the real Claude CLI. Tests that exercise the AI path enable it and mock it.
+    data.setdefault("ai", {})["enabled"] = False
+    return data
 
 
 @pytest.fixture
