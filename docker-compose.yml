@@ -18,9 +18,9 @@ services:
       # 1 also answers /run, /coe and /filters in Telegram.
       RUN_LISTENER: "1"
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./config.yaml:/app/config.yaml:ro
+      # Code, config, data and logs come straight from this folder, so an update is copy the
+      # files and restart. Only a requirements.txt change needs a rebuild.
+      - ./:/app
       - ./data/claude:/root/.claude
     # Keep a terminal available so `docker compose exec -it ... claude auth login` works.
     stdin_open: true
