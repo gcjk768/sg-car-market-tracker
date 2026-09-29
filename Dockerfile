@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Database, page cache and logs live on the mounted volumes.
-RUN mkdir -p data logs
+# Database, page cache, logs and the Claude CLI login live on the mounted volumes.
+RUN mkdir -p data logs /root/.claude
 
 CMD ["python", "scheduler.py"]

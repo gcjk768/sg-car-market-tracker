@@ -10,6 +10,9 @@ services:
     env_file: .env
     environment:
       TZ: Asia/Singapore
+      # The Claude CLI keeps its login here. It is a host volume below, so signing in once
+      # from the container terminal survives restarts and rebuilds.
+      CLAUDE_CONFIG_DIR: /root/.claude
       # 1 sends a report as soon as the container starts, useful for the first test.
       RUN_ON_START: "1"
       # 1 also answers /run, /coe and /filters in Telegram.
@@ -18,5 +21,9 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./config.yaml:/app/config.yaml:ro
+      - ./data/claude:/root/.claude
+    # Keep a terminal available so `docker compose exec -it ... claude auth login` works.
+    stdin_open: true
+    tty: true
     # Chromium needs a bit of shared memory.
     shm_size: "512m"

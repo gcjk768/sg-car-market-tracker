@@ -8,3 +8,4 @@ data/cars.db-journal
 data/cache/
 logs/*.log
 .playwright/
+data/claude/

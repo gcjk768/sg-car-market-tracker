@@ -180,8 +180,26 @@ token from `claude setup-token`, or on an API key:
 * `ai.analyst_note: true` adds three plain sentences to the summary section.
 
 `ai.enabled` and `ai.analyst_note` are on by default and `docker-compose.yml` builds the image
-with the CLI (`WITH_CLAUDE: "1"`). Put `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in
-`.env`. Calls are capped per run by `ai.max_calls_per_run`, input is trimmed to
+with the CLI (`WITH_CLAUDE: "1"`).
+
+### Sign in to the Claude CLI from the container
+
+Once the container is running, open a terminal into it and log in. The CLI prints a link:
+open it on your phone or laptop, approve, and paste the code back into the terminal.
+
+```bash
+docker compose exec -it sg-car-scraper claude auth login
+docker compose exec -it sg-car-scraper claude auth status
+```
+
+On a Synology, the Container Manager "Terminal" tab on the container does the same thing
+(run `claude auth login` there). The login is stored in `data/claude/` on the host, mounted
+as the CLI's config directory, so it survives restarts and image rebuilds. Sign out with
+`claude auth logout` from the same terminal.
+
+If you would rather not log in interactively, run `claude setup-token` on any machine where
+you use Claude Code and put the result in `.env` as `CLAUDE_CODE_OAUTH_TOKEN`, or set
+`ANTHROPIC_API_KEY` for API billing. Calls are capped per run by `ai.max_calls_per_run`, input is trimmed to
 `ai.max_input_chars`, and every call runs with `--max-turns 1`, `--tools ""` (no tools) and
 `--no-session-persistence`. A call costs about one cent at the CLI's default model. The run
 log reports which fields the model filled. If the CLI is missing, the token is absent or a
