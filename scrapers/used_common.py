@@ -121,6 +121,7 @@ class UsedScraperBase(BaseScraper):
         "seller": ("seller type", "seller", "listed by", "sold by", "dealer"),
         "battery": ("battery health", "state of health", "soh", "battery report", "battery"),
         "year": ("manufactured", "year of manufacture", "year"),
+        "vehicle_type": ("type of vehicle", "vehicle type", "body type", "category"),
         "description": ("description", "features", "remarks", "accessories", "vehicle description"),
     }
 
@@ -240,6 +241,9 @@ class UsedScraperBase(BaseScraper):
         # Only the car's own words: page promos such as "Best Export Value" would flag every car.
         own_text = " ".join([title, description, *values.values()])
         flags = contains_any(strip_negated(own_text), self.flag_keywords)
+        vehicle_type = (self._label(values, "vehicle_type") or "").lower()
+        if any(w in vehicle_type for w in self.cfg["used"]["filters"].get("exclude_vehicle_types", [])):
+            flags.append("commercial vehicle")
         battery = self._label(values, "battery") if drivetrain == Drivetrain.ev else None
 
         listing = UsedListing(

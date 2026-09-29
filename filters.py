@@ -33,6 +33,8 @@ def _age_years(listing: UsedListing, today: date) -> float | None:
 def reject_reason(listing: UsedListing, cfg: dict[str, Any], today: date) -> str | None:
     """Return why a listing fails the filters, or None if it passes."""
     f = cfg["used"]["filters"]
+    if "commercial vehicle" in listing.flags:
+        return "commercial vehicle"
     if listing.price > f["price_ceiling_sgd"]:
         return "price above ceiling"
     if listing.mileage_km is None:

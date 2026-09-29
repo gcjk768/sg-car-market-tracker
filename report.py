@@ -31,9 +31,9 @@ from telegram_bot import (
 SECTION_TITLES = {
     "summary": "SG car market daily",
     "coe": "COE tracker",
-    "new_ev": "New EV price list",
-    "used_ev": "Used EVs",
-    "used_ice": "Used petrol and hybrid",
+    "new_ev": "New EV Car Best Value list",
+    "used_ev": "Used EV Car Best Value list",
+    "used_ice": "Used Petrol Car Best Value list",
     "costs": "Cost of ownership, top 3",
     "considerations": "Buying considerations",
 }
@@ -144,32 +144,36 @@ def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60, cfg: d
     Row numbers run on across the groups so they match the link list."""
     cols = [
         Column("#", 2, "right"),
-        Column("Model", 21),
-        Column("Price", 8, "right"),
-        Column("Cat", 3),
-        Column("Range", 5, "right"),
-        Column("$/km", 5, "right"),
-        Column("BatWty", 6, "right"),
+        Column("Car", 18),
+        Column("Price", 7, "right"),
+        Column("$/km", 4, "right"),
+        Column("Deposit", 7, "right"),
+        Column("Mth 7y", 6, "right"),
+        Column("Dep/yr", 7, "right"),
     ]
     tables: list[tuple[str, list]] = []
     links = []
     ordered = list(groups) if groups else [("", list(variants))]
+    titles = (cfg or {}).get("new_ev", {}).get("body_type_titles", {})
     n = 0
     for title, items in ordered:
         rows = []
         for v in items:
             n += 1
-            rows.append(_new_ev_row(n, v))
+            rows.append(_new_ev_row(n, v, cfg))
             links.append(_new_ev_link(v, cfg))
-        tables.append((title, rows))
-    intro = "Price with COE. Score is price divided by claimed range, lower is better."
+        tables.append((titles.get(title, title), rows))
+    intro = "Value score is price with COE divided by claimed range, lower is better."
     all_items = [v for _, items in ordered for v in items]
     if all_items and all(v.price_includes_rebates for v in all_items):
-        intro = "Price with COE, net of the VES and EEAI rebates (the figure dealers advertise). " + intro[len("Price with COE. "):]
+        intro += " Prices are dealer figures net of the VES and EEAI rebates."
     elif all_items:
-        intro = "Price with COE, before rebates where marked. " + intro[len("Price with COE. "):]
+        intro += " Prices are before rebates where marked."
     if cfg:
-        intro += " " + _finance_intro(cfg, True) + " Depreciation is indicative only, over 10 years, and does not affect the ranking."
+        f = cfg["costs"]["financing"]
+        intro += (f" Deposit is the minimum under the MAS rule, instalment on the rest at {f['flat_rate_new'] * 100:.2f} percent"
+                  f" flat over {f['max_tenure_years']} years. Depreciation is indicative over"
+                  f" {cfg['costs']['depreciation']['new_car_horizon_years']} years and does not affect the order.")
     parts = [intro]
     for title, rows in tables:
         block = render_table(cols, rows, max_width)
@@ -180,26 +184,30 @@ def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60, cfg: d
     return ReportSection(key="new_ev", title=SECTION_TITLES["new_ev"], html=build_section(SECTION_TITLES["new_ev"], parts))
 
 
-def _new_ev_row(n: int, v: NewEvVariant) -> list:
+def _new_ev_row(n: int, v: NewEvVariant, cfg: dict[str, Any] | None = None) -> list:
+    fin = _fin(cfg, v.price_with_coe, None, True)
+    dep = None
+    if cfg and v.price_with_coe:
+        from costs import depreciation_new
+
+        dep = depreciation_new(v.price_with_coe, None, cfg, date.today())
     return [
         n,
         v.display_name,
         fmt_money(v.price_with_coe),
-        v.coe_category.value if v.coe_category else "?",
-        fmt_int(v.range_km),
         f"{v.score:.0f}" if v.score else "n/a",
-        f"{v.battery_warranty_years:g}y" if v.battery_warranty_years else "n/a",
+        fmt_money(fin.deposit) if fin else "n/a",
+        fmt_money(fin.monthly) if fin else "n/a",
+        f"-{fmt_int(dep)}" if dep else "n/a",
     ]
 
 
 def _new_ev_link(v: NewEvVariant, cfg: dict[str, Any] | None) -> tuple[str, str]:
-    fin = _fin(cfg, v.price_with_coe, None, True)
-    dep = ""
-    if cfg and v.price_with_coe:
-        from costs import depreciation_new
-
-        dep = f", dep -{fmt_int(depreciation_new(v.price_with_coe, None, cfg, date.today()))}/yr"
-    return (f"{v.display_name} {fmt_money(v.price_with_coe, '$')}{_finance_note(fin)}{dep}", v.listing_url)
+    # The table already carries price and finance, so the link line adds range and category.
+    bits = [f"{fmt_int(v.range_km)} km" if v.range_km else None,
+            f"Cat {v.coe_category.value}" if v.coe_category else None,
+            f"{v.battery_warranty_years:g}y battery warranty" if v.battery_warranty_years else None]
+    return (f"{v.display_name}, " + ", ".join(b for b in bits if b), v.listing_url)
 
 
 # Section 4 and 5: used cars
@@ -224,37 +232,39 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
     """listings: (listing, tag) pairs where tag is NEW, DROP ▼1,000 or empty."""
     cols = [
         Column("#", 2, "right"),
-        Column("Car", 18),
-        Column("Yr", 4, "right"),
-        Column("km", 7, "right"),
-        Column("Dep/yr", 7, "right"),
-        Column("COE", 4, "right"),
-        Column("Tag", 11),
+        Column("Car", 14),
+        Column("Price", 7, "right"),
+        Column("Deposit", 7, "right"),
+        Column("Mth 7y", 6, "right"),
+        Column("Dep/yr", 6, "right"),
+        Column("COE", 3, "right"),
+        Column("km", 6, "right"),
     ]
     rows, links = [], []
     for n, (l, tag) in enumerate(listings, start=1):
+        fin = _fin(cfg, l.price, l.omv, False)
         rows.append(
             [
                 n,
                 l.display_name,
-                l.year or "n/a",
-                fmt_int(l.mileage_km),
+                fmt_money(l.price),
+                fmt_money(fin.deposit) if fin else "n/a",
+                fmt_money(fin.monthly) if fin else "n/a",
                 fmt_money(l.depreciation_per_year),
                 f"{l.coe_years_remaining:.1f}" if l.coe_years_remaining is not None else "n/a",
-                tag,
+                fmt_int(l.mileage_km),
             ]
         )
-        detail = f"{l.display_name} {fmt_money(l.price, '$')}"
-        if l.owners is not None:
-            detail += f", {l.owners} owner" + ("s" if l.owners != 1 else "")
-        if l.seller_type:
-            detail += f", {l.seller_type}"
-        detail += _finance_note(_fin(cfg, l.price, l.omv, False))
-        links.append((detail, l.url))
+        bits = [str(l.year) if l.year else None,
+                f"{l.owners} owner" + ("s" if l.owners != 1 else "") if l.owners is not None else None,
+                l.seller_type, tag or None]
+        links.append((f"{l.display_name}, " + ", ".join(b for b in bits if b), l.url))
     title = SECTION_TITLES[key]
     intro = "Ranked by lowest depreciation per year, then lowest mileage. COE is years left."
     if cfg:
-        intro += " " + _finance_intro(cfg, False)
+        f = cfg["costs"]["financing"]
+        intro += (f" Deposit is the minimum under the MAS rule, instalment on the rest at"
+                  f" {f['flat_rate_used'] * 100:.2f} percent flat over {f['max_tenure_years']} years.")
     return ReportSection(
         key=key,
         title=title,
@@ -441,8 +451,10 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         used_section("used_ice", used_ice, cfg=cfg),
         costs_section(costs, cfg["costs"]["insurance"]["assumptions"].strip() + fuel_note, insurance_links,
                       financing=[_fin(cfg, new_evs[0].price_with_coe, None, True), _fin(cfg, used_ev[0][0].price, used_ev[0][0].omv, False), _fin(cfg, used_ice[0][0].price, used_ice[0][0].omv, False)]),
-        considerations_section(cfg, 131890, 133000, sources),
     ]
+    # Only the sections config.yaml asks for, in its order (Buying considerations is off by default).
+    order = cfg["telegram"]["section_order"]
+    sections = sorted((s for s in sections if s.key in order), key=lambda s: order.index(s.key))
     for s in sections:
         s.html = "<i>SAMPLE DATA, delivery test</i>\n" + s.html
     return sections

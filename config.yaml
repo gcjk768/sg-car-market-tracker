@@ -40,7 +40,6 @@ telegram:
     - used_ev
     - used_ice
     - costs
-    - considerations
 
 ai:
   # Optional help from the Claude Code CLI in print mode (claude -p). Off by default because
@@ -138,6 +137,8 @@ new_ev:
   group_by_body_type: true
   top_n_per_body_type: 4
   body_type_order: [Hatchback, Sedan, SUV, MPV, Coupe, Wagon, Other]
+  body_type_titles:
+    SUV: SUV and crossover
   # Body type by "make model" when the page does not say. Matching is case insensitive.
   body_type_overrides:
     Tesla Model 3: Sedan
@@ -187,6 +188,8 @@ used:
       ice: 8
       hybrid: 8
     require_mileage: true
+    # Vans, trucks and buses match the "Electric" search too. Read from the listing's type field.
+    exclude_vehicle_types: [van, truck, lorry, bus, pick-up, pickup, commercial]
     exclude_keywords:
       - accident
       - "as is"

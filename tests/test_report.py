@@ -40,7 +40,7 @@ def test_link_numbers_match_table_rows(cfg):
 
 def test_new_ev_section_is_grouped_by_body_type(cfg):
     html = {s.key: s for s in sample_report(cfg, date(2026, 9, 29))}["new_ev"].html
-    for group in ("Hatchback", "Sedan", "SUV", "MPV"):
+    for group in ("Hatchback", "Sedan", "SUV and crossover", "MPV"):
         assert f"<pre>{group}\n" in html
 
 
@@ -75,8 +75,9 @@ def test_financing_rows_and_link_notes(cfg):
     for label in ("Deposit", "Loan", "Mth 7y loan", "Mth 5y loan"):
         assert label in costs_html
     assert "72,000 (40%)" in costs_html
-    assert "deposit $72,000, $1,509/mth over 7y" in sections["new_ev"].html
-    assert "/mth over 7y" in sections["used_ev"].html
+    # Deposit, monthly and depreciation sit in the table row now, not the link line.
+    assert re.search(r"Tesla Model 3.*179,999 +\d+ +72,000 +1,509 +-[\d,]+", sections["new_ev"].html)
+    assert "Mth 7y" in sections["used_ev"].html
     for key in ("new_ev", "used_ev", "used_ice", "costs"):
         assert len(sections[key].html) <= MAX_MESSAGE_LENGTH
         for block in re.findall(r"<pre>(.*?)</pre>", sections[key].html, flags=re.S):

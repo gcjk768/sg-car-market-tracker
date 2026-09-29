@@ -14,7 +14,7 @@ def test_sample_dry_run_exits_zero(tmp_config, capsys):
     assert main.main(["--sample", "--dry-run", "--config", str(tmp_config)]) == 0
     out = capsys.readouterr().out
     assert "SAMPLE DATA" in out
-    assert "considerations" in out
+    assert "considerations" not in out
 
 
 def test_pipeline_dry_run_marks_missing_sections(tmp_config, capsys, monkeypatch):
@@ -27,7 +27,7 @@ def test_full_pipeline_offline_produces_every_section(tmp_config, capsys, monkey
     _offline(monkeypatch)
     assert main.main(["--dry-run", "--config", str(tmp_config)]) == 0
     out = capsys.readouterr().out
-    for key in ("summary", "coe", "new_ev", "used_ev", "used_ice", "costs", "considerations"):
+    for key in ("summary", "coe", "new_ev", "used_ev", "used_ice", "costs"):
         assert key in out
     assert "Unavailable today" in out
 
