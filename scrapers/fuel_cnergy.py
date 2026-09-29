@@ -66,7 +66,7 @@ def parse_cnergy_prices(html: str) -> dict[str, dict[str, float]]:
     # Text fallback: scan sentences that mention a grade and a price.
     tree = HTMLParser(html)
     text = text_of(tree.body) if tree.body else clean(html)
-    for sentence in re.split(r"(?<!\d)\.(?!\d)|\n|\|", text):
+    for sentence in re.split(r"\.(?!\d)|\n|\|", text):
         grade = _grade_of(sentence)
         if not grade:
             continue
