@@ -63,3 +63,13 @@ def test_tags():
     assert tag_for(steady, today) == ""
     # A since date earlier than first_seen marks it NEW even if not seen today.
     assert tag_for(steady, date(2026, 9, 15)) == "NEW"
+
+
+def test_negated_accident_wording_is_not_excluded(cfg):
+    from filters import strip_negated
+
+    assert reject_reason(make(description="Accident free, agent maintained"), cfg, TODAY) is None
+    assert reject_reason(make(description="No accident history, one owner"), cfg, TODAY) is None
+    assert reject_reason(make(description="Never been in an accident"), cfg, TODAY) is None
+    assert reject_reason(make(description="Minor accident repaired"), cfg, TODAY) == "excluded keyword: accident"
+    assert "accident" not in strip_negated("non-accident car with accident-free record")

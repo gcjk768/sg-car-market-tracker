@@ -1,0 +1,18 @@
+services:
+  sg-car-scraper:
+    build: .
+    container_name: sg-car-scraper
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: Asia/Singapore
+      # 1 sends a report as soon as the container starts, useful for the first test.
+      RUN_ON_START: "1"
+      # 1 also answers /run, /coe and /filters in Telegram.
+      RUN_LISTENER: "1"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config.yaml:/app/config.yaml:ro
+    # Chromium needs a bit of shared memory.
+    shm_size: "512m"

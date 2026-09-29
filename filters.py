@@ -1,12 +1,25 @@
 """Filtering, ranking and tagging of used listings. All thresholds come from config.yaml."""
 from __future__ import annotations
 
+import re
 from collections import Counter
 from datetime import date
 from typing import Any, Iterable, Sequence
 
 from models import Drivetrain, UsedListing
 from telegram_bot import fmt_delta
+
+
+# "accident free", "no accidents", "non accident" and "never in an accident" are reassurances,
+# not warnings. They are removed before the exclusion keywords are checked.
+_NEGATED = re.compile(
+    r"\b(?:no|non|zero|without|never (?:been )?in an?|never had an?)[\s-]*accidents?\b|\baccidents?[\s-]*free\b",
+    re.I,
+)
+
+
+def strip_negated(text: str) -> str:
+    return _NEGATED.sub(" ", text or "")
 
 
 def _age_years(listing: UsedListing, today: date) -> float | None:
@@ -38,7 +51,7 @@ def reject_reason(listing: UsedListing, cfg: dict[str, Any], today: date) -> str
         return "missing COE"
     if listing.coe_years_remaining < f["min_coe_years_remaining"]:
         return "COE too short"
-    haystack = (listing.description + " " + " ".join(listing.flags)).lower()
+    haystack = strip_negated(listing.description + " " + " ".join(listing.flags)).lower()
     for word in f["exclude_keywords"]:
         if word.lower() in haystack:
             return f"excluded keyword: {word}"

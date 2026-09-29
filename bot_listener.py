@@ -54,7 +54,7 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     cfg = load_config()
     secrets = load_secrets()
-    client = TelegramClient(secrets["telegram_bot_token"], secrets["telegram_chat_id"])
+    client = TelegramClient(secrets["telegram_bot_token"], secrets["telegram_chat_id"], api_base=secrets.get("telegram_api_base"))
     chat_id = str(secrets["telegram_chat_id"])
     offset = None
     log.info("listening for /run, /coe and /filters")

@@ -128,6 +128,43 @@ entries after 7 days without use, so if the schedule stops for more than a week 
 NEW and DROP tags starts again from empty. Daily runs keep it warm. If you want a permanent
 record, add a step that uploads `data/cars.db` as an artifact or commits it to a separate branch.
 
+## Deploy on a NAS with Docker
+
+The image is built on the official Playwright image, so Chromium and its libraries come
+ready. The container runs `scheduler.py`, which sends the report at `general.schedule_time`
+(08:00 Singapore time by default) and, with `RUN_LISTENER=1`, answers `/run`, `/coe` and
+`/filters`. No cron is needed on the NAS.
+
+1. Copy the project folder to the NAS (for example `/volume1/docker/sg-car-scraper` on a
+   Synology, or clone it there with git).
+2. Create `.env` next to `docker-compose.yml` with `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+   and `SCRAPER_CONTACT`.
+3. Build and start:
+
+   ```bash
+   docker compose up -d --build
+   docker compose logs -f
+   ```
+
+   `RUN_ON_START=1` in `docker-compose.yml` makes the container send a report straight away,
+   so the first start doubles as the delivery test. Set it to `0` afterwards if you do not
+   want a report on every restart.
+4. `data/` (database and page cache) and `logs/` are mounted from the host, so they survive
+   image rebuilds. `config.yaml` is mounted read only; edit it on the host and restart the
+   container to pick up changes.
+
+Synology Container Manager: create a project from the folder, it reads `docker-compose.yml`.
+QNAP Container Station: use "Create application" and paste the compose file. Portainer works
+the same way with a stack. The image is around 2 GB because of Chromium; the container needs
+about 1 GB of RAM while a page renders.
+
+To send a one off report or a dry run from inside the running container:
+
+```bash
+docker compose exec sg-car-scraper python main.py --dry-run
+docker compose exec sg-car-scraper python main.py --force
+```
+
 ## Run the tests
 
 ```bash
@@ -136,7 +173,12 @@ uv run pytest
 
 The suite covers every parser against a fixture in `fixtures/`, every filter, every cost
 formula with known inputs, the next tender date calculation, the Telegram formatter (length
-limit, table width, link numbering, balanced `<pre>` blocks) and the database upserts.
+limit, table width, link numbering, balanced `<pre>` blocks), the database upserts, change
+detection and the scheduler. `tests/test_e2e.py` runs the whole program end to end: a local
+web server serves the fixture pages under each site's URL patterns, Chromium renders the
+Carro pages, and a local mock of the Telegram Bot API receives the messages, which are then
+checked for size, balanced tags and numbered links. The same run proves the same day rerun is
+idempotent and that `--force` resends.
 
 ## Changing filters and cost assumptions
 

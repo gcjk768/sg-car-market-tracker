@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import random
 import time
 import urllib.robotparser
@@ -178,8 +179,12 @@ class BaseScraper(ABC):
 
         BaseScraper._throttle.wait(urlsplit(url).netloc)
         log.info("RENDER %s", url)
+        launch_kwargs = {"headless": True}
+        executable = os.getenv("CHROMIUM_EXECUTABLE_PATH")
+        if executable:
+            launch_kwargs["executable_path"] = executable
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(**launch_kwargs)
             try:
                 page = browser.new_page(user_agent=self.user_agent)
                 page.goto(url, timeout=self.timeout * 1000, wait_until="domcontentloaded")

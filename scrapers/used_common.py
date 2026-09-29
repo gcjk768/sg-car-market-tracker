@@ -202,7 +202,9 @@ class UsedScraperBase(BaseScraper):
         seller_text = (self._label(values, "seller") or "").lower()
         seller = "direct owner" if any(w in seller_text for w in ("direct", "owner", "private")) else ("dealer" if seller_text else None)
         description = self._label(values, "description") or ""
-        flags = contains_any(page_text, self.flag_keywords)
+        from filters import strip_negated
+
+        flags = contains_any(strip_negated(page_text), self.flag_keywords)
         battery = self._label(values, "battery") if drivetrain == Drivetrain.ev else None
 
         return UsedListing(

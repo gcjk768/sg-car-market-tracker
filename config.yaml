@@ -4,6 +4,8 @@
 
 general:
   timezone: Asia/Singapore
+  # Local time at which scheduler.py (the Docker entry point) runs the daily report.
+  schedule_time: "08:00"
   # The contact note is appended to the User Agent so site owners can reach you.
   user_agent: "sg-car-scraper/0.1 (personal car shopping research; contact: {contact})"
   # Minimum seconds between requests to the same domain, plus random jitter on top.

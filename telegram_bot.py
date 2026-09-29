@@ -164,10 +164,11 @@ class TelegramError(Exception):
 class TelegramClient:
     """Thin Bot API client. Only sendMessage is needed for the report."""
 
-    def __init__(self, token: str, chat_id: str, parse_mode: str = "HTML", disable_preview: bool = True, timeout: float = 30):
+    def __init__(self, token: str, chat_id: str, parse_mode: str = "HTML", disable_preview: bool = True, timeout: float = 30, api_base: str | None = None):
         if not token or not chat_id:
             raise TelegramError("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set")
-        self.base = f"https://api.telegram.org/bot{token}"
+        api_base = (api_base or "https://api.telegram.org").rstrip("/")
+        self.base = f"{api_base}/bot{token}"
         self.chat_id = chat_id
         self.parse_mode = parse_mode
         self.disable_preview = disable_preview

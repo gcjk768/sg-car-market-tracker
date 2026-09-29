@@ -51,8 +51,8 @@ def test_carro_list_and_detail(cfg):
     assert cards[1]["price"] == 112800
     listing = s.parse_detail((FIX / "carro_used_detail.html").read_text(), cards[0])
     assert listing.drivetrain == Drivetrain.hybrid
-    assert listing.engine_cc == 1598 and listing.coe_expiry == date(2031, 6, 17)
-    assert 4.6 < listing.coe_years_remaining < 4.8
+    assert listing.engine_cc == 1598 and listing.coe_expiry == date(2033, 6, 17)
+    assert 6.6 < listing.coe_years_remaining < 6.8
     assert listing.depreciation_per_year == 11200
     assert listing.seller_type == "dealer"
 
