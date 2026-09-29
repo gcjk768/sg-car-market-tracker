@@ -14,7 +14,7 @@ from typing import Any, Iterable, Sequence
 from rich.console import Console
 from rich.panel import Panel
 
-from models import CostBreakdown, Financing, NewEvVariant, ReportSection, UsedListing
+from models import CostBreakdown, Financing, FuelPrice, NewEvVariant, ReportSection, UsedListing
 from telegram_bot import (
     Column,
     build_section,
@@ -34,6 +34,7 @@ SECTION_TITLES = {
     "new_ev": "New EV Car Best Value list",
     "used_ev": "Used EV Car Best Value list",
     "used_ice": "Used Petrol Car Best Value list",
+    "fuel": "Pump prices",
     "costs": "Cost of ownership, top 3",
     "considerations": "Buying considerations",
 }
@@ -268,6 +269,25 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
     )
 
 
+# Pump prices
+
+
+def fuel_section(fuel: FuelPrice, preferred_station: str | None = None, max_width: int = 60) -> ReportSection:
+    """One row per station: listed price per grade. The preferred station's own board comes
+    first, then the comparison site's brands, cheapest 95 first."""
+    grades = ("92", "95", "98", "Diesel")
+    cols = [Column("Station", 9)] + [Column(g, 6, "right") for g in grades]
+    rows = []
+    if preferred_station and fuel.station_prices:
+        rows.append([preferred_station] + [
+            f"{fuel.station_prices[g]['public']:.2f}" if fuel.station_prices.get(g, {}).get("public") else "n/a" for g in grades])
+    for brand, by_grade in sorted(fuel.grades.items(), key=lambda t: t[1].get("95", 99)):
+        rows.append([brand] + [f"{by_grade[g]:.2f}" if g in by_grade else "n/a" for g in grades])
+    intro = f"Listed before card or loyalty discounts, per litre, {fuel.observed_on.strftime('%d %b %Y')}."
+    title = SECTION_TITLES["fuel"]
+    return ReportSection(key="fuel", title=title, html=build_section(title, [intro, pre_block(render_table(cols, rows, max_width))]))
+
+
 # Section 6: cost of ownership
 
 
@@ -445,6 +465,10 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         new_ev_section(new_evs, cfg=cfg, groups=new_ev_groups if cfg["new_ev"].get("group_by_body_type") else None),
         used_section("used_ev", used_ev, cfg=cfg),
         used_section("used_ice", used_ice, cfg=cfg),
+        fuel_section(FuelPrice(observed_on=run_date, ron95_per_litre=3.49, source="sample",
+                               station_prices={"95": {"public": 2.54}},
+                               grades={"SPC": {"92": 3.46, "95": 3.48, "98": 4.00, "Diesel": 3.97},
+                                       "Esso": {"92": 3.46, "95": 3.49, "98": 4.01, "Diesel": 4.07}}), "Cnergy"),
         costs_section(costs, cfg["costs"]["insurance"]["assumptions"].strip() + fuel_note, insurance_links,
                       financing=[_fin(cfg, new_evs[0].price_with_coe, None, True), _fin(cfg, used_ev[0][0].price, used_ev[0][0].omv, False), _fin(cfg, used_ice[0][0].price, used_ice[0][0].omv, False)]),
     ]

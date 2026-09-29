@@ -36,6 +36,37 @@ def parse_ron95_prices(html: str) -> dict[str, float]:
     return {}
 
 
+GRADES = ("92", "95", "98", "Premium", "Diesel")
+
+
+def parse_grade_board(html: str) -> dict[str, dict[str, float]]:
+    """{brand: {grade: price}} from a board with grades down the rows and brands across the
+    columns. Motorist shows the brands as logos, so the header text is the image alt text."""
+    from selectolax.parser import HTMLParser
+
+    for table in HTMLParser(html).css("table"):
+        rows = table.css("tr")
+        header = next((r for r in rows if "grade" in r.text().lower()), None)
+        if header is None:
+            continue
+        cells = header.css("th, td")
+        brands = [(c.css_first("img").attributes.get("alt") if c.css_first("img") else c.text()).strip() for c in cells]
+        board: dict[str, dict[str, float]] = {}
+        for row in rows:
+            tds = row.css("th, td")
+            label = tds[0].text().strip() if tds else ""
+            grade = next((g for g in GRADES if label.lower() == g.lower()), None)
+            if not grade:
+                continue
+            for brand, cell in zip(brands[1:], tds[1:]):
+                price = parse_number(cell.text())
+                if brand and price and 1.0 < price < 6.0:
+                    board.setdefault(brand, {})[grade] = price
+        if board:
+            return board
+    return {}
+
+
 def pick_price(prices: dict[str, float], pick: str, brand: str | None = None) -> float:
     values = sorted(prices.values())
     if pick == "brand" and brand:
@@ -54,7 +85,8 @@ class FuelPriceScraper(BaseScraper):
     name = "fuel"
 
     def parse(self, html: str) -> list[FuelPrice]:
-        prices = parse_ron95_prices(html)
+        board = parse_grade_board(html)
+        prices = {b: g["95"] for b, g in board.items() if "95" in g} or parse_ron95_prices(html)
         if not prices:
             raise ScraperUnavailable("no 95 octane table found")
         ice_cfg = self.cfg["costs"]["energy"]["ice"]
@@ -63,7 +95,7 @@ class FuelPriceScraper(BaseScraper):
         if missing:
             log.warning("fuel page is missing brands: %s", ", ".join(missing))
         value = pick_price(prices, ice_cfg.get("price_pick", "median"), ice_cfg.get("price_brand"))
-        return [FuelPrice(observed_on=self.run_date, ron95_per_litre=round(value, 2), by_brand=prices, source=self._source, scraped_at=datetime.now())]
+        return [FuelPrice(observed_on=self.run_date, ron95_per_litre=round(value, 2), by_brand=prices, grades=board, source=self._source, scraped_at=datetime.now())]
 
     def run(self) -> list[FuelPrice]:
         errors = []

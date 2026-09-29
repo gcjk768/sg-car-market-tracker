@@ -39,6 +39,7 @@ telegram:
     - new_ev
     - used_ev
     - used_ice
+    - fuel
     - costs
 
 ai:

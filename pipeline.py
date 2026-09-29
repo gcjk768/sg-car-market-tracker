@@ -39,7 +39,7 @@ SECTION_GROUPS = {
     "new": {"new_ev"},
     "used": {"used_ev", "used_ice"},
     "costs": {"costs", "new_ev", "used_ev", "used_ice", "coe"},
-    "all": {"summary", "coe", "new_ev", "used_ev", "used_ice", "costs", "considerations"},
+    "all": {"summary", "coe", "new_ev", "used_ev", "used_ice", "fuel", "costs", "considerations"},
 }
 
 
@@ -213,7 +213,7 @@ class Pipeline:
 
     def build(self, section: str = "all") -> list[ReportSection]:
         wanted = SECTION_GROUPS[section]
-        if wanted & {"costs", "used_ev", "used_ice"}:
+        if wanted & {"costs", "used_ev", "used_ice", "fuel"}:
             self.run_fuel()
         if "coe" in wanted or "summary" in wanted:
             self.run_coe()
@@ -274,6 +274,12 @@ class Pipeline:
                     failed = [v for k, v in self.unavailable.items() if k.startswith("used") and k.endswith(" " + group)]
                     reason = "no listing passed the filters" + (". Failed sources: " + "; ".join(failed) if failed else "")
                     sections.append(report.unavailable_section(key, reason))
+            elif key == "fuel":
+                fuel = self.db.latest_fuel_price()
+                if fuel and (fuel.grades or fuel.station_prices):
+                    sections.append(report.fuel_section(fuel, self.cfg["costs"]["energy"]["ice"].get("preferred_station")))
+                else:
+                    sections.append(report.unavailable_section("fuel", "pump price board could not be read"))
             elif key == "costs":
                 if picks:
                     assumptions = self.cfg["costs"]["insurance"]["assumptions"].strip()

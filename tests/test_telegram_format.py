@@ -52,8 +52,8 @@ def test_link_list_numbers_match_rows():
 
 
 def test_fmt_delta_arrows():
-    assert fmt_delta(2500, 2.5) == "▲2,500 (2.5%)"
-    assert fmt_delta(-1500, -1.2) == "▼1,500 (1.2%)"
+    assert fmt_delta(2500, 2.5) == "▲2,500 (2.50%)"
+    assert fmt_delta(-1500, -1.2) == "▼1,500 (1.20%)"
     assert fmt_delta(0) == "•0"
     assert fmt_delta(None) == "n/a"
 

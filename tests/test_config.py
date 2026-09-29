@@ -7,7 +7,7 @@ def test_config_has_required_sections(cfg):
 
 
 def test_section_order_matches_known_keys(cfg):
-    assert cfg["telegram"]["section_order"] == ["summary", "coe", "new_ev", "used_ev", "used_ice", "costs"]
+    assert cfg["telegram"]["section_order"] == ["summary", "coe", "new_ev", "used_ev", "used_ice", "fuel", "costs"]
 
 
 def test_used_filters_are_sane(cfg):

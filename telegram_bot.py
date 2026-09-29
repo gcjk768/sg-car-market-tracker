@@ -59,7 +59,7 @@ def fmt_delta(value: float | int | None, pct: float | None = None) -> str:
     arrow = "▲" if value > 0 else ("▼" if value < 0 else "•")
     text = f"{arrow}{abs(int(round(value))):,}"
     if pct is not None:
-        text += f" ({abs(pct):.1f}%)"
+        text += f" ({abs(pct):.2f}%)"
     return text
 
 

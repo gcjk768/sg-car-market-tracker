@@ -125,6 +125,11 @@ class Database:
         self.conn = sqlite3.connect(self.path)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        # Columns added after the first release. CREATE TABLE IF NOT EXISTS skips existing tables.
+        try:
+            self.conn.execute("ALTER TABLE fuel_prices ADD COLUMN grades TEXT NOT NULL DEFAULT '{}'")
+        except sqlite3.OperationalError:
+            pass  # already there
 
     def close(self) -> None:
         self.conn.close()
@@ -366,8 +371,8 @@ class Database:
     def upsert_fuel_price(self, fp: FuelPrice) -> None:
         with self.tx() as c:
             c.execute(
-                "INSERT OR REPLACE INTO fuel_prices (observed_on, ron95_per_litre, by_brand, station_prices, source, scraped_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (fp.observed_on.isoformat(), fp.ron95_per_litre, json.dumps(fp.by_brand), json.dumps(fp.station_prices), fp.source, fp.scraped_at.isoformat(timespec="seconds")),
+                "INSERT OR REPLACE INTO fuel_prices (observed_on, ron95_per_litre, by_brand, station_prices, grades, source, scraped_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (fp.observed_on.isoformat(), fp.ron95_per_litre, json.dumps(fp.by_brand), json.dumps(fp.station_prices), json.dumps(fp.grades), fp.source, fp.scraped_at.isoformat(timespec="seconds")),
             )
 
     def latest_fuel_price(self) -> Optional[FuelPrice]:
@@ -377,4 +382,5 @@ class Database:
         d = dict(row)
         d["by_brand"] = json.loads(d.get("by_brand") or "{}")
         d["station_prices"] = json.loads(d.get("station_prices") or "{}")
+        d["grades"] = json.loads(d.get("grades") or "{}")
         return FuelPrice(**d)

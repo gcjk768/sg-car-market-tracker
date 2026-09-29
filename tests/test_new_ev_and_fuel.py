@@ -143,3 +143,22 @@ def test_pick_price_by_brand(cfg):
     assert pick_price(prices, "brand", "Cnergy") == 2.54
     assert pick_price(prices, "brand", "Nowhere") == 3.46   # falls back to the median
     assert pick_price(prices, "min") == 2.54
+
+
+def test_motorist_live_fuel_board_and_section():
+    # Saved 2026-09-29: grades down the rows, brands across as logos.
+    from datetime import date
+    from pathlib import Path
+
+    from models import FuelPrice
+    from report import fuel_section
+    from scrapers.fuel_price import parse_grade_board
+
+    html = (Path(__file__).resolve().parent.parent / "fixtures" / "motorist_fuel_live.html").read_text(encoding="utf-8")
+    board = parse_grade_board(html)
+    assert board["Esso"] == {"92": 3.46, "95": 3.49, "98": 4.01, "Diesel": 4.07}
+    assert set(board) == {"Esso", "Shell", "SPC", "Caltex", "Sinopec"}
+    fp = FuelPrice(observed_on=date(2026, 9, 29), ron95_per_litre=3.49, grades=board, source="t",
+                   station_prices={"95": {"public": 2.54}})
+    html = fuel_section(fp, "Cnergy").html
+    assert "Cnergy       n/a   2.54" in html and "Shell        n/a   3.49" in html
