@@ -165,6 +165,26 @@ docker compose exec sg-car-scraper python main.py --dry-run
 docker compose exec sg-car-scraper python main.py --force
 ```
 
+## Optional AI help through the Claude Code CLI
+
+The app does not need a model. Every field comes from page labels and every figure is
+arithmetic from `config.yaml`. The `ai` block turns on three optional helpers that call the
+Claude Code CLI in print mode (`claude -p`), which runs on your Claude subscription through a
+token from `claude setup-token`, or on an API key:
+
+* When a listing page loses the fields named in `ai.fallback_when_missing`, the page text is
+  sent to the model and the JSON it returns fills the gaps. This is the layout change safety
+  net: the report keeps working while you refresh the fixture and fix the parser.
+* The same pass catches accident, as is, no warranty, scrap or export wording that the keyword
+  list missed, and it knows that "accident free" is not a warning.
+* `ai.analyst_note: true` adds three plain sentences to the summary section.
+
+Set `ai.enabled: true`, make sure the `claude` command is on the path (in Docker, build with
+`WITH_CLAUDE=1`), and put `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in `.env`. Calls are
+capped per run by `ai.max_calls_per_run`, input is trimmed to `ai.max_input_chars`, and every
+call runs with `--max-turns 1` and no tools. The run log reports which fields the model
+filled. If the CLI is missing or fails, the pipeline carries on without it.
+
 ## Run the tests
 
 ```bash

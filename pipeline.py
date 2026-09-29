@@ -12,6 +12,7 @@ from typing import Any, Optional
 
 import costs
 import report
+from ai import ClaudeCli, analyst_note
 from db import Database
 from filters import shortlist, tagged
 from models import CoeResult, CostBreakdown, Drivetrain, NewEvVariant, ReportSection, UsedListing
@@ -61,6 +62,7 @@ class Pipeline:
         self.rejections: dict[str, int] = {}
         self.financing: list = []
         self.new_ev_groups = None
+        self.ai = ClaudeCli(cfg)
 
     # Steps
 
@@ -101,7 +103,7 @@ class Pipeline:
         for name, cls in USED_SCRAPERS.items():
             ok = True
             for group in ("ev", "ice"):
-                scraper = cls(self.cfg, self.ua, self.run_date, self.force, group=group)
+                scraper = cls(self.cfg, self.ua, self.run_date, self.force, group=group, ai=self.ai)
                 try:
                     listings = scraper.run()
                     stats = self.db.upsert_used_listings(listings, self.run_date)
@@ -236,6 +238,16 @@ class Pipeline:
                 )
                 if self.change_reasons:
                     summary.html += "\n\nSince the last report: " + report.escape("; ".join(self.change_reasons)) + "."
+                if self.cfg.get("ai", {}).get("analyst_note") and self.ai.available():
+                    facts = {
+                        "coe": {r.category.value: r.quota_premium for r in self.coe_latest},
+                        "picks": [{"label": b.label, "annual_low": b.total_low, "annual_high": b.total_high} for b, _ in picks],
+                        "changes": self.change_reasons,
+                        "new": self.stats["new"], "drops": self.stats["drops"], "gone": self.stats["gone"],
+                    }
+                    note = analyst_note(self.ai, facts)
+                    if note:
+                        summary.html += "\n\n<i>" + report.escape(note) + "</i>"
                 sections.append(summary)
             elif key == "coe":
                 sections.append(self.coe_section())

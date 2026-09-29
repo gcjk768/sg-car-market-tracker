@@ -43,6 +43,9 @@ KNOWN_MAKES = [
 ]
 _MAKES_LOWER = sorted(((m.lower(), m) for m in KNOWN_MAKES), key=lambda t: -len(t[0]))
 
+_INT_FIELDS = {"price", "depreciation_per_year", "mileage_km", "owners", "omv", "arf", "dereg_value", "engine_cc"}
+_FLOAT_FIELDS = {"power_kw", "coe_years_remaining"}
+
 EV_WORDS = ("electric", " ev", "(ev)", "bev", "kwh")
 HYBRID_WORDS = ("hybrid", "phev", "plug-in", "e:hev", "e-power", "mild hybrid")
 
@@ -109,8 +112,9 @@ class UsedScraperBase(BaseScraper):
         "description": ("description", "features", "remarks", "accessories", "vehicle description"),
     }
 
-    def __init__(self, cfg: dict[str, Any], user_agent: str, run_date: date | None = None, force: bool = False, group: str = "ev"):
+    def __init__(self, cfg: dict[str, Any], user_agent: str, run_date: date | None = None, force: bool = False, group: str = "ev", ai=None):
         super().__init__(cfg, user_agent, run_date, force)
+        self.ai = ai
         self.group = group
         self.default_drivetrain = Drivetrain.ev if group == "ev" else Drivetrain.ice
         used_cfg = cfg["used"]
@@ -207,7 +211,7 @@ class UsedScraperBase(BaseScraper):
         flags = contains_any(strip_negated(page_text), self.flag_keywords)
         battery = self._label(values, "battery") if drivetrain == Drivetrain.ev else None
 
-        return UsedListing(
+        listing = UsedListing(
             source=self.name,
             listing_id=card["listing_id"],
             url=card["url"],
@@ -233,6 +237,47 @@ class UsedScraperBase(BaseScraper):
             flags=flags,
             description=description[:2000],
         )
+        return self._ai_fill(listing, page_text)
+
+    def _ai_fill(self, listing: UsedListing, page_text: str) -> UsedListing:
+        """When enabled, ask the Claude CLI for the fields the label parser missed."""
+        if self.ai is None or not self.ai.available():
+            return listing
+        wanted = self.cfg.get("ai", {}).get("fallback_when_missing", [])
+        if not any(getattr(listing, f, None) in (None, 0) for f in wanted):
+            return listing
+        from ai import extract_listing_fields
+
+        found = extract_listing_fields(self.ai, page_text)
+        if not found:
+            return listing
+        log.info("%s %s: ai filled %s", self.name, listing.listing_id, ", ".join(sorted(found)))
+        for key, value in found.items():
+            if key == "fuel_type":
+                listing.drivetrain = detect_drivetrain(str(value), listing.drivetrain)
+            elif key == "flags":
+                listing.flags = list(dict.fromkeys(listing.flags + [str(v) for v in value]))
+            elif key in ("reg_date", "coe_expiry"):
+                if getattr(listing, key) is None:
+                    parsed = parse_date(str(value))
+                    if parsed:
+                        setattr(listing, key, parsed)
+            elif hasattr(listing, key) and getattr(listing, key) in (None, 0, ""):
+                try:
+                    if key in _INT_FIELDS:
+                        value = int(round(float(str(value).replace(",", ""))))
+                    elif key in _FLOAT_FIELDS:
+                        value = float(str(value).replace(",", ""))
+                    else:
+                        value = str(value)
+                except (TypeError, ValueError):
+                    continue
+                setattr(listing, key, value)
+        if listing.coe_expiry and listing.coe_years_remaining is None:
+            listing.coe_years_remaining = round((listing.coe_expiry - self.run_date).days / 365.25, 2)
+        if listing.reg_date and listing.year is None:
+            listing.year = listing.reg_date.year
+        return listing
 
     # Orchestration
 

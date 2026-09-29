@@ -8,6 +8,18 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# Optional: the Claude Code CLI for the ai section of config.yaml. Build with
+#   docker compose build --build-arg WITH_CLAUDE=1
+# and put CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`) or ANTHROPIC_API_KEY in .env.
+ARG WITH_CLAUDE=0
+RUN if [ "$WITH_CLAUDE" = "1" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+      && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+      && apt-get install -y --no-install-recommends nodejs \
+      && npm install -g @anthropic-ai/claude-code \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 

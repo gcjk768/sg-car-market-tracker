@@ -42,6 +42,25 @@ telegram:
     - costs
     - considerations
 
+ai:
+  # Optional help from the Claude Code CLI in print mode (claude -p). Off by default because
+  # the pipeline does not need it. Turn it on when a site changes layout and the label based
+  # parsers start missing fields, or if you want a short analyst note on the summary.
+  enabled: false
+  command: claude
+  # Model alias or id passed to the CLI. Leave null for the CLI default.
+  model: null
+  timeout_seconds: 120
+  max_input_chars: 12000
+  # Hard cap on CLI calls per run so a broken parser cannot run up a bill.
+  max_calls_per_run: 20
+  # Use the model to read a listing only when the label parser missed these fields.
+  fallback_when_missing: [price, mileage_km, coe_years_remaining]
+  # Three sentence note on the summary section.
+  analyst_note: false
+  # Extra CLI flags, for example ["--permission-mode", "plan"].
+  extra_args: []
+
 sources:
   # Verify each URL before first use. Note any moves in the README.
   sgcarmart_new_cars: "https://www.sgcarmart.com/new_cars/"
