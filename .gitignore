@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/cars.db
+data/cars.db-journal
+data/cache/
+logs/*.log
+.playwright/

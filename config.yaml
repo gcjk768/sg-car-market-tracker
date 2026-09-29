@@ -1,0 +1,238 @@
+# Singapore car market scraper configuration.
+# Every filter, formula and assumption lives here so it can be changed without touching code.
+# Each block with a verified_on field records the last date its values were checked against the source.
+
+general:
+  timezone: Asia/Singapore
+  # The contact note is appended to the User Agent so site owners can reach you.
+  user_agent: "sg-car-scraper/0.1 (personal car shopping research; contact: {contact})"
+  # Minimum seconds between requests to the same domain, plus random jitter on top.
+  throttle_seconds: 2.0
+  throttle_jitter_seconds: 1.5
+  request_timeout_seconds: 30
+  max_retries: 3
+  cache_dir: data/cache
+  db_path: data/cars.db
+  log_dir: logs
+  honour_robots_txt: true
+
+telegram:
+  max_message_length: 4096
+  # Character width of each fixed width table. Sixty reads well on a phone in portrait.
+  table_width: 60
+  parse_mode: HTML
+  disable_web_page_preview: true
+  # Order of sections sent, one Telegram message per section.
+  section_order:
+    - summary
+    - coe
+    - new_ev
+    - used_ev
+    - used_ice
+    - costs
+    - considerations
+
+sources:
+  # Verify each URL before first use. Note any moves in the README.
+  sgcarmart_new_cars: "https://www.sgcarmart.com/new_cars/"
+  sgcarmart_used_listing: "https://www.sgcarmart.com/used_cars/listing.php"
+  sgcarmart_coe_results: "https://www.sgcarmart.com/news/coe_results.php"
+  onemotoring_coe: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/coe-open-bidding.html"
+  carro_buy: "https://carro.sg/buy"
+  motorist_used: "https://www.motorist.sg/used-cars"
+  fuel_price: "https://www.motorist.sg/fuel-prices"
+  brand_pages:
+    BYD: "https://www.byd.com/sg"
+    Tesla: "https://www.tesla.com/en_sg"
+    Xpeng: "https://www.xpeng.com/sg"
+    Zeekr: "https://www.zeekr.sg"
+    MG: "https://www.mg.com.sg"
+    GAC Aion: "https://www.aion.sg"
+    Deepal: "https://www.deepal.sg"
+    Hyundai: "https://www.hyundai.com/sg"
+    Kia: "https://www.kia.com/sg"
+    Polestar: "https://www.polestar.com/sg"
+  insurance_comparison:
+    - name: MoneySmart car insurance
+      url: "https://www.moneysmart.sg/car-insurance"
+    - name: Singsaver car insurance
+      url: "https://www.singsaver.com.sg/car-insurance"
+
+coe:
+  # Categories shown in the report. Cat D is stored but hidden.
+  display_categories: [A, B, C, E]
+  store_categories: [A, B, C, D, E]
+  trend_window: 6
+  # Bidding opens on the first and third Monday of each month and results are out on the Wednesday.
+  tender_weeks_of_month: [1, 3]
+  results_weekday: 2   # Monday is 0
+  # Cat A power ceiling for electric cars in kW. Above this is Cat B. Verify against LTA.
+  cat_a_max_power_kw: 110
+  cat_a_max_engine_cc: 1600
+  cat_a_max_engine_power_kw: 97
+  verified_on: null
+
+new_ev:
+  top_n: 10
+  # Score is price with COE divided by claimed range. Lower is better.
+  score:
+    numerator: price_with_coe
+    denominator: range_km
+    tiebreak: battery_warranty_years_desc
+  always_include:
+    - BYD Seal
+    - BYD Atto 3
+    - Tesla Model 3
+    - Tesla Model Y
+    - Xpeng G6
+    - Zeekr X
+    - MG4
+    - Aion Y Plus
+    - Deepal S07
+
+used:
+  top_n: 8
+  filters:
+    price_ceiling_sgd: 120000
+    max_km_per_year_of_age: 15000
+    max_owners: 2
+    min_coe_years_remaining: 6.0
+    max_age_years:
+      ev: 6
+      ice: 8
+      hybrid: 8
+    require_mileage: true
+    exclude_keywords:
+      - accident
+      - "as is"
+      - "as-is"
+      - "no warranty"
+      - scrap
+      - export
+      - salvage
+      - flood
+    bonus_keywords:
+      - "full service history"
+      - "agent maintained"
+      - "agent serviced"
+      - "authorised dealer serviced"
+    bonus_score: 0.05   # fraction of depreciation deducted when a bonus keyword is present
+  ranking:
+    - depreciation_per_year_asc
+    - mileage_km_asc
+  searches:
+    ev:
+      fuel_types: [electric]
+    ice:
+      fuel_types: [petrol, hybrid, petrol-electric]
+
+costs:
+  verified_on: null
+  notes: >
+    Seeded from LTA and IRAS rules as understood on the seed date. Each formula must be checked
+    against the current LTA road tax page and the LTA ARF and PARF pages before relying on it.
+  annual_km: 15000
+  road_tax:
+    # Multiplier that applies to the petrol formula. LTA publishes the formula with this factor.
+    petrol_factor: 0.782
+    ev_factor: 0.782
+    # Additional Flat Component for electric cars, SGD per year.
+    ev_additional_flat_component: 700
+    # Bands are [upper_bound_of_band, base_amount, rate_per_unit_above_previous_bound].
+    # For EVs the unit is kW of maximum power rating. The last band has no upper bound.
+    ev_power_bands:
+      - {up_to: 7.5, base: 200, rate: 0}
+      - {up_to: 30, base: 200, rate: 2.0}
+      - {up_to: 90, base: 250, rate: 3.75}
+      - {up_to: 230, base: 475, rate: 7.5}
+      - {up_to: null, base: 1525, rate: 10.0}
+    # For petrol cars the unit is cc of engine capacity.
+    petrol_cc_bands:
+      - {up_to: 600, base: 400, rate: 0}
+      - {up_to: 1000, base: 400, rate: 0.25}
+      - {up_to: 1600, base: 500, rate: 0.75}
+      - {up_to: 3000, base: 950, rate: 1.5}
+      - {up_to: null, base: 3050, rate: 2.0}
+    # Petrol electric cars: LTA charges the higher of the engine capacity formula and the power
+    # rating formula, without the EV additional flat component. Verify.
+    hybrid_rule: max_of_engine_and_power
+  insurance:
+    assumptions: >
+      Driver with 10 years of experience, clean record, 50 percent no claim discount,
+      comprehensive cover, private use. Figures are indicative annual premiums in SGD.
+    bands:
+      # price_up_to is the car price with COE. Drivetrain keys: ev, ice, hybrid.
+      - {price_up_to: 80000, ev: [1400, 2200], ice: [1000, 1600], hybrid: [1100, 1800]}
+      - {price_up_to: 120000, ev: [1800, 2800], ice: [1300, 2100], hybrid: [1400, 2300]}
+      - {price_up_to: 180000, ev: [2300, 3600], ice: [1700, 2800], hybrid: [1900, 3000]}
+      - {price_up_to: null, ev: [3000, 4800], ice: [2300, 3800], hybrid: [2500, 4000]}
+  depreciation:
+    new_car_horizon_years: 10
+    # PARF rebate as a percentage of ARF by age at deregistration.
+    parf_percent_by_age:
+      - {age_under: 5, percent: 75}
+      - {age_under: 6, percent: 70}
+      - {age_under: 7, percent: 65}
+      - {age_under: 8, percent: 60}
+      - {age_under: 9, percent: 55}
+      - {age_under: 10, percent: 50}
+    # Cap on the PARF rebate. Applies to cars registered with COEs obtained from the second
+    # bidding exercise of February 2023 onwards. Verify the cap and the effective date.
+    parf_cap_sgd: 60000
+    parf_cap_applies_from: "2023-02-22"
+    # ARF tiers as a percentage of OMV, used to estimate ARF when a listing does not show it.
+    arf_tiers:
+      - {omv_up_to: 20000, percent: 100}
+      - {omv_up_to: 40000, percent: 140}
+      - {omv_up_to: 60000, percent: 190}
+      - {omv_up_to: 80000, percent: 250}
+      - {omv_up_to: null, percent: 320}
+  energy:
+    ev:
+      kwh_per_100km: 16
+      home_price_per_kwh: 0.30
+      public_price_per_kwh: 0.60
+      home_share: 0.70
+    ice:
+      litres_per_100km: 8.0
+      fallback_petrol_95_price: 2.85
+    hybrid:
+      litres_per_100km: 5.5
+  fixed_extras:
+    servicing:
+      ev: 800
+      ice: 1200
+      hybrid: 1200
+    tyres: 300
+    season_parking: 1200
+    erp: 600
+
+buying_considerations:
+  verified_on: null
+  loan_rules: >
+    Maximum loan is 70 percent of the purchase price when OMV is 20,000 or less, and 60 percent
+    when OMV is above 20,000. Maximum tenure is 7 years. Verify against the current MAS rules.
+  arf_parf: >
+    ARF is the Additional Registration Fee paid when a car is first registered, tiered on OMV.
+    PARF is the rebate you get back if the car is deregistered before it turns 10, as a
+    percentage of ARF that falls with age. A higher ARF means more rebate at the end, which
+    supports resale value. Cars older than 10 years with a renewed COE have no PARF rebate.
+  ev_incentives:
+    - name: EV Early Adoption Incentive
+      detail: >
+        45 percent off ARF, capped at 15,000. Announced to end on 31 December 2025.
+        Verify whether it has been extended.
+      ends: "2025-12-31"
+    - name: Vehicular Emissions Scheme
+      detail: >
+        Band A1 rebate 25,000 and band A2 rebate 5,000 for cars registered in 2024 and 2025.
+        Verify the bands and amounts in force this year.
+      ends: null
+  policy_watch:
+    - "LTA announces the COE quota for each three month period. Watch for the quota announcement in the month before each period."
+    - "Road tax and ARF revisions are usually announced at the Budget in February and take effect within the year."
+  rule_of_thumb: >
+    When Cat A is above {cat_a_threshold} a used car with a long COE runway usually depreciates
+    less per year than a new one. Compare the per year figures in the cost table rather than
+    the sticker prices.
+  cat_a_threshold_sgd: 90000
