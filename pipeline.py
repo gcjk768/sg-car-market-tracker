@@ -104,6 +104,8 @@ class Pipeline:
         for name, cls in USED_SCRAPERS.items():
             ok = True
             for group in ("ev", "ice"):
+                if name not in self.cfg["used"]["searches"][group]["urls"]:
+                    continue  # source switched off in config.yaml
                 scraper = cls(self.cfg, self.ua, self.run_date, self.force, group=group, ai=self.ai)
                 try:
                     listings = scraper.run()

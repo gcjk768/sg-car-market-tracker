@@ -45,6 +45,8 @@ def test_sgcarmart_list_and_detail(cfg):
 
 
 def test_carro_list_and_detail(cfg):
+    # Carro is switched off in config.yaml; the parser is still tested on its fixture.
+    cfg["used"]["searches"]["ice"]["urls"]["carro"] = "https://carro.co/sg/en/buy?page={page}"
     s = CarroUsedScraper(cfg, "ua", RUN, group="ice")
     cards = s.parse((FIX / "carro_used_list.html").read_text())
     assert [c["listing_id"] for c in cards] == ["2201001", "2201002"]
