@@ -27,3 +27,5 @@ services:
     tty: true
     # Chromium needs a bit of shared memory.
     shm_size: "512m"
+    # Chromium plus one claude -p call. Caps a runaway page so the NAS keeps its RAM.
+    mem_limit: 1536m
