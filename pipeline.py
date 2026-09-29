@@ -264,7 +264,11 @@ class Pipeline:
                 if rows:
                     sections.append(report.used_section(key, rows, self.cfg["telegram"]["table_width"], cfg=self.cfg))
                 else:
-                    reason = "; ".join(v for k, v in self.unavailable.items() if k.startswith("used")) or "no listing passed the filters"
+                    # Only this group's failures, after the fact that nothing passed, so a working
+                    # source whose cars were all filtered out is not blamed on the broken ones.
+                    group = "ev" if key == "used_ev" else "ice"
+                    failed = [v for k, v in self.unavailable.items() if k.startswith("used") and k.endswith(" " + group)]
+                    reason = "no listing passed the filters" + (". Failed sources: " + "; ".join(failed) if failed else "")
                     sections.append(report.unavailable_section(key, reason))
             elif key == "costs":
                 if picks:

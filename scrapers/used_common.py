@@ -133,7 +133,7 @@ class UsedScraperBase(BaseScraper):
         tree = HTMLParser(html)
         cards: dict[str, dict[str, Any]] = {}
         for a in tree.css("a[href]"):
-            href = a.attributes.get("href", "")
+            href = a.attributes.get("href") or ""  # a bare <a href> gives None
             m = self.listing_href.search(href)
             if not m:
                 continue

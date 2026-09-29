@@ -79,7 +79,7 @@ class SgcarmartNewEvScraper(BaseScraper):
         tree = HTMLParser(html)
         models: dict[str, dict[str, str]] = {}
         for a in tree.css("a[href]"):
-            href = a.attributes.get("href", "")
+            href = a.attributes.get("href") or ""  # a bare <a href> gives None
             m = MODEL_HREF.search(href)
             if not m:
                 continue

@@ -68,3 +68,10 @@ def test_motorist_list_and_detail(cfg):
     assert listing.seller_type == "direct owner"
     assert listing.power_kw == 100
     assert "as is" in listing.flags and "no warranty" in listing.flags
+
+
+def test_bare_href_is_skipped_not_a_crash(cfg):
+    # Live Sgcarmart pages carry <a href> with no value, which selectolax returns as None.
+    html = "<a href>menu</a>" + (FIX / "sgcarmart_used_list.html").read_text()
+    s = SgcarmartUsedScraper(cfg, "ua", RUN, group="ev")
+    assert len(s.parse(html)) == 3

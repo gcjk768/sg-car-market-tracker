@@ -35,6 +35,8 @@ def setup_logging(log_dir: Path) -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         handlers=handlers,
+        # scheduler.py configures logging first; without force the file handler is never added.
+        force=True,
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
