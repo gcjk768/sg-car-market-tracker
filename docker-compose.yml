@@ -6,6 +6,8 @@ services:
         # 1 installs the Claude Code CLI for the optional ai features.
         WITH_CLAUDE: "1"
     container_name: sg-car-scraper
+    # Rebuild on every up, so Dockge Update picks up requirements.txt changes.
+    pull_policy: build
     restart: unless-stopped
     env_file: .env
     environment:
