@@ -38,6 +38,8 @@ def load_secrets() -> dict[str, str | None]:
     return {
         "telegram_bot_token": os.getenv("TELEGRAM_BOT_TOKEN"),
         "telegram_chat_id": os.getenv("TELEGRAM_CHAT_ID"),
+        # Forum topic inside a supergroup. Leave unset for a private chat or a plain group.
+        "telegram_thread_id": os.getenv("TELEGRAM_THREAD_ID") or None,
         # Only for tests and local mocks. Leave unset to talk to api.telegram.org.
         "telegram_api_base": os.getenv("TELEGRAM_API_BASE"),
         "scraper_contact": os.getenv("SCRAPER_CONTACT", "no contact set"),

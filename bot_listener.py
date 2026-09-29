@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from datetime import date
 
 from db import Database
@@ -54,22 +55,30 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     cfg = load_config()
     secrets = load_secrets()
-    client = TelegramClient(secrets["telegram_bot_token"], secrets["telegram_chat_id"], api_base=secrets.get("telegram_api_base"))
+    client = TelegramClient(
+        secrets["telegram_bot_token"], secrets["telegram_chat_id"],
+        api_base=secrets.get("telegram_api_base"), thread_id=secrets.get("telegram_thread_id"),
+    )
     chat_id = str(secrets["telegram_chat_id"])
     offset = None
     log.info("listening for /run, /coe and /filters")
     while True:
         try:
-            updates = client.get_updates(offset=offset, timeout=30)
+            # Long poll shorter than the 30 s HTTP timeout, or every idle poll ends in a ReadTimeout.
+            updates = client.get_updates(offset=offset, timeout=20)
         except KeyboardInterrupt:
             return 0
         except Exception as exc:
+            # A persistent error (409 conflict, network down) would otherwise spin this loop.
             log.warning("getUpdates failed: %s", exc)
+            time.sleep(10)
             continue
         for u in updates:
             offset = u["update_id"] + 1
             msg = u.get("message") or {}
             if str(msg.get("chat", {}).get("id")) != chat_id:
+                continue
+            if client.thread_id and msg.get("message_thread_id") != client.thread_id:
                 continue
             text = (msg.get("text") or "").strip().split("@")[0].lower()
             if text in ("/run", "/coe", "/filters"):

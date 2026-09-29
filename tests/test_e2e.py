@@ -136,6 +136,7 @@ def e2e_config(tmp_path, cfg, server, monkeypatch):
         monkeypatch.setattr(CarroUsedScraper, "needs_js", False)
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:TEST")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "42")
+    monkeypatch.setenv("TELEGRAM_THREAD_ID", "7")
     monkeypatch.setenv("TELEGRAM_API_BASE", server)
     Handler.sent.clear()
     return path
@@ -146,7 +147,7 @@ def test_full_run_sends_every_section_to_the_mock_bot_api(e2e_config, capsys):
     texts = [m["text"] for m in Handler.sent]
     assert len(texts) >= 7
     assert all(len(t) <= MAX_MESSAGE_LENGTH for t in texts)
-    assert all(m["chat_id"] == "42" and m["parse_mode"] == "HTML" for m in Handler.sent)
+    assert all(m["chat_id"] == "42" and m["message_thread_id"] == 7 and m["parse_mode"] == "HTML" for m in Handler.sent)
     joined = "\n".join(texts)
     for title in ("SG car market daily", "COE tracker", "New EV price list", "Used EVs", "Used petrol and hybrid", "Cost of ownership", "Buying considerations"):
         assert title in joined, title

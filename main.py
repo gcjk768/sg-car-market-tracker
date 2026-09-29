@@ -110,6 +110,7 @@ def main(argv: list[str] | None = None) -> int:
                 parse_mode=cfg["telegram"]["parse_mode"],
                 disable_preview=cfg["telegram"]["disable_web_page_preview"],
                 api_base=secrets.get("telegram_api_base"),
+                thread_id=secrets.get("telegram_thread_id"),
             )
             sent = client.send_many(s.html for s in sections)
         except TelegramError as exc:
