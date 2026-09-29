@@ -17,7 +17,7 @@ from models import CoeResult, CostBreakdown, Drivetrain, NewEvVariant, ReportSec
 from scrapers.base import ScraperUnavailable
 from scrapers.coe import next_tender_date, scrape_coe
 from scrapers.fuel_price import scrape_fuel_price
-from scrapers.new_ev import rank_new_evs, scrape_new_evs
+from scrapers.new_ev import group_by_body_type, rank_new_evs, scrape_new_evs
 from scrapers.used_carro import CarroUsedScraper
 from scrapers.used_motorist import MotoristUsedScraper
 from scrapers.used_sgcarmart import SgcarmartUsedScraper
@@ -58,6 +58,7 @@ class Pipeline:
         self.used_ice: list[tuple[UsedListing, str]] = []
         self.rejections: dict[str, int] = {}
         self.financing: list = []
+        self.new_ev_groups = None
 
     # Steps
 
@@ -124,7 +125,9 @@ class Pipeline:
         except Exception as exc:
             log.error("new EV scrape failed: %s", exc)
             self.unavailable["new_ev"] = str(exc)
-        self.new_evs = rank_new_evs(self.db.new_ev_on(self.run_date), self.cfg)
+        stored = self.db.new_ev_on(self.run_date)
+        self.new_evs = rank_new_evs(stored, self.cfg)
+        self.new_ev_groups = group_by_body_type(stored, self.cfg) if self.cfg["new_ev"].get("group_by_body_type") else None
 
     # Sections
 
@@ -212,7 +215,7 @@ class Pipeline:
                 sections.append(self.coe_section())
             elif key == "new_ev":
                 if self.new_evs:
-                    s = report.new_ev_section(self.new_evs, self.cfg["telegram"]["table_width"], cfg=self.cfg)
+                    s = report.new_ev_section(self.new_evs, self.cfg["telegram"]["table_width"], cfg=self.cfg, groups=self.new_ev_groups)
                     if self.brand_notes:
                         s.html += "\n\nBrand page check: " + "; ".join(f"{k}: {v}" for k, v in sorted(self.brand_notes.items()))
                     sections.append(s)

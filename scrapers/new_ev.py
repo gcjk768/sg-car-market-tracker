@@ -20,6 +20,30 @@ VES_RE = re.compile(r"VES\s*(?:band)?\s*:?\s*([ABC][12]?)\b", re.I)
 WARRANTY_YEARS_RE = re.compile(r"(\d+)\s*(?:years?|yrs?)", re.I)
 
 
+BODY_TYPES = (
+    ("mpv", "MPV"), ("people mover", "MPV"), ("suv", "SUV"), ("crossover", "SUV"), ("hatch", "Hatchback"),
+    ("coupe", "Coupe"), ("sedan", "Sedan"), ("saloon", "Sedan"), ("wagon", "Wagon"), ("estate", "Wagon"),
+)
+
+
+def detect_body_type(make: str, model: str, cfg: dict[str, Any], *texts: str | None) -> str:
+    """Body type from config overrides first, then from any of the given texts, else Other."""
+    name = f"{make} {model}".lower()
+    overrides = cfg["new_ev"].get("body_type_overrides", {})
+    for key in sorted(overrides, key=len, reverse=True):
+        k = key.lower()
+        if name == k or name.startswith(k + " "):
+            return overrides[key]
+    for text in texts:
+        if not text:
+            continue
+        low = text.lower()
+        for needle, value in BODY_TYPES:
+            if needle in low:
+                return value
+    return "Other"
+
+
 def coe_category_for_power(power_kw: float | None, cfg: dict[str, Any]) -> Optional[CoeCategory]:
     if power_kw is None:
         return None
@@ -89,6 +113,7 @@ class SgcarmartNewEvScraper(BaseScraper):
         vehicle_warranty = first_match(values, "vehicle warranty", "warranty")
         battery_warranty = first_match(values, "battery warranty", "high voltage battery")
         promo = first_match(values, "promotion", "promo", "offer")
+        body_type = detect_body_type(make, model, self.cfg, first_match(values, "type of vehicle", "body type", "body", "vehicle type"), title)
         ves = VES_RE.search(page_text)
         ves_band = ves.group(1).upper() if ves else None
         ves_rebate = self.cfg["new_ev"].get("ves_rebates", {}).get(ves_band) if ves_band else None
@@ -122,7 +147,7 @@ class SgcarmartNewEvScraper(BaseScraper):
                         range_standard=_range_standard(range_text), power_kw=v_power,
                         vehicle_warranty=vehicle_warranty, battery_warranty=battery_warranty,
                         battery_warranty_years=warranty_years(battery_warranty), promotion=promo,
-                        listing_url=model_url, price_source_url=model_url, source=self.name,
+                        body_type=body_type, listing_url=model_url, price_source_url=model_url, source=self.name,
                         scraped_at=datetime.now(),
                     )
                 )
@@ -139,7 +164,7 @@ class SgcarmartNewEvScraper(BaseScraper):
                         range_standard=_range_standard(range_text), power_kw=power_kw,
                         vehicle_warranty=vehicle_warranty, battery_warranty=battery_warranty,
                         battery_warranty_years=warranty_years(battery_warranty), promotion=promo,
-                        listing_url=model_url, price_source_url=model_url, source=self.name,
+                        body_type=body_type, listing_url=model_url, price_source_url=model_url, source=self.name,
                     )
                 )
         return variants
@@ -204,6 +229,36 @@ class BrandPriceChecker(BaseScraper):
                     matched += 1
             notes[make] = f"{matched} of {sum(1 for v in variants if v.make == make)} prices confirmed on brand page"
         return notes
+
+
+def group_by_body_type(variants: list[NewEvVariant], cfg: dict[str, Any]) -> list[tuple[str, list[NewEvVariant]]]:
+    """(body type, best value variants) in the configured order. Variants without a body type
+    are classified from the overrides. Each group holds top_n_per_body_type plus always included
+    models that belong to it."""
+    ncfg = cfg["new_ev"]
+    per_group = ncfg.get("top_n_per_body_type", 4)
+    order = ncfg.get("body_type_order", ["Hatchback", "Sedan", "SUV", "MPV", "Coupe", "Wagon", "Other"])
+    always = [a.lower() for a in ncfg.get("always_include", [])]
+    buckets: dict[str, list[NewEvVariant]] = {}
+    for v in variants:
+        if v.score is None:
+            continue
+        bt = v.body_type or detect_body_type(v.make, v.model, cfg)
+        v.body_type = bt
+        buckets.setdefault(bt, []).append(v)
+    out = []
+    for bt in order + [b for b in buckets if b not in order]:
+        items = buckets.get(bt)
+        if not items:
+            continue
+        items.sort(key=lambda v: (v.score, -(v.battery_warranty_years or 0)))
+        chosen = items[:per_group]
+        for v in items[per_group:]:
+            name = f"{v.make} {v.model}".lower()
+            if any(a in name or name in a for a in always):
+                chosen.append(v)
+        out.append((bt, chosen))
+    return out
 
 
 def rank_new_evs(variants: list[NewEvVariant], cfg: dict[str, Any]) -> list[NewEvVariant]:

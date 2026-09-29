@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS new_ev_prices (
     battery_warranty TEXT,
     battery_warranty_years REAL,
     promotion TEXT,
+    body_type TEXT,
     listing_url TEXT NOT NULL,
     price_source_url TEXT NOT NULL,
     scraped_at TEXT NOT NULL,
@@ -216,15 +217,15 @@ class Database:
                        (scraped_on, source, make, model, variant, price_with_coe, price_without_coe,
                         coe_category, ves_band, ves_rebate, battery_kwh, range_km, range_standard,
                         power_kw, vehicle_warranty, battery_warranty, battery_warranty_years,
-                        promotion, listing_url, price_source_url, scraped_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        promotion, body_type, listing_url, price_source_url, scraped_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         scraped_on.isoformat(), v.source, v.make, v.model, v.variant,
                         v.price_with_coe, v.price_without_coe,
                         v.coe_category.value if v.coe_category else None, v.ves_band, v.ves_rebate,
                         v.battery_kwh, v.range_km, v.range_standard, v.power_kw,
                         v.vehicle_warranty, v.battery_warranty, v.battery_warranty_years,
-                        v.promotion, v.listing_url, v.price_source_url,
+                        v.promotion, v.body_type, v.listing_url, v.price_source_url,
                         v.scraped_at.isoformat(timespec="seconds"),
                     ),
                 )

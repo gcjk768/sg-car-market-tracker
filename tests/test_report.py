@@ -28,12 +28,20 @@ def test_link_numbers_match_table_rows(cfg):
     sections = {s.key: s for s in sample_report(cfg, date(2026, 9, 29))}
     for key in ("new_ev", "used_ev", "used_ice"):
         html = sections[key].html
-        block = re.search(r"<pre>(.*?)</pre>", html, flags=re.S).group(1)
-        table_rows = [l for l in block.split("\n")[2:] if l.strip()]
+        table_rows = []
+        for block in re.findall(r"<pre>(.*?)</pre>", html, flags=re.S):
+            lines = block.split("\n")
+            table_rows += [l for l in lines if re.match(r"^\s*\d+ ", l)]
         links = re.findall(r'^(\d+)\. <a href="', html, flags=re.M)
         assert [int(n) for n in links] == list(range(1, len(table_rows) + 1)), key
         for line, n in zip(table_rows, links):
             assert line.lstrip().startswith(n), (key, line)
+
+
+def test_new_ev_section_is_grouped_by_body_type(cfg):
+    html = {s.key: s for s in sample_report(cfg, date(2026, 9, 29))}["new_ev"].html
+    for group in ("Hatchback", "Sedan", "SUV", "MPV"):
+        assert f"<pre>{group}\n" in html
 
 
 def test_cost_table_links_match_car_columns(cfg):

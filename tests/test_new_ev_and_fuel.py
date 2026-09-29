@@ -3,7 +3,7 @@ from pathlib import Path
 
 from models import CoeCategory, NewEvVariant
 from scrapers.fuel_price import FuelPriceScraper, parse_ron95_prices
-from scrapers.new_ev import BrandPriceChecker, SgcarmartNewEvScraper, rank_new_evs, warranty_years
+from scrapers.new_ev import BrandPriceChecker, SgcarmartNewEvScraper, detect_body_type, group_by_body_type, rank_new_evs, warranty_years
 
 FIX = Path(__file__).resolve().parent.parent / "fixtures"
 RUN = date(2026, 9, 29)
@@ -87,3 +87,38 @@ def test_fuel_price_table(cfg):
     assert s.parse(html)[0].ron95_per_litre == 2.54
     cfg["costs"]["energy"]["ice"]["price_pick"] = "avg"
     assert s.parse(html)[0].ron95_per_litre == 3.32
+
+
+def test_detect_body_type(cfg):
+    assert detect_body_type("Tesla", "Model 3", cfg) == "Sedan"
+    assert detect_body_type("BYD", "M6", cfg) == "MPV"
+    assert detect_body_type("BYD", "Sealion 7", cfg) == "SUV"
+    assert detect_body_type("BYD", "Seal", cfg) == "Coupe"
+    assert detect_body_type("Unknown", "Thing", cfg, "Type of Vehicle: Hatchback") == "Hatchback"
+    assert detect_body_type("Unknown", "Thing", cfg, None, "A roomy crossover") == "SUV"
+    assert detect_body_type("Unknown", "Thing", cfg) == "Other"
+
+
+def test_group_by_body_type_orders_and_caps(cfg):
+    cfg["new_ev"]["top_n_per_body_type"] = 1
+    cfg["new_ev"]["always_include"] = ["BYD Atto 3"]
+    variants = [
+        _v("Tesla", "Model 3", 179999, 534),
+        _v("BYD", "Seal 6", 179888, 425),
+        _v("GAC Aion", "UT", 148988, 410),
+        _v("BYD", "Atto 3", 171888, 420),
+        _v("MG", "MGS5 EV", 165888, 425),
+        _v("BYD", "M6", 171888, 420),
+    ]
+    groups = group_by_body_type(variants, cfg)
+    assert [g for g, _ in groups] == ["Hatchback", "Sedan", "SUV", "MPV"]
+    by = dict(groups)
+    assert [v.model for v in by["Sedan"]] == ["Model 3"]
+    assert [v.model for v in by["SUV"]] == ["MGS5 EV", "Atto 3"]   # Atto 3 kept by always_include
+    assert variants[0].body_type == "Sedan"
+
+
+def test_model_page_sets_body_type(cfg):
+    s = SgcarmartNewEvScraper(cfg, "ua", RUN)
+    v = s.parse_model((FIX / "sgcarmart_new_model.html").read_text(), "https://x/model3")[0]
+    assert v.body_type == "Sedan"

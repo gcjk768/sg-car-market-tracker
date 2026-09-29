@@ -102,6 +102,36 @@ new_ev:
     numerator: price_with_coe
     denominator: range_km
     tiebreak: battery_warranty_years_desc
+  # Group the new EV list by body type, showing the best value cars in each group.
+  group_by_body_type: true
+  top_n_per_body_type: 4
+  body_type_order: [Hatchback, Sedan, SUV, MPV, Coupe, Wagon, Other]
+  # Body type by "make model" when the page does not say. Matching is case insensitive.
+  body_type_overrides:
+    Tesla Model 3: Sedan
+    Tesla Model Y: SUV
+    BYD Seal 6: Sedan
+    BYD Seal: Coupe
+    BYD Atto 1: Hatchback
+    BYD Atto 2: SUV
+    BYD Atto 3: SUV
+    BYD Dolphin: Hatchback
+    BYD Sealion 7: SUV
+    BYD M6: MPV
+    GAC Aion UT: Hatchback
+    GAC Aion Y Plus: SUV
+    GAC Aion ES: Sedan
+    MG 4: Hatchback
+    MG MGS5 EV: SUV
+    Xpeng G6: SUV
+    Zeekr X: SUV
+    Leapmotor C10: SUV
+    Kia EV5: SUV
+    Kia EV3: SUV
+    Hyundai Ioniq 5: SUV
+    Hyundai Ioniq 6: Sedan
+    Deepal S07: SUV
+    Polestar 2: Sedan
   always_include:
     - BYD Seal
     - BYD Atto 3

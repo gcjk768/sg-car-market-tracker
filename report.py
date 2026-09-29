@@ -138,7 +138,10 @@ def _finance_note(fin: Financing | None) -> str:
     return f", deposit {fmt_money(fin.deposit, '$')}, {fmt_money(fin.monthly, '$')}/mth over {fin.tenure_years}y"
 
 
-def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60, cfg: dict[str, Any] | None = None) -> ReportSection:
+def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60, cfg: dict[str, Any] | None = None,
+                   groups: Sequence[tuple[str, Sequence[NewEvVariant]]] | None = None) -> ReportSection:
+    """One table for the whole list, or one table per body type when `groups` is given.
+    Row numbers run on across the groups so they match the link list."""
     cols = [
         Column("#", 2, "right"),
         Column("Model", 21),
@@ -148,38 +151,55 @@ def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60, cfg: d
         Column("$/km", 5, "right"),
         Column("BatWty", 6, "right"),
     ]
-    rows, links = [], []
-    for n, v in enumerate(variants, start=1):
-        rows.append(
-            [
-                n,
-                v.display_name,
-                fmt_money(v.price_with_coe),
-                v.coe_category.value if v.coe_category else "?",
-                fmt_int(v.range_km),
-                f"{v.score:.0f}" if v.score else "n/a",
-                f"{v.battery_warranty_years:g}y" if v.battery_warranty_years else "n/a",
-            ]
-        )
-        fin = _fin(cfg, v.price_with_coe, None, True)
-        dep = ""
-        if cfg and v.price_with_coe:
-            from costs import depreciation_new
-
-            dep = f", dep -{fmt_int(depreciation_new(v.price_with_coe, None, cfg, date.today()))}/yr"
-        links.append((f"{v.display_name} {fmt_money(v.price_with_coe, '$')}{_finance_note(fin)}{dep}", v.listing_url))
+    tables: list[tuple[str, list]] = []
+    links = []
+    ordered = list(groups) if groups else [("", list(variants))]
+    n = 0
+    for title, items in ordered:
+        rows = []
+        for v in items:
+            n += 1
+            rows.append(_new_ev_row(n, v))
+            links.append(_new_ev_link(v, cfg))
+        tables.append((title, rows))
     intro = "Price with COE. Score is price divided by claimed range, lower is better."
-    if variants and all(v.price_includes_rebates for v in variants):
+    all_items = [v for _, items in ordered for v in items]
+    if all_items and all(v.price_includes_rebates for v in all_items):
         intro = "Price with COE, net of the VES and EEAI rebates (the figure dealers advertise). " + intro[len("Price with COE. "):]
-    elif variants:
+    elif all_items:
         intro = "Price with COE, before rebates where marked. " + intro[len("Price with COE. "):]
     if cfg:
         intro += " " + _finance_intro(cfg, True) + " Depreciation is indicative only, over 10 years, and does not affect the ranking."
-    return ReportSection(
-        key="new_ev",
-        title=SECTION_TITLES["new_ev"],
-        html=build_section(SECTION_TITLES["new_ev"], [intro, pre_block(render_table(cols, rows, max_width)), link_list(links)]),
-    )
+    parts = [intro]
+    for title, rows in tables:
+        block = render_table(cols, rows, max_width)
+        if title:
+            block = f"{title}\n{block}"
+        parts.append(pre_block(block))
+    parts.append(link_list(links))
+    return ReportSection(key="new_ev", title=SECTION_TITLES["new_ev"], html=build_section(SECTION_TITLES["new_ev"], parts))
+
+
+def _new_ev_row(n: int, v: NewEvVariant) -> list:
+    return [
+        n,
+        v.display_name,
+        fmt_money(v.price_with_coe),
+        v.coe_category.value if v.coe_category else "?",
+        fmt_int(v.range_km),
+        f"{v.score:.0f}" if v.score else "n/a",
+        f"{v.battery_warranty_years:g}y" if v.battery_warranty_years else "n/a",
+    ]
+
+
+def _new_ev_link(v: NewEvVariant, cfg: dict[str, Any] | None) -> tuple[str, str]:
+    fin = _fin(cfg, v.price_with_coe, None, True)
+    dep = ""
+    if cfg and v.price_with_coe:
+        from costs import depreciation_new
+
+        dep = f", dep -{fmt_int(depreciation_new(v.price_with_coe, None, cfg, date.today()))}/yr"
+    return (f"{v.display_name} {fmt_money(v.price_with_coe, '$')}{_finance_note(fin)}{dep}", v.listing_url)
 
 
 # Section 4 and 5: used cars
@@ -371,10 +391,13 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         NewEvVariant(make="Tesla", model="Model Y", variant="RWD 110", price_with_coe=223127, coe_category="A", range_km=500, power_kw=110, battery_kwh=62.5, battery_warranty_years=8, listing_url="https://www.tesla.com/en_sg/modely", price_source_url="https://www.tesla.com/en_sg", source="sample"),
         NewEvVariant(make="Leapmotor", model="C10", variant="", price_with_coe=195999, coe_category="A", range_km=420, range_standard="WLTP", power_kw=160, battery_kwh=69.9, battery_warranty_years=8, listing_url=src, price_source_url=src, source="sample"),
         NewEvVariant(make="BYD", model="Dolphin", variant="", price_with_coe=165888, coe_category="A", range_km=345, power_kw=70, battery_kwh=50, battery_warranty_years=8, listing_url=src, price_source_url="https://www.byd.com/sg", source="sample"),
+        NewEvVariant(make="BYD", model="M6", variant="7 seater", price_with_coe=171888, coe_category="A", range_km=420, power_kw=120, battery_kwh=71.8, battery_warranty_years=8, listing_url=src, price_source_url="https://www.byd.com/sg", source="sample"),
+        NewEvVariant(make="BYD", model="Atto 2", variant="", price_with_coe=151388, coe_category="A", range_km=312, range_standard="WLTP", power_kw=130, battery_kwh=45.1, battery_warranty_years=8, listing_url=src, price_source_url="https://www.byd.com/sg", source="sample"),
         NewEvVariant(make="Xpeng", model="G6", variant="Standard Range", price_with_coe=213899, coe_category="B", range_km=435, range_standard="WLTP", power_kw=190, battery_kwh=66, battery_warranty_years=8, listing_url=src, price_source_url="https://www.xpeng.com/sg", source="sample"),
     ]
-    from scrapers.new_ev import rank_new_evs
+    from scrapers.new_ev import group_by_body_type, rank_new_evs
 
+    new_ev_groups = group_by_body_type(list(new_evs), cfg)
     new_evs = rank_new_evs(new_evs, cfg)
 
     def used(**kw) -> UsedListing:
@@ -409,7 +432,7 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
             best_pick=("BYD Atto 3 2023, 28,000 km, $118,800", used_ev[0][0].url, "Lowest depreciation per year in the used EV list with 7.4 years of COE left."),
         ),
         coe_section(tender, "sample tender", coe_rows, tender + timedelta(days=14), cfg["sources"]["onemotoring_coe"]),
-        new_ev_section(new_evs, cfg=cfg),
+        new_ev_section(new_evs, cfg=cfg, groups=new_ev_groups if cfg["new_ev"].get("group_by_body_type") else None),
         used_section("used_ev", used_ev, cfg=cfg),
         used_section("used_ice", used_ice, cfg=cfg),
         costs_section(costs, cfg["costs"]["insurance"]["assumptions"].strip(), insurance_links,

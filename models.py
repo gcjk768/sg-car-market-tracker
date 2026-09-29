@@ -54,6 +54,7 @@ class NewEvVariant(BaseModel):
     battery_warranty_years: Optional[float] = None
     promotion: Optional[str] = None
     price_includes_rebates: bool = Field(default=True, description="True when the price is net of VES and EEAI rebates")
+    body_type: Optional[str] = Field(default=None, description="Hatchback, Sedan, SUV, MPV, Coupe, Wagon or Other")
     listing_url: str
     price_source_url: str
     source: str
