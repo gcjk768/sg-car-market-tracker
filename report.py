@@ -166,6 +166,8 @@ def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60, cfg: d
         intro += " Prices are dealer figures net of the VES and EEAI rebates."
     elif all_items:
         intro += " Prices are before rebates where marked."
+    if any(v.range_standard == "estimated" for v in all_items):
+        intro += " Range is battery size times the listed efficiency, as the price source gives no claimed range."
     if cfg:
         f = cfg["costs"]["financing"]
         intro += (f" Deposit is the minimum under the MAS rule, instalment on the rest at {f['flat_rate_new'] * 100:.2f} percent"

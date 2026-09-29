@@ -162,3 +162,19 @@ def test_motorist_live_fuel_board_and_section():
                    station_prices={"95": {"public": 2.54}})
     html = fuel_section(fp, "Cnergy").html
     assert "Cnergy       n/a   2.54" in html and "Shell        n/a   3.49" in html
+
+
+def test_sgcarmart_live_ev_index_and_model_page():
+    # Saved 2026-09-29 after the redesign: model links sit in escaped JSON, variants in
+    # submodel blocks with km/kWh and bhp but no claimed range.
+    from pathlib import Path
+
+    from scrapers.new_ev import SgcarmartNewEvScraper
+    from settings import load_config
+
+    fix = Path(__file__).resolve().parent.parent / "fixtures"
+    s = SgcarmartNewEvScraper(load_config(), "ua")
+    models = s.parse((fix / "sgcarmart_ev_index_live.html").read_text(encoding="utf-8"))
+    assert len(models) > 80 and models[0]["slug"] == "byd-seal-electric"
+    (v,) = s.parse_model((fix / "sgcarmart_new_model_live.html").read_text(encoding="utf-8"), "https://x")
+    assert (v.price_with_coe, v.range_km, v.body_type, v.coe_category.value) == (186888, 381, "SUV", "A")

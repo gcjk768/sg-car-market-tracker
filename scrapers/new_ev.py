@@ -16,6 +16,11 @@ from scrapers.parse_utils import clean, first_match, label_values, parse_money, 
 log = logging.getLogger(__name__)
 
 MODEL_HREF = re.compile(r"CarCode=(?P<code>\d+)|/new-cars/(?:model/)?(?P<slug>[\w-]+)")
+# Since the 2026 redesign: /new-cars/info/21508/byd-atto-3-electric, listed on /electric-vehicle.
+INFO_HREF = re.compile(r'/new-cars/info/(?P<code>\d+)/(?P<slug>[a-z0-9-]+?)(?:/)?(?:[?#"\\]|$)')
+EV_SLUG = re.compile(r"(?:^|-)(?:electric|ev|elettrica)(?:-|$)")
+SPECS_RE = re.compile(r"(?P<eff>\d+(?:\.\d+)?)\s*km/kWh.*?(?P<bhp>\d+)\s*bhp", re.I)
+KWH_RE = re.compile(r"(\d+(?:\.\d+)?)\s*kWh", re.I)
 VES_RE = re.compile(r"VES\s*(?:band)?\s*:?\s*([ABC][12]?)\b", re.I)
 WARRANTY_YEARS_RE = re.compile(r"(\d+)\s*(?:years?|yrs?)", re.I)
 
@@ -76,6 +81,9 @@ class SgcarmartNewEvScraper(BaseScraper):
     # Index page: links to electric models
 
     def parse(self, html: str) -> list[dict[str, str]]:
+        info = self._parse_info_links(html)
+        if info:
+            return info
         tree = HTMLParser(html)
         models: dict[str, dict[str, str]] = {}
         for a in tree.css("a[href]"):
@@ -94,6 +102,38 @@ class SgcarmartNewEvScraper(BaseScraper):
             if slug not in models:
                 models[slug] = {"slug": slug, "url": urljoin(self.index_url, href), "title": text_of(a) or slug}
         return list(models.values())
+
+    def _parse_info_links(self, html: str) -> list[dict[str, str]]:
+        """Electric models from the redesigned site, always_include models first so the page
+        budget is spent on the cars the owner cares about."""
+        models: dict[str, dict[str, str]] = {}
+        for m in INFO_HREF.finditer(html):
+            slug = m.group("slug")
+            if EV_SLUG.search(slug) and m.group("code") not in models:
+                url = urljoin(self.index_url, f"/new-cars/info/{m.group('code')}/{slug}")
+                models[m.group("code")] = {"slug": slug, "url": url, "title": slug.replace("-", " ")}
+        wanted = [w.lower().replace(" ", "-") for w in self.cfg["new_ev"].get("always_include", [])]
+        return sorted(models.values(), key=lambda d: not any(w in d["slug"] for w in wanted))
+
+    def _parse_submodels(self, tree: HTMLParser) -> list[dict[str, Any]]:
+        """Variants on a redesigned model page: name, price, km/kWh and bhp."""
+        out = []
+        for block in tree.css('[class*="containerCollapsibleSubmodel"]'):
+            name = text_of(block.css_first('[class*="textSubmodelName"]'))
+            price = parse_money(text_of(block.css_first('[class*="textPrice"]')))
+            specs = SPECS_RE.search(text_of(block.css_first('[class*="textSpecs"]')))
+            if not (name and price):
+                continue
+            kwh = KWH_RE.search(name)
+            eff = float(specs.group("eff")) if specs else None
+            out.append({
+                "name": name, "price": price,
+                "power_kw": round(int(specs.group("bhp")) * 0.7457, 1) if specs else None,
+                "battery_kwh": float(kwh.group(1)) if kwh else None,
+                # No claimed range on the page: battery size times the listed efficiency.
+                "range_km": int(float(kwh.group(1)) * eff) if kwh and eff else None,
+            })
+        return out
 
     # Model page: variants with prices
 
@@ -153,6 +193,24 @@ class SgcarmartNewEvScraper(BaseScraper):
                 )
             if variants:
                 break
+        if not variants:
+            vehicle_type = first_match(values, "vehicle type", "type of vehicle")
+            if vehicle_type:
+                body_type = detect_body_type(make, model, self.cfg, vehicle_type, title)
+            ves_money = re.search(r"VES\s*\$\s*([\d,]+)\s*\(Rebate\)", page_text, re.I)
+            for s in self._parse_submodels(tree):
+                variants.append(
+                    NewEvVariant(
+                        make=make, model=model, variant=s["name"], price_with_coe=s["price"],
+                        coe_category=coe_category_for_power(s["power_kw"], self.cfg),
+                        ves_band=ves_band, ves_rebate=parse_money(ves_money.group(1)) if ves_money else ves_rebate,
+                        battery_kwh=s["battery_kwh"], range_km=s["range_km"],
+                        range_standard="estimated" if s["range_km"] else "unknown", power_kw=s["power_kw"],
+                        vehicle_warranty=vehicle_warranty, battery_warranty=battery_warranty,
+                        battery_warranty_years=warranty_years(battery_warranty), promotion=promo,
+                        body_type=body_type, listing_url=model_url, price_source_url=model_url, source=self.name,
+                    )
+                )
         if not variants:
             price = parse_money(first_match(values, "price"))
             if price:

@@ -63,7 +63,8 @@ ai:
 
 sources:
   # Verify each URL before first use. Note any moves in the README.
-  sgcarmart_new_cars: "https://www.sgcarmart.com/new_cars/"
+  # Since the 2026 redesign the electric car page lists every new EV model.
+  sgcarmart_new_cars: "https://www.sgcarmart.com/electric-vehicle"
   sgcarmart_used_listing: "https://www.sgcarmart.com/used_cars/listing.php"
   sgcarmart_coe_results: "https://www.sgcarmart.com/news/coe_results.php"
   onemotoring_coe: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/coe-open-bidding.html"
