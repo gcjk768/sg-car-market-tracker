@@ -1,7 +1,8 @@
 """Telegram delivery and the HTML formatting helpers that keep messages phone friendly.
 
-Tables are rendered inside <pre> blocks with fixed width columns. Links cannot be clicked
-inside <pre>, so every table is followed by a numbered link list whose numbers match the rows.
+Car lists are cards: a bold numbered link per car with short lines under it. Small tables
+(pump prices, cost of ownership) stay in narrow <pre> blocks that fit a phone in portrait.
+Method notes go in collapsed quotes so the numbers are read first.
 """
 from __future__ import annotations
 
@@ -109,6 +110,25 @@ def link_list(items: Iterable[tuple[str, str]], start: int = 1) -> str:
     return "\n".join(lines)
 
 
+def dot(*bits: object) -> str:
+    """Escape and join the non empty bits with a middle dot, one short card line."""
+    return " · ".join(escape(b) for b in bits if b)
+
+
+def card(n: int, title: str, url: str, lines: Iterable[str], tag: str = "") -> str:
+    """One car as a bold numbered link followed by short lines. Wide tables wrap on a phone,
+    cards do not, and the link sits on the car itself instead of a separate list."""
+    head = f'<b>{n}. <a href="{html.escape(url, quote=True)}">{escape(title)}</a></b>'
+    if tag:
+        head += f" <i>{escape(tag)}</i>"
+    return "\n".join([head] + [l for l in lines if l])
+
+
+def note(text: str) -> str:
+    """Collapsed quote for the method notes, so the numbers come first. Text is HTML already."""
+    return f"<blockquote expandable>{text}</blockquote>" if text else ""
+
+
 def build_section(title: str, body_parts: Iterable[str]) -> str:
     """Join a bold title and the body parts with blank lines, skipping empty parts."""
     parts = [f"<b>{escape(title)}</b>"] + [p for p in body_parts if p]
@@ -120,11 +140,35 @@ _PRE_CLOSE = re.compile(r"</pre>")
 
 
 def split_message(text: str, limit: int = MAX_MESSAGE_LENGTH) -> list[str]:
-    """Split HTML text into chunks under the Telegram limit, keeping <pre> blocks balanced.
+    """Split HTML text into chunks under the Telegram limit.
 
-    Splits on line breaks. A <pre> block that is cut gets closed at the end of one chunk and
-    reopened at the start of the next so both chunks stay valid HTML.
+    Splits on blank lines first so a car card is never cut in half. A paragraph that is itself
+    over the limit falls back to line splitting, which keeps <pre> blocks balanced.
     """
+    if len(text) <= limit:
+        return [text]
+    chunks: list[str] = []
+    buffer = ""
+    for para in text.split("\n\n"):
+        candidate = para if not buffer else buffer + "\n\n" + para
+        if len(candidate) <= limit:
+            buffer = candidate
+            continue
+        if buffer:
+            chunks.append(buffer)
+        if len(para) <= limit:
+            buffer = para
+        else:
+            *full, buffer = _split_lines(para, limit)
+            chunks.extend(full)
+    if buffer:
+        chunks.append(buffer)
+    return [c for c in chunks if c.strip()]
+
+
+def _split_lines(text: str, limit: int) -> list[str]:
+    """Split on line breaks. A <pre> block that is cut gets closed at the end of one chunk and
+    reopened at the start of the next so both chunks stay valid HTML."""
     if len(text) <= limit:
         return [text]
     chunks: list[str] = []
@@ -134,7 +178,7 @@ def split_message(text: str, limit: int = MAX_MESSAGE_LENGTH) -> list[str]:
         while len(line) > limit - 12:
             # A single line longer than the limit is cut hard.
             head, line = line[: limit - 12], line[limit - 12 :]
-            chunks.extend(split_message(_wrap(head, in_pre), limit))
+            chunks.extend(_split_lines(_wrap(head, in_pre), limit))
         candidate = line if not buffer else buffer + "\n" + line
         reserve = len("</pre>") if in_pre else 0
         if len(candidate) + reserve > limit:

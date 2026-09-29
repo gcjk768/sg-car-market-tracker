@@ -24,24 +24,19 @@ def test_pre_blocks_are_at_most_sixty_wide(cfg):
                 assert len(line) <= cfg["telegram"]["table_width"], (s.key, line)
 
 
-def test_link_numbers_match_table_rows(cfg):
+def test_car_lists_are_numbered_cards_without_tables(cfg):
     sections = {s.key: s for s in sample_report(cfg, date(2026, 9, 29))}
     for key in ("new_ev", "used_ev", "used_ice"):
         html = sections[key].html
-        table_rows = []
-        for block in re.findall(r"<pre>(.*?)</pre>", html, flags=re.S):
-            lines = block.split("\n")
-            table_rows += [l for l in lines if re.match(r"^\s*\d+ ", l)]
-        links = re.findall(r'^(\d+)\. <a href="', html, flags=re.M)
-        assert [int(n) for n in links] == list(range(1, len(table_rows) + 1)), key
-        for line, n in zip(table_rows, links):
-            assert line.lstrip().startswith(n), (key, line)
+        assert "<pre>" not in html, key
+        cards = re.findall(r'^<b>(\d+)\. <a href="http', html, flags=re.M)
+        assert cards and [int(n) for n in cards] == list(range(1, len(cards) + 1)), key
 
 
 def test_new_ev_section_is_grouped_by_body_type(cfg):
     html = {s.key: s for s in sample_report(cfg, date(2026, 9, 29))}["new_ev"].html
     for group in ("Hatchback", "Sedan", "SUV and crossover", "MPV"):
-        assert f"<pre>{group}\n" in html
+        assert f"<u>{group}</u>" in html
 
 
 def test_cost_table_links_match_car_columns(cfg):
@@ -72,12 +67,13 @@ def test_html_to_text_shows_links_and_unescapes():
 def test_financing_rows_and_link_notes(cfg):
     sections = {s.key: s for s in sample_report(cfg, date(2026, 9, 29))}
     costs_html = sections["costs"].html
-    for label in ("Deposit", "Loan", "Mth 7y loan", "Mth 5y loan"):
+    for label in ("Deposit", "Loan", "Mth 7y", "Mth 5y"):
         assert label in costs_html
-    assert "72,000 (40%)" in costs_html
-    # Deposit, monthly and depreciation sit in the table row now, not the link line.
-    assert re.search(r"Tesla Model 3.*179,999 +\d+ +72,000 +1,509 +-[\d,]+", sections["new_ev"].html)
-    assert "Mth 7y" in sections["used_ev"].html
+    assert re.search(r"Deposit +72,000", costs_html)
+    # Price, deposit, monthly and depreciation sit on the car's own card.
+    assert re.search(r"Tesla Model 3 RWD 110</a></b>\n\$179,999 .*\nDeposit \$72,000 · \$1,509/mth over 7y\nDep \$[\d,]+/yr",
+                     sections["new_ev"].html)
+    assert "/mth over 7y" in sections["used_ev"].html
     for key in ("new_ev", "used_ev", "used_ice", "costs"):
         assert len(sections[key].html) <= MAX_MESSAGE_LENGTH
         for block in re.findall(r"<pre>(.*?)</pre>", sections[key].html, flags=re.S):

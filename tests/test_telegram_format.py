@@ -80,3 +80,15 @@ def test_split_message_handles_single_overlong_line():
     chunks = split_message(text, 1000)
     assert all(len(c) <= 1000 for c in chunks)
     assert "".join(chunks) == text
+
+
+def test_split_message_never_cuts_a_card():
+    from telegram_bot import card
+
+    cards = [card(n, f"Car {n}", "https://x.y", ["$100,000 · 400 km", "Deposit $40,000"]) for n in range(1, 60)]
+    chunks = split_message("<b>Title</b>\n\n" + "\n\n".join(cards), 500)
+    assert len(chunks) > 1
+    for chunk in chunks:
+        assert len(chunk) <= 500
+        for block in chunk.split("\n\n")[1 if chunk.startswith("<b>Title") else 0:]:
+            assert block.startswith("<b>") and block.endswith("Deposit $40,000"), block

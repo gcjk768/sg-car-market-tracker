@@ -28,8 +28,8 @@ telegram:
   # Send a report anyway after this many quiet days. 0 turns the heartbeat off.
   heartbeat_after_days: 0
   max_message_length: 4096
-  # Character width of each fixed width table. Sixty reads well on a phone in portrait.
-  table_width: 60
+  # Character width of each fixed width table. About 36 fits a phone in portrait without wrapping.
+  table_width: 36
   parse_mode: HTML
   disable_web_page_preview: true
   # Order of sections sent, one Telegram message per section.

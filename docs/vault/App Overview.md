@@ -10,6 +10,7 @@ Daily scrape of the Singapore car market, filtered and costed, sent to Telegram 
 * Delivery: `telegram_bot.py`. Set `TELEGRAM_THREAD_ID` to post into a forum topic; the listener then only answers inside that topic.
 * Scrapers: `scrapers/coe.py` (Motorist first, LTA fallback), `scrapers/used_sgcarmart.py` and `scrapers/used_motorist.py` (Carro off), `scrapers/new_ev.py` (Sgcarmart electric car page), `scrapers/fuel_price.py` (Motorist grade board), `scrapers/registrations.py` (LTA M03 PDF, top selling brands). Each failure marks its section unavailable, the run continues.
 * Report sections (`report.py`, order in `config.yaml`): summary, COE position, three Best Value lists, Top sellers in SG, Pump prices, cost of ownership.
+* Layout (`telegram_bot.py` `card`, `dot`, `note`): car lists are numbered cards with the car name as the link, COE and Top sellers are plain lines, only Pump prices and cost of ownership stay as `<pre>` tables at `telegram.table_width` 36. Method notes sit in a collapsed `<blockquote expandable>`. Long messages split on blank lines so a card is never cut.
 * Change detection: `pipeline.py` `should_send`, sends only when watched sections changed.
 * All filters and assumptions: `config.yaml`.
 

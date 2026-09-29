@@ -160,8 +160,8 @@ def test_full_run_sends_every_section_to_the_mock_bot_api(e2e_config, capsys):
     for t in texts:
         assert t.count("<pre>") == t.count("</pre>")
         assert t.count("<a href=") == t.count("</a>")
-    # Numbered links follow every table.
-    assert re.search(r'^1\. <a href="http', joined, flags=re.M)
+    # Every car list is numbered cards, the car name is the link.
+    assert re.search(r'^<b>1\. <a href="http', joined, flags=re.M)
 
     # Same day again: idempotent, nothing resent.
     before = len(Handler.sent)

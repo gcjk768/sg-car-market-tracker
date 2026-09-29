@@ -7,6 +7,7 @@ updated: 2026-09-30
 ## 2026-09-30
 
 * Docs: README rewritten (highlights, flow, stack, limitations) and a new draw.io architecture diagram, `docs/architecture.drawio` with `docs/architecture.drawio.svg` and `docs/architecture.png` exports.
+* Telegram layout made phone friendly on request. The 60 character `<pre>` tables wrapped on a phone and every car was listed twice (table row, then a numbered link). Car lists are now cards, one bold linked name plus three short lines (`report.py`, `telegram_bot.py` `card`, `dot`). COE and Top sellers are plain lines. Pump prices and cost of ownership tables are 32 and 36 wide (`telegram.table_width` 60 to 36). Method notes are collapsed quotes. `split_message` splits on blank lines first.
 * Longer lists on request, about 20 cars each: `used.top_n` 8 to 20, `new_ev.top_n_per_body_type` 4 to 6 (`config.yaml`). The real limit was the candidate pool (70 used EVs gave 4 that passed the filters), so Motorist searches now pre filter by `price_max` and `year_min`, and `max_list_pages` 3 to 5, `max_detail_pages_per_search` 40 to 80.
 * New Top sellers in SG section: brands ranked by new registrations this year from LTA table M03, a PDF read with `pypdf` (`scrapers/registrations.py`, `report.py` `top_sellers_section`, `pipeline.py`). LTA does not publish registrations by model.
 

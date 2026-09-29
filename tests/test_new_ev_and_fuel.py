@@ -161,7 +161,7 @@ def test_motorist_live_fuel_board_and_section():
     fp = FuelPrice(observed_on=date(2026, 9, 29), ron95_per_litre=3.49, grades=board, source="t",
                    station_prices={"95": {"public": 2.54}})
     html = fuel_section(fp, "Cnergy").html
-    assert "Cnergy       n/a   2.54" in html and "Shell        n/a   3.49" in html
+    assert "Cnergy    n/a  2.54" in html and "Shell     n/a  3.49" in html
 
 
 def test_sgcarmart_live_ev_index_and_model_page():
