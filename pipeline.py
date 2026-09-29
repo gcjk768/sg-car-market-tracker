@@ -176,7 +176,9 @@ class Pipeline:
         latest = self.coe_latest[0]
         weeks = tuple(self.cfg["coe"]["tender_weeks_of_month"])
         nxt = next_tender_date(max(self.run_date, latest.tender_date), weeks, self.cfg["coe"]["results_weekday"])
-        section = report.coe_section(latest.tender_date, latest.exercise, rows, nxt, self.cfg["sources"]["onemotoring_coe"])
+        # Link to the site the figures came from, not always LTA.
+        src_key = {"onemotoring": "onemotoring_coe", "sgcarmart": "sgcarmart_coe_results", "motorist": "motorist_coe"}.get(latest.source, "onemotoring_coe")
+        section = report.coe_section(latest.tender_date, latest.exercise, rows, nxt, self.cfg["sources"][src_key])
         if "coe" in self.unavailable:
             section.html += "\n\nLive fetch failed today, showing the last stored tender."
         return section
