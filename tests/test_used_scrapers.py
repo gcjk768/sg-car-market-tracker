@@ -100,3 +100,10 @@ def test_throttle_honours_crawl_delay(monkeypatch):
     t.wait("www.sgcarmart.com")
     t.wait("www.sgcarmart.com")
     assert slept and slept[0] > 29
+
+
+def test_coe_left_short_and_long_forms():
+    from scrapers.used_common import _coe_left_years
+
+    assert _coe_left_years("7yrs 10mths 24days COE left") == 7.83
+    assert round(_coe_left_years("1y 1m COE left"), 2) == 1.08

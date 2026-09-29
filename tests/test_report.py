@@ -82,3 +82,13 @@ def test_financing_rows_and_link_notes(cfg):
         for block in re.findall(r"<pre>(.*?)</pre>", sections[key].html, flags=re.S):
             for line in block.split("\n"):
                 assert len(line) <= 60, line
+
+
+def test_single_used_pick_keeps_its_own_column_name():
+    from models import CostBreakdown, Drivetrain
+    from report import costs_section
+
+    b = CostBreakdown(label="Honda Vezel", drivetrain=Drivetrain.hybrid, road_tax=1, insurance_low=1,
+                      insurance_high=2, depreciation=1, energy=1, fixed_extras=1)
+    html = costs_section([(b, "https://x")], "", headers=["Used ICE"]).html
+    assert "Used ICE" in html and "New EV" not in html

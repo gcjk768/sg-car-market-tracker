@@ -75,6 +75,18 @@ def split_make_model(title: str) -> tuple[str, str, str]:
     return make, model, " ".join(rest)
 
 
+def _coe_left_years(text: str) -> Optional[float]:
+    """'7yrs 10mths 24days' or the short card form '5y 8m'."""
+    years = parse_years(text)
+    if years is not None:
+        return years
+    y = re.search(r"(\d+)\s*y\b", text)
+    m = re.search(r"(\d+)\s*m\b", text)
+    if not y and not m:
+        return None
+    return (int(y.group(1)) if y else 0) + (int(m.group(1)) / 12 if m else 0)
+
+
 def detect_drivetrain(text: str, default: Drivetrain) -> Drivetrain:
     low = " " + text.lower() + " "
     if any(w in low for w in HYBRID_WORDS):
@@ -204,6 +216,11 @@ class UsedScraperBase(BaseScraper):
         coe_text = self._label(values, "coe") or ""
         coe_expiry = parse_date(coe_text)
         coe_years = parse_years(coe_text)
+        if coe_expiry is None and coe_years is None:
+            # Sgcarmart's "COE" field is the premium paid; the time left sits in the reg date
+            # line as "(7yrs 10mths 24days COE left)".
+            left = re.search(r"\(([^()]*COE left)\)", page_text, re.I)
+            coe_years = parse_years(left.group(1)) if left else None
         if coe_expiry and coe_years is None:
             coe_years = round((coe_expiry - self.run_date).days / 365.25, 2)
         if coe_expiry is None and coe_years is not None:
@@ -220,7 +237,9 @@ class UsedScraperBase(BaseScraper):
         description = self._label(values, "description") or ""
         from filters import strip_negated
 
-        flags = contains_any(strip_negated(page_text), self.flag_keywords)
+        # Only the car's own words: page promos such as "Best Export Value" would flag every car.
+        own_text = " ".join([title, description, *values.values()])
+        flags = contains_any(strip_negated(own_text), self.flag_keywords)
         battery = self._label(values, "battery") if drivetrain == Drivetrain.ev else None
 
         listing = UsedListing(
@@ -309,6 +328,20 @@ class UsedScraperBase(BaseScraper):
             cards.extend(page_cards)
         if not cards:
             raise ScraperUnavailable(f"{self.name}: no listings found on the results page, layout may have changed")
+        # Opening a detail page costs up to a Crawl-delay (30 s on Sgcarmart), so skip cars the
+        # price filter will reject anyway.
+        filters = self.cfg["used"]["filters"]
+        ceiling = filters.get("price_ceiling_sgd")
+        min_coe = filters.get("min_coe_years_remaining")
+
+        def worth_opening(c: dict[str, Any]) -> bool:
+            if ceiling and c.get("price") and c["price"] > ceiling:
+                return False
+            left = re.search(r"\(([^()]*COE left)\)", c.get("text", ""), re.I)
+            years = _coe_left_years(left.group(1)) if left else None
+            return not (min_coe and years is not None and years < min_coe)
+
+        cards = [c for c in cards if worth_opening(c)]
         listings: list[UsedListing] = []
         for card in cards[: self.max_details]:
             try:

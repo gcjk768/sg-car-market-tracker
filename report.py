@@ -265,10 +265,11 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
 # Section 6: cost of ownership
 
 
-def costs_section(picks: Sequence[tuple[CostBreakdown, str]], assumptions: str, insurance_links: Sequence[tuple[str, str]] = (), max_width: int = 60, financing: Sequence[Financing | None] = ()) -> ReportSection:
+def costs_section(picks: Sequence[tuple[CostBreakdown, str]], assumptions: str, insurance_links: Sequence[tuple[str, str]] = (), max_width: int = 60, financing: Sequence[Financing | None] = (), headers: Sequence[str] = ()) -> ReportSection:
     """picks: (breakdown, url) for best new EV, best used EV, best used ICE or hybrid, in that order.
     financing: one Financing per pick, in the same order, or empty to leave the rows out."""
-    headers = ["New EV", "Used EV", "Used ICE"][: len(picks)]
+    # Name each column after its pick; a missing pick must not shift the others' names.
+    headers = list(headers) or ["New EV", "Used EV", "Used ICE"][: len(picks)]
     cols = [Column("Per year", 14)] + [Column(h, 14, "right") for h in headers]
 
     def row(label: str, getter) -> list:

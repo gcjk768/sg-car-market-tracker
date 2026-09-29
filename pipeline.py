@@ -193,15 +193,19 @@ class Pipeline:
     def cost_picks(self) -> list[tuple[CostBreakdown, str]]:
         picks = []
         self.financing = []
+        self.cost_headers = []
         if self.new_evs:
+            self.cost_headers.append("New EV")
             v = self.new_evs[0]
             picks.append((costs.for_new_ev(v, self.cfg, self.run_date), v.listing_url))
             self.financing.append(costs.financing_for_new(v, self.cfg))
         if self.used_ev:
+            self.cost_headers.append("Used EV")
             l = self.used_ev[0][0]
             picks.append((costs.for_used(l, self.cfg, self.run_date, self.petrol_price), l.url))
             self.financing.append(costs.financing_for_used(l, self.cfg))
         if self.used_ice:
+            self.cost_headers.append("Used ICE")
             l = self.used_ice[0][0]
             picks.append((costs.for_used(l, self.cfg, self.run_date, self.petrol_price), l.url))
             self.financing.append(costs.financing_for_used(l, self.cfg))
@@ -299,7 +303,7 @@ class Pipeline:
                                         alt = costs.energy_cost(b.drivetrain, self.cfg, member95)
                                         assumptions += f" {b.label} fuelled at {station} member price: {fmt_money(alt, '$')} a year instead of {fmt_money(b.energy, '$')}."
                     links = [(i["name"], i["url"]) for i in self.cfg["sources"]["insurance_comparison"]]
-                    sections.append(report.costs_section(picks, assumptions, links, self.cfg["telegram"]["table_width"], financing=self.financing))
+                    sections.append(report.costs_section(picks, assumptions, links, self.cfg["telegram"]["table_width"], financing=self.financing, headers=self.cost_headers))
                 else:
                     sections.append(report.unavailable_section("costs", "no shortlisted cars to compare"))
             elif key == "considerations":
