@@ -18,8 +18,9 @@ from rich.console import Console
 
 from db import Database
 from models import ReportSection
-from report import render_console, sample_report, unavailable_section
-from settings import load_config, load_secrets
+from pipeline import Pipeline
+from report import render_console, sample_report
+from settings import load_config, load_secrets, user_agent
 from telegram_bot import TelegramClient, TelegramError
 
 SECTIONS = ("coe", "new", "used", "costs", "all")
@@ -48,18 +49,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def build_report(cfg: dict, db: Database, run_date: date, section: str, since: date | None, force: bool) -> list[ReportSection]:
-    """Assemble the report. Scrapers are added stage by stage; missing ones show as unavailable."""
-    wanted = {
-        "coe": ["coe"],
-        "new": ["new_ev"],
-        "used": ["used_ev", "used_ice"],
-        "costs": ["costs"],
-        "all": list(cfg["telegram"]["section_order"]),
-    }[section]
-    sections: list[ReportSection] = []
-    for key in wanted:
-        sections.append(unavailable_section(key, "scraper not implemented yet"))
-    return sections
+    """Run the scrapers and assemble the requested sections."""
+    return Pipeline(cfg, db, run_date, user_agent(cfg), force=force, since=since).build(section)
 
 
 def main(argv: list[str] | None = None) -> int:

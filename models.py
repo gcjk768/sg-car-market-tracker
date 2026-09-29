@@ -87,6 +87,7 @@ class UsedListing(BaseModel):
     coe_years_remaining: Optional[float] = None
     omv: Optional[int] = None
     arf: Optional[int] = None
+    dereg_value: Optional[int] = Field(default=None, description="PARF plus COE rebate quoted by the site, if any")
     engine_cc: Optional[int] = None
     power_kw: Optional[float] = None
     seller_type: Optional[str] = Field(default=None, description="dealer or direct owner")

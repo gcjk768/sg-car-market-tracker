@@ -4,21 +4,25 @@ A Python project that runs once a day, scrapes the Singapore car market, filters
 against your criteria, estimates total cost of ownership, and sends a formatted report to
 Telegram with a clickable link to every listing.
 
-Build status by stage:
+Build status:
 
 1. Scaffold, config, models, database, Telegram delivery and a sample report: done
-2. COE scraper and COE section: pending
-3. Used listings scrapers (Sgcarmart, Carro, Motorist), filters, NEW and DROP tags: pending
-4. New EV price list scraper: pending
-5. Cost of ownership engine and comparison table: pending
-6. Buying considerations, scheduling, full tests and README: pending
+2. COE scraper and COE section: done
+3. Used listings scrapers (Sgcarmart, Carro, Motorist), filters, NEW and DROP tags: done
+4. New EV price list scraper with brand page cross check: done
+5. Cost of ownership engine and comparison table: done
+6. Buying considerations, scheduling, listener, tests and README: done
+
+Telegram delivery has not been exercised yet (on hold), and every scraper was written against
+hand built fixtures because the build environment could not reach the sites. Read
+"First run against the live sites" before relying on the output.
 
 ## Prerequisites
 
 * Python 3.11 or newer.
 * [uv](https://docs.astral.sh/uv/) for dependency management. If you do not have it, `pip install -r requirements.txt` works too.
 * A Telegram account.
-* Chromium for Playwright, needed from stage 3 onwards for JavaScript rendered pages.
+* Chromium for Playwright, used for the JavaScript rendered pages (Carro and the LTA COE page).
 
 ## Install
 
@@ -64,30 +68,57 @@ is included in the User Agent string so site owners can reach you. Never commit 
 
 ## Run
 
-Print the sample report to the console without sending anything:
-
 ```bash
-uv run python main.py --sample --dry-run
-```
-
-Send the sample report to Telegram to confirm delivery works:
-
-```bash
-uv run python main.py --sample
-```
-
-Daily run (scrapers arrive in later stages, sections without a scraper show as unavailable):
-
-```bash
-uv run python main.py            # scrape, build and send
-uv run python main.py --dry-run  # scrape, build and print only
+uv run python main.py --sample --dry-run   # print the sample report, no network, no sending
+uv run python main.py --sample             # send the sample report to Telegram
+uv run python main.py --dry-run            # scrape everything and print the report
+uv run python main.py                      # scrape everything and send it
 uv run python main.py --section coe --dry-run
-uv run python main.py --force    # ignore the page cache and resend even if already sent today
-uv run python main.py --since 2026-09-20
+uv run python main.py --force              # ignore today's page cache and resend
+uv run python main.py --since 2026-09-20   # tag NEW and DROP relative to that date
 ```
 
 Rerunning on the same day is safe. Pages fetched today are cached under `data/cache/YYYY-MM-DD/`,
 database writes are upserts, and the report is not resent unless you pass `--force`.
+
+Console output uses `rich` panels. Each panel title shows the section key and its character
+count so you can see how close a section is to the Telegram limit.
+
+## Bot commands
+
+`bot_listener.py` is optional and only runs while you keep it running:
+
+```bash
+uv run python bot_listener.py
+```
+
+Send `/run` for a full report now, `/coe` for the COE table only, `/filters` to see the current
+used car filters. Messages from other chats are ignored.
+
+## Scheduling
+
+Cron, 08:00 Singapore time every day:
+
+```
+CRON_TZ=Asia/Singapore
+0 8 * * * cd /path/to/EV-COE && /path/to/uv run python main.py >> logs/cron.log 2>&1
+```
+
+If your cron does not support `CRON_TZ`, set the machine time zone to Asia/Singapore or use
+`0 0 * * *` on a UTC machine.
+
+GitHub Actions: `.github/workflows/daily.yml` runs at 00:00 UTC (08:00 SGT), installs uv,
+dependencies and Chromium, restores `data/cars.db` from the actions cache, runs the report and
+saves the database back. Add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and optionally
+`SCRAPER_CONTACT` as repository secrets. The workflow can also be started by hand from the
+Actions tab, with a dry run option.
+
+Why the cache and not a commit back to the repository: committing a binary database every day
+fills the git history with megabytes of noise and needs write permission for the workflow.
+The cache is invisible and needs no permissions. The trade off is that GitHub evicts cache
+entries after 7 days without use, so if the schedule stops for more than a week the history of
+NEW and DROP tags starts again from empty. Daily runs keep it warm. If you want a permanent
+record, add a step that uploads `data/cars.db` as an artifact or commits it to a separate branch.
 
 ## Run the tests
 
@@ -95,59 +126,135 @@ database writes are upserts, and the report is not resent unless you pass `--for
 uv run pytest
 ```
 
+The suite covers every parser against a fixture in `fixtures/`, every filter, every cost
+formula with known inputs, the next tender date calculation, the Telegram formatter (length
+limit, table width, link numbering, balanced `<pre>` blocks) and the database upserts.
+
 ## Changing filters and cost assumptions
 
 Everything lives in `config.yaml`:
 
 * `used.filters` holds the price ceiling, mileage per year, owner count, COE years remaining,
   age limits and the keyword exclusions and bonuses.
-* `new_ev` holds the ranking score and the models that are always shown.
-* `costs` holds every road tax band, the insurance lookup table, PARF and ARF schedules,
-  energy prices and fixed extras. Each block has a `verified_on` date. Update the date when you
-  check the values against LTA or IRAS.
+* `used.searches` holds the search URL per site and drivetrain group. Apply your filters on the
+  site, then paste the URL of the first results page with `{page}` in place of the page number.
+* `new_ev` holds the ranking score, the models that are always shown and the VES rebates.
+* `costs` holds every road tax band, the insurance lookup table, both PARF schedules, the ARF
+  tiers, energy prices and fixed extras. Each block has a `verified_on` date. Update the date
+  when you check the values against LTA or IRAS.
 * `buying_considerations` holds the reference text printed at the end of the report.
 
 ## Project layout
 
 ```
-config.yaml        all filters, formulas and assumptions
-.env.example       secrets template
-main.py            CLI entry point
-settings.py        config and secrets loading
-models.py          pydantic models for every scraped record
-db.py              SQLite schema and upserts, file at data/cars.db
-report.py          section builders, console rendering and the sample report
-telegram_bot.py    Bot API client, fixed width tables, link lists, message splitting
-scrapers/base.py   fetch with retry, robots.txt, throttling and the daily page cache
-fixtures/          saved HTML pages used by parser tests
-tests/             pytest suite
-data/              database and page cache (ignored by git)
-logs/              run.log
+config.yaml           all filters, formulas and assumptions
+.env.example          secrets template
+main.py               CLI entry point
+pipeline.py           runs the scrapers, persists results, assembles the sections
+settings.py           config and secrets loading
+models.py             pydantic models for every scraped record
+db.py                 SQLite schema and upserts, file at data/cars.db
+filters.py            used car filters, ranking and NEW and DROP tags
+costs.py              road tax, PARF, ARF, depreciation, energy, insurance bands
+report.py             section builders, console rendering and the sample report
+telegram_bot.py       Bot API client, fixed width tables, link lists, message splitting
+bot_listener.py       optional long polling command listener
+scrapers/base.py      fetch with retry, robots.txt, throttling and the daily page cache
+scrapers/parse_utils.py  label and number parsing helpers shared by all scrapers
+scrapers/coe.py       COE results from OneMotoring, Sgcarmart or Motorist, next tender date
+scrapers/used_common.py  shared used car scraper logic
+scrapers/used_sgcarmart.py, used_carro.py, used_motorist.py
+scrapers/new_ev.py    new EV price list and brand page cross check
+scrapers/fuel_price.py  daily 95 octane price
+fixtures/             HTML pages used by parser tests
+tests/                pytest suite
+data/                 database and page cache (ignored by git)
+logs/                 run.log
 ```
 
-The modules `costs.py`, `bot_listener.py`, the individual scrapers and the GitHub Actions
-workflow are added in later stages.
+## First run against the live sites
+
+Every file in `fixtures/` is a hand built page that mirrors the layout each site is believed
+to use. The parsers lean on labels ("Mileage", "COE", "OMV") and number patterns rather than
+exact CSS paths, so they have a fair chance on the real pages, but they have not been proven.
+Do this once on a machine that can reach the sites:
+
+1. Run `uv run python main.py --dry-run --section coe`. If the COE table is empty, open the
+   page in a browser, save it into `fixtures/onemotoring_coe.html` (see the next section) and
+   look at how the table is laid out.
+2. Repeat for `--section used` and `--section new`. The log in `logs/run.log` names the URL
+   that failed and why.
+3. Check `used.searches` in `config.yaml`. The search parameters are guesses. Apply your
+   filters on each site and paste the real URL.
 
 ## When a site changes layout
 
-To be written in stage 6, together with the fixture refresh procedure.
+1. Save the live page exactly as the scraper sees it. For static pages:
+   `uv run python -c "from scrapers.base import BaseScraper; ..."` is more than you need; the
+   simplest way is the browser: open the page, right click, "Save page as", "Webpage, HTML only",
+   into `fixtures/<site>_<kind>.html`. For rendered pages (Carro) use the browser's developer
+   tools, copy the outer HTML of the document after it has loaded, and save that.
+2. Run `uv run pytest tests/test_<scraper>.py`. The failing assertion tells you which field
+   stopped parsing.
+3. Fix the parser. Most fixes are a new label synonym in the scraper's `labels` dictionary or
+   a new link pattern in `listing_href`. Keep the old fixture if the site serves both layouts.
+4. Run the full suite and a dry run before the next scheduled run.
+
+The daily page cache under `data/cache/YYYY-MM-DD/` also holds every page fetched today, which
+is a quick source of fresh fixtures.
 
 ## Terms of use per source
 
-To be written in stage 6 once each source has been fetched and its robots.txt and terms read.
+Read before you decide to keep scraping a site. This was written without being able to open
+the sites, so confirm each entry against the live terms page and `robots.txt` (the scraper
+already refuses any path that `robots.txt` disallows for its user agent).
+
+* LTA OneMotoring (COE results): government site. The terms of use allow personal,
+  non commercial use of the information. The lightest approach is LTA's open dataset on
+  data.gov.sg ("COE Bidding Results"), which has a JSON API and no scraping at all. Switching to
+  it means adding a small client in `scrapers/coe.py`; the table parser already handles the
+  same fields.
+* Sgcarmart: a commercial classifieds site whose terms of use, as far as can be determined,
+  prohibit automated access, crawlers and data extraction without written consent. Treat the
+  scraper as a personal convenience at low volume (three result pages and up to forty detail
+  pages per search, one request every two seconds or more) and stop if they object. A lighter
+  alternative is their email or app alerts for saved searches.
+* Carro: a commercial marketplace with a JavaScript app. Its terms are believed to prohibit
+  automated access. Same guidance as Sgcarmart. Carro publishes price alerts in its app.
+* Motorist: a commercial listing portal with articles and a COE results page. Its terms are
+  believed to prohibit automated extraction of listings. The COE and petrol price pages are
+  editorial and low volume. Same guidance.
+* Brand pages (BYD, Tesla, MG, GAC Aion, Xpeng, Zeekr, Deepal, Hyundai, Kia, Polestar): one
+  request each per day to read a public price. Marketing pages rarely object to this, but
+  check `robots.txt`, which the scraper honours automatically.
+* Petrol prices: Motorist's petrol page and petrolprice.sg are comparison pages updated for
+  public reading. One request per day.
+
 Nothing in this project bypasses anti bot measures, CAPTCHAs or login walls. If a site
-disallows automated access, the scraper for it is switched off in `config.yaml`.
+disallows automated access, remove it from `coe.source_order` or `used.searches` in
+`config.yaml`.
 
-## Not yet verified
+## Verification status
 
-These values were seeded from memory and must be checked against the official pages before
-you rely on the numbers. Each is marked in `config.yaml` with `verified_on: null`.
+Checked on 2026-09-29 through web search summaries of LTA, MAS and press pages (the pages
+themselves could not be opened from the build environment):
 
-* Road tax bands and the 0.782 factor, the EV additional flat component of 700 per year, and
-  how petrol electric cars are taxed (LTA road tax page).
-* PARF percentages, the 60,000 cap and its effective date, and the ARF tiers (LTA and IRAS).
-* Cat A power ceiling of 110 kW for electric cars (LTA COE categories).
-* Loan to value limits and the 7 year tenure (MAS).
-* EV Early Adoption Incentive end date and the current VES bands (LTA).
-* Insurance premium bands, which are indicative only.
-* Every source URL in `config.yaml`, because the build environment could not reach the sites.
+* Road tax formulas are published per 6 months with the 0.782 factor. Annual tax is the formula
+  doubled. Fully electric cars add a 700 per year flat component. Petrol electric cars pay the
+  higher of the engine capacity and power rating formulas, with no flat component.
+* PARF: cars registered before 15 February 2023 get 75 to 50 percent of ARF with no cap; from
+  15 February 2023 the cap is 60,000; cars with COEs from the second February 2026 exercise get
+  30 to 5 percent, capped at 30,000. ARF tiers are 100, 140, 190, 250 and 320 percent.
+* Cat A covers non electric cars up to 1,600 cc and 97 kW and electric cars up to 110 kW.
+  Bidding opens on the first and third Monday of each month and closes on the Wednesday.
+* Loan to value is 70 percent for OMV up to 20,000 and 60 percent above it, maximum 7 years.
+* EEAI: 45 percent off ARF capped at 7,500 for 2026, ends 31 December 2026. VES: single band A
+  for electric cars, 22,500 in 2026 and 20,000 in 2027, hybrids get nothing from 2026.
+* Latest tender: 23 September 2026, Cat A 131,890, Cat B 133,000, Cat C 92,144, Cat E 137,000.
+
+Still not verified:
+
+* Insurance premium bands, which are indicative only. Get a quote from the comparison links in
+  the report.
+* Every source URL and search parameter in `config.yaml`, and every fixture layout.
+* Public holidays that shift a tender by a day are not modelled in the next tender date.

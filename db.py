@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS used_listings (
     coe_years_remaining REAL,
     omv INTEGER,
     arf INTEGER,
+    dereg_value INTEGER,
     engine_cc INTEGER,
     power_kw REAL,
     seller_type TEXT,
@@ -262,9 +263,9 @@ class Database:
                     """INSERT INTO used_listings
                        (source, listing_id, url, make, model, variant, drivetrain, year, reg_date,
                         mileage_km, owners, price, depreciation_per_year, coe_expiry,
-                        coe_years_remaining, omv, arf, engine_cc, power_kw, seller_type,
+                        coe_years_remaining, omv, arf, dereg_value, engine_cc, power_kw, seller_type,
                         battery_health, flags, description, first_seen, last_seen, status, scraped_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
                        ON CONFLICT(source, listing_id) DO UPDATE SET
                          url = excluded.url, make = excluded.make, model = excluded.model,
                          variant = excluded.variant, drivetrain = excluded.drivetrain,
@@ -272,7 +273,8 @@ class Database:
                          mileage_km = excluded.mileage_km, owners = excluded.owners,
                          price = excluded.price, depreciation_per_year = excluded.depreciation_per_year,
                          coe_expiry = excluded.coe_expiry, coe_years_remaining = excluded.coe_years_remaining,
-                         omv = excluded.omv, arf = excluded.arf, engine_cc = excluded.engine_cc,
+                         omv = excluded.omv, arf = excluded.arf, dereg_value = excluded.dereg_value,
+                         engine_cc = excluded.engine_cc,
                          power_kw = excluded.power_kw, seller_type = excluded.seller_type,
                          battery_health = excluded.battery_health, flags = excluded.flags,
                          description = excluded.description, last_seen = excluded.last_seen,
@@ -281,7 +283,7 @@ class Database:
                         l.source, l.listing_id, l.url, l.make, l.model, l.variant, l.drivetrain.value,
                         l.year, _iso(l.reg_date), l.mileage_km, l.owners, l.price,
                         l.depreciation_per_year, _iso(l.coe_expiry), l.coe_years_remaining,
-                        l.omv, l.arf, l.engine_cc, l.power_kw, l.seller_type, l.battery_health,
+                        l.omv, l.arf, l.dereg_value, l.engine_cc, l.power_kw, l.seller_type, l.battery_health,
                         json.dumps(l.flags), l.description, first_seen, seen_on.isoformat(),
                         l.scraped_at.isoformat(timespec="seconds"),
                     ),

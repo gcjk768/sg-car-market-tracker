@@ -1,0 +1,73 @@
+name: Daily car market report
+
+on:
+  schedule:
+    # 00:00 UTC is 08:00 in Singapore.
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print the report instead of sending it"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Install Playwright Chromium
+        run: uv run playwright install --with-deps chromium
+
+      # The database is kept in the actions cache. Every run saves a fresh copy under a unique
+      # key and the next run restores the newest one through the restore-keys prefix.
+      - name: Restore database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/cars.db
+          key: cars-db-${{ github.run_id }}
+          restore-keys: |
+            cars-db-
+
+      - name: Run report
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SCRAPER_CONTACT: ${{ secrets.SCRAPER_CONTACT }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            uv run python main.py --dry-run
+          else
+            uv run python main.py
+          fi
+
+      - name: Save database
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/cars.db
+          key: cars-db-${{ github.run_id }}
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 14

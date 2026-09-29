@@ -296,20 +296,33 @@ def render_console(sections: Sequence[ReportSection], console: Console | None = 
 def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[ReportSection]:
     run_date = run_date or date.today()
     tender = run_date - timedelta(days=(run_date.weekday() - 2) % 7)
+    # Real figures from the 23 September 2026 tender. Earlier history points are illustrative.
     coe_rows = [
-        {"category": "A", "premium": 104000, "delta": 2500, "delta_pct": 2.5, "history": [96000, 98500, 101000, 99000, 101500, 104000], "bids": 1620, "quota": 1290},
-        {"category": "B", "premium": 121500, "delta": -1500, "delta_pct": -1.2, "history": [118000, 119000, 122500, 124000, 123000, 121500], "bids": 1310, "quota": 1010},
-        {"category": "C", "premium": 71000, "delta": 0, "delta_pct": 0.0, "history": [68000, 69500, 70000, 71000, 71000, 71000], "bids": 380, "quota": 310},
-        {"category": "E", "premium": 122000, "delta": 1000, "delta_pct": 0.8, "history": [117000, 119500, 120000, 122500, 121000, 122000], "bids": 240, "quota": 90},
+        {"category": "A", "premium": 131890, "delta": -1119, "delta_pct": -0.84, "history": [122000, 125500, 128501, 130000, 133009, 131890], "bids": 1507, "quota": 1193},
+        {"category": "B", "premium": 133000, "delta": -2000, "delta_pct": -1.48, "history": [124000, 127500, 130000, 132000, 135000, 133000], "bids": 1135, "quota": 927},
+        {"category": "C", "premium": 92144, "delta": -956, "delta_pct": -1.03, "history": [80000, 84000, 88000, 90500, 93100, 92144], "bids": 532, "quota": 318},
+        {"category": "E", "premium": 137000, "delta": -900, "delta_pct": -0.65, "history": [126000, 129000, 133000, 136000, 137900, 137000], "bids": 431, "quota": 269},
     ]
+    # Figures researched on 2026-09-29 from dealer and press pages, prices with COE.
+    src = "https://www.sgcarmart.com/new_cars/"
     new_evs = [
-        NewEvVariant(make="BYD", model="Atto 3", variant="Dynamic", price_with_coe=169888, coe_category="A", range_km=420, power_kw=150, battery_warranty_years=8, battery_kwh=60.5, listing_url="https://www.sgcarmart.com/new_cars/", price_source_url="https://www.byd.com/sg", source="sample"),
-        NewEvVariant(make="MG", model="4", variant="Standard", price_with_coe=158888, coe_category="A", range_km=350, power_kw=125, battery_warranty_years=7, listing_url="https://www.sgcarmart.com/new_cars/", price_source_url="https://www.mg.com.sg", source="sample"),
-        NewEvVariant(make="Tesla", model="Model 3", variant="RWD", price_with_coe=198000, coe_category="B", range_km=513, power_kw=208, battery_warranty_years=8, listing_url="https://www.tesla.com/en_sg/model3", price_source_url="https://www.tesla.com/en_sg", source="sample"),
-        NewEvVariant(make="Xpeng", model="G6", variant="Standard Range", price_with_coe=188999, coe_category="B", range_km=435, power_kw=190, battery_warranty_years=8, listing_url="https://www.sgcarmart.com/new_cars/", price_source_url="https://www.xpeng.com/sg", source="sample"),
-        NewEvVariant(make="BYD", model="Seal", variant="Premium", price_with_coe=209888, coe_category="B", range_km=570, power_kw=230, battery_warranty_years=8, listing_url="https://www.sgcarmart.com/new_cars/", price_source_url="https://www.byd.com/sg", source="sample"),
+        NewEvVariant(make="Tesla", model="Model 3", variant="RWD 110", price_with_coe=179999, coe_category="A", range_km=534, range_standard="WLTP", power_kw=110, battery_kwh=62.5, battery_warranty_years=8, listing_url="https://www.tesla.com/en_sg/model3", price_source_url="https://www.tesla.com/en_sg", source="sample"),
+        NewEvVariant(make="GAC Aion", model="UT", variant="Premium", price_with_coe=148988, coe_category="A", range_km=410, range_standard="WLTP", power_kw=100, battery_kwh=60, battery_warranty_years=8, listing_url=src, price_source_url="https://www.aion.sg", source="sample"),
+        NewEvVariant(make="GAC Aion", model="Y Plus", variant="Premium", price_with_coe=159988, coe_category="A", range_km=430, power_kw=100, battery_kwh=63.2, battery_warranty_years=8, listing_url=src, price_source_url="https://www.aion.sg", source="sample"),
+        NewEvVariant(make="BYD", model="Sealion 7", variant="Dynamic", price_with_coe=205388, coe_category="A", range_km=540, range_standard="WLTP", power_kw=110, battery_kwh=82.5, battery_warranty_years=8, listing_url=src, price_source_url="https://www.byd.com/sg", source="sample"),
+        NewEvVariant(make="MG", model="MGS5 EV", variant="Luxury promo", price_with_coe=165888, coe_category="A", range_km=425, range_standard="WLTP", power_kw=99, battery_kwh=62, battery_warranty_years=7, listing_url=src, price_source_url="https://www.mg.com.sg", source="sample"),
+        NewEvVariant(make="BYD", model="Atto 3", variant="Dynamic", price_with_coe=171888, coe_category="B", range_km=420, range_standard="WLTP", power_kw=150, battery_kwh=60.5, battery_warranty_years=8, listing_url=src, price_source_url="https://www.byd.com/sg", source="sample"),
+        NewEvVariant(make="MG", model="4", variant="Urban", price_with_coe=168888, coe_category="A", range_km=405, range_standard="WLTP", power_kw=110, battery_kwh=62, battery_warranty_years=7, listing_url=src, price_source_url="https://www.mg.com.sg", source="sample"),
+        NewEvVariant(make="BYD", model="Seal 6 EV", variant="Premium", price_with_coe=179888, coe_category="A", range_km=425, range_standard="WLTC", power_kw=95, battery_warranty_years=8, listing_url=src, price_source_url="https://www.byd.com/sg", source="sample"),
+        NewEvVariant(make="GAC Aion", model="UT", variant="Standard", price_with_coe=144988, coe_category="A", range_km=335, range_standard="WLTP", power_kw=100, battery_kwh=44.1, battery_warranty_years=8, listing_url=src, price_source_url="https://www.aion.sg", source="sample"),
+        NewEvVariant(make="Tesla", model="Model Y", variant="RWD 110", price_with_coe=223127, coe_category="A", range_km=500, power_kw=110, battery_kwh=62.5, battery_warranty_years=8, listing_url="https://www.tesla.com/en_sg/modely", price_source_url="https://www.tesla.com/en_sg", source="sample"),
+        NewEvVariant(make="Leapmotor", model="C10", variant="", price_with_coe=195999, coe_category="A", range_km=420, range_standard="WLTP", power_kw=160, battery_kwh=69.9, battery_warranty_years=8, listing_url=src, price_source_url=src, source="sample"),
+        NewEvVariant(make="BYD", model="Dolphin", variant="", price_with_coe=165888, coe_category="A", range_km=345, power_kw=70, battery_kwh=50, battery_warranty_years=8, listing_url=src, price_source_url="https://www.byd.com/sg", source="sample"),
+        NewEvVariant(make="Xpeng", model="G6", variant="Standard Range", price_with_coe=213899, coe_category="B", range_km=435, range_standard="WLTP", power_kw=190, battery_kwh=66, battery_warranty_years=8, listing_url=src, price_source_url="https://www.xpeng.com/sg", source="sample"),
     ]
-    new_evs.sort(key=lambda v: (v.score or 9e9, -(v.battery_warranty_years or 0)))
+    from scrapers.new_ev import rank_new_evs
+
+    new_evs = rank_new_evs(new_evs, cfg)
 
     def used(**kw) -> UsedListing:
         base = dict(source="sample", listing_id=kw["listing_id"], url=f"https://www.sgcarmart.com/used_cars/info.php?ID={kw['listing_id']}", variant="", seller_type="dealer")
@@ -327,7 +340,7 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         (used(listing_id="2203", make="Mazda", model="3", variant="1.5 Mild Hybrid", drivetrain="hybrid", year=2020, mileage_km=63000, owners=2, price=88800, depreciation_per_year=12900, coe_years_remaining=4.9, engine_cc=1496), "DROP ▼1,500"),
     ]
     costs = [
-        (CostBreakdown(label="MG 4 Standard (new)", drivetrain="ev", road_tax=1258, insurance_low=2300, insurance_high=3600, depreciation=13600, energy=936, fixed_extras=2900), new_evs[0].listing_url),
+        (CostBreakdown(label="Tesla Model 3 RWD 110 (new)", drivetrain="ev", road_tax=1678, insurance_low=1800, insurance_high=2800, depreciation=18000, energy=936, fixed_extras=2900), new_evs[0].listing_url),
         (CostBreakdown(label="BYD Atto 3 2023 (used)", drivetrain="ev", road_tax=1404, insurance_low=1800, insurance_high=2800, depreciation=11900, energy=936, fixed_extras=2900), used_ev[0][0].url),
         (CostBreakdown(label="Toyota Altis Hybrid 2021", drivetrain="hybrid", road_tax=742, insurance_low=1400, insurance_high=2300, depreciation=11200, energy=2351, fixed_extras=3300), used_ice[0][0].url),
     ]
@@ -339,7 +352,7 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
     sections = [
         summary_section(
             run_date, new_count=2, drop_count=2, gone_count=1,
-            coe_line="Cat A $104,000 ▲2,500, Cat B $121,500 ▼1,500",
+            coe_line="Cat A $131,890 ▼1,119, Cat B $133,000 ▼2,000",
             best_pick=("BYD Atto 3 2023, 28,000 km, $118,800", used_ev[0][0].url, "Lowest depreciation per year in the used EV list with 7.4 years of COE left."),
         ),
         coe_section(tender, "sample tender", coe_rows, tender + timedelta(days=14), cfg["sources"]["onemotoring_coe"]),
@@ -347,7 +360,7 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         used_section("used_ev", used_ev),
         used_section("used_ice", used_ice),
         costs_section(costs, cfg["costs"]["insurance"]["assumptions"].strip(), insurance_links),
-        considerations_section(cfg, 104000, 121500, sources),
+        considerations_section(cfg, 131890, 133000, sources),
     ]
     for s in sections:
         s.html = "<i>SAMPLE DATA, delivery test</i>\n" + s.html
