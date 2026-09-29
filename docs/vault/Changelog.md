@@ -1,8 +1,13 @@
 ---
 tags: [active]
-updated: 2026-09-29
+updated: 2026-09-30
 ---
 # Changelog
+
+## 2026-09-30
+
+* Longer lists on request, about 20 cars each: `used.top_n` 8 to 20, `new_ev.top_n_per_body_type` 4 to 6 (`config.yaml`). The real limit was the candidate pool (70 used EVs gave 4 that passed the filters), so Motorist searches now pre filter by `price_max` and `year_min`, and `max_list_pages` 3 to 5, `max_detail_pages_per_search` 40 to 80.
+* New Top sellers in SG section: brands ranked by new registrations this year from LTA table M03, a PDF read with `pypdf` (`scrapers/registrations.py`, `report.py` `top_sellers_section`, `pipeline.py`). LTA does not publish registrations by model.
 
 ## 2026-09-29
 

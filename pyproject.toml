@@ -13,6 +13,7 @@ dependencies = [
     "tenacity>=8.3",
     "rich>=13.7",
     "tzdata>=2026.4",
+    "pypdf>=6.19.0",
 ]
 
 [dependency-groups]

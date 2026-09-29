@@ -39,6 +39,7 @@ telegram:
     - new_ev
     - used_ev
     - used_ice
+    - top_sellers
     - fuel
     - costs
 
@@ -80,6 +81,8 @@ sources:
   cnergy: "https://www.cnergy.sg/"
   lta_tax_structure: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/upfront-vehicle-costs/tax-structure.html"
   lta_parf: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/rebates/parf-coe-rebate.html"
+  # LTA table M03, new car registrations by make, both halves of the current year. PDF.
+  lta_registrations_by_make: "https://www.lta.gov.sg/content/dam/ltagov/who_we_are/statistics_and_publications/statistics/pdf/M03-Car_Regn_by_make.pdf"
   mas_loan_rules: "https://www.mas.gov.sg/regulation/explainers/motor-vehicle-loans"
   lta_ves_eeai_extension: "https://www.lta.gov.sg/content/ltagov/en/newsroom/2025/9/news-releases/extension_of_ves_and_eeai_to_support_vehicle_electrification.html"
   lta_parf_revision_2026: "https://www.lta.gov.sg/content/ltagov/en/newsroom/2026/2/news-releases/revision-parf-rebate-schedule-cap.html"
@@ -117,8 +120,13 @@ coe:
   # Motorist first: it shows the change since the previous tender. LTA is the fallback.
   source_order: [motorist, onemotoring, sgcarmart]
 
+top_sellers:
+  # Brands shown, ranked by new registrations this year. LTA does not publish models.
+  top_n: 20
+  verified_on: "2026-09-30"
+
 new_ev:
-  top_n: 10
+  top_n: 20
   # Dealer prices in Singapore are advertised with COE and already net of the VES and EEAI
   # rebates, which are applied to ARF at registration. The report says so on every price.
   prices_include_rebates: true
@@ -138,7 +146,7 @@ new_ev:
     tiebreak: battery_warranty_years_desc
   # Group the new EV list by body type, showing the best value cars in each group.
   group_by_body_type: true
-  top_n_per_body_type: 4
+  top_n_per_body_type: 6
   body_type_order: [Hatchback, Sedan, SUV, MPV, Coupe, Wagon, Other]
   body_type_titles:
     SUV: SUV and crossover
@@ -180,7 +188,7 @@ new_ev:
     - Deepal S07
 
 used:
-  top_n: 8
+  top_n: 20
   filters:
     price_ceiling_sgd: 120000
     max_km_per_year_of_age: 15000
@@ -212,8 +220,8 @@ used:
     - depreciation_per_year_asc
     - mileage_km_asc
   # How many listing pages to walk per search and how many detail pages to open per run.
-  max_list_pages: 3
-  max_detail_pages_per_search: 40
+  max_list_pages: 5
+  max_detail_pages_per_search: 80
   # Search URLs per source and drivetrain group. Apply your filters on the site, then paste the
   # URL of the first results page here. {page} is replaced with the page number.
   searches:
@@ -225,14 +233,17 @@ used:
         sgcarmart: "https://www.sgcarmart.com/used-cars/listing?q=Electric&cat=18&avl=a&ord=DEP_ASC&page={page}"
         # Carro is off: its fuel filter changed in 2026 and listings now sit in page JSON.
         # carro: "https://carro.co/sg/en/buy?fuel_type=electric&page={page}"
-        motorist: "https://www.motorist.sg/used-cars/electric-car?page={page}"
+        # price_max and year_min mirror price_ceiling_sgd and max_age_years.ev, so detail pages
+        # are not spent on cars the filters reject. Update them together.
+        motorist: "https://www.motorist.sg/used-cars/electric-car?price_max=120000&year_min=2020&page={page}"
     ice:
       fuel_types: [petrol, hybrid, petrol-electric]
       urls:
         # No fuel filter on the new site: every available car, EVs dropped by the detail page.
         sgcarmart: "https://www.sgcarmart.com/used-cars/listing?cat=18&avl=a&ord=DEP_ASC&page={page}"
         # carro: "https://carro.co/sg/en/buy?fuel_type=petrol,hybrid&page={page}"
-        motorist: "https://www.motorist.sg/used-cars?page={page}"
+        # Same pre filter as above, with max_age_years.ice.
+        motorist: "https://www.motorist.sg/used-cars?price_max=120000&year_min=2018&page={page}"
 
 costs:
   verified_on: "2026-09-29"

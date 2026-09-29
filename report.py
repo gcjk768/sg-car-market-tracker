@@ -34,6 +34,7 @@ SECTION_TITLES = {
     "new_ev": "New EV Car Best Value list",
     "used_ev": "Used EV Car Best Value list",
     "used_ice": "Used Petrol Car Best Value list",
+    "top_sellers": "Top sellers in SG",
     "fuel": "Pump prices",
     "costs": "Cost of ownership, top 3",
     "considerations": "Buying considerations",
@@ -271,6 +272,30 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
     )
 
 
+# Top sellers
+
+
+def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str], top_n: int = 20, max_width: int = 60, source_url: str | None = None) -> ReportSection:
+    """makes: {make: {"total": n, "ev": n}} of new registrations over `months` (YYYY-MM)."""
+    cols = [Column("#", 2, "right"), Column("Make", 14), Column("New cars", 8, "right"), Column("Share", 6, "right"), Column("EV", 5, "right")]
+    grand = sum(m["total"] for m in makes.values()) or 1
+    ranked = sorted(makes.items(), key=lambda t: -t[1]["total"])[:top_n]
+    rows = [[n, make if make in ("BMW", "BYD", "GAC", "MG", "DS") else make.title(), fmt_int(m["total"]), f"{m['total'] * 100 / grand:.1f}%",
+             f"{m['ev'] * 100 / m['total']:.0f}%" if m["total"] else "n/a"]
+            for n, (make, m) in enumerate(ranked, start=1)]
+    span = ""
+    if months:
+        first, last = (date.fromisoformat(f"{m}-01") for m in (months[0], months[-1]))
+        span = f" from {first.strftime('%b')} to {last.strftime('%b %Y')}" if first != last else f" in {last.strftime('%b %Y')}"
+    intro = (f"Brands ranked by new car registrations{span}, {fmt_int(grand)} cars in total. EV is the share of"
+             " that brand's cars that are fully electric. LTA publishes registrations by brand only, not by model.")
+    parts = [intro, pre_block(render_table(cols, rows, max_width))]
+    if source_url:
+        parts.append(f"Source: <a href=\"{html_lib.escape(source_url, quote=True)}\">LTA table M03</a>")
+    title = SECTION_TITLES["top_sellers"]
+    return ReportSection(key="top_sellers", title=title, html=build_section(title, parts))
+
+
 # Pump prices
 
 
@@ -468,6 +493,11 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         new_ev_section(new_evs, cfg=cfg, groups=new_ev_groups if cfg["new_ev"].get("group_by_body_type") else None),
         used_section("used_ev", used_ev, cfg=cfg),
         used_section("used_ice", used_ice, cfg=cfg),
+        # Real LTA figures, January to August 2026, top five brands.
+        top_sellers_section({"BYD": {"total": 9028, "ev": 8318}, "TOYOTA": {"total": 4412, "ev": 245},
+                             "TESLA": {"total": 3723, "ev": 3723}, "MERCEDES BENZ": {"total": 2299, "ev": 360},
+                             "BMW": {"total": 2031, "ev": 790}}, ["2026-01", "2026-08"],
+                            source_url=cfg["sources"]["lta_registrations_by_make"]),
         fuel_section(FuelPrice(observed_on=run_date, ron95_per_litre=3.49, source="sample",
                                station_prices={"95": {"public": 2.54}},
                                grades={"SPC": {"92": 3.46, "95": 3.48, "98": 4.00, "Diesel": 3.97},

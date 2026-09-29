@@ -20,6 +20,7 @@ from scrapers.base import ScraperUnavailable
 from scrapers.coe import next_tender_date, scrape_coe
 from scrapers.fuel_cnergy import scrape_cnergy
 from scrapers.fuel_price import pick_price, scrape_fuel_price
+from scrapers.registrations import scrape_registrations
 from scrapers.new_ev import group_by_body_type, rank_new_evs, scrape_new_evs
 from scrapers.used_carro import CarroUsedScraper
 from scrapers.used_motorist import MotoristUsedScraper
@@ -39,7 +40,7 @@ SECTION_GROUPS = {
     "new": {"new_ev"},
     "used": {"used_ev", "used_ice"},
     "costs": {"costs", "new_ev", "used_ev", "used_ice", "coe"},
-    "all": {"summary", "coe", "new_ev", "used_ev", "used_ice", "fuel", "costs", "considerations"},
+    "all": {"summary", "coe", "new_ev", "used_ev", "used_ice", "top_sellers", "fuel", "costs", "considerations"},
 }
 
 
@@ -279,6 +280,14 @@ class Pipeline:
                     failed = [v for k, v in self.unavailable.items() if k.startswith("used") and k.endswith(" " + group)]
                     reason = "no listing passed the filters" + (". Failed sources: " + "; ".join(failed) if failed else "")
                     sections.append(report.unavailable_section(key, reason))
+            elif key == "top_sellers":
+                reg = scrape_registrations(self.cfg, self.ua, self.run_date, self.force)
+                if reg:
+                    sections.append(report.top_sellers_section(*reg, top_n=self.cfg.get("top_sellers", {}).get("top_n", 20),
+                                                               max_width=self.cfg["telegram"]["table_width"],
+                                                               source_url=self.cfg["sources"]["lta_registrations_by_make"]))
+                else:
+                    sections.append(report.unavailable_section("top_sellers", "LTA registrations table could not be read"))
             elif key == "fuel":
                 fuel = self.db.latest_fuel_price()
                 if fuel and (fuel.grades or fuel.station_prices):
