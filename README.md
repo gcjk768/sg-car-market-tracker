@@ -152,9 +152,19 @@ card or loyalty discounts. Deposits are the minimum under the MAS loan to value 
 instalments use flat rates, so the effective interest rate is higher than the figure shown.
 * `buying_considerations` holds the reference text printed at the end of the report.
 
+## Architecture
+
+The architecture diagram lives in `docs/architecture.drawio`. Open it at
+[app.diagrams.net](https://app.diagrams.net) or with the draw.io desktop app or VS Code
+extension. In one line: scrapers fetch and parse each source through a shared base with
+robots.txt, throttling and a daily cache; the pipeline stores everything in SQLite, applies
+the filters and cost formulas, and hands seven sections to the Telegram sender.
+
 ## Project layout
 
 ```
+CLAUDE.md             standing conventions for Claude Code sessions
+docs/architecture.drawio  architecture diagram (draw.io)
 config.yaml           all filters, formulas and assumptions
 .env.example          secrets template
 main.py               CLI entry point
