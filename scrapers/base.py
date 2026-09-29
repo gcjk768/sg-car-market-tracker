@@ -42,12 +42,14 @@ class _Throttle:
         self.seconds = seconds
         self.jitter = jitter
         self._last: dict[str, float] = {}
+        # Crawl-delay from each site's robots.txt, used when longer than our own gap.
+        self.min_gap: dict[str, float] = {}
 
     def wait(self, domain: str) -> None:
         now = time.monotonic()
         last = self._last.get(domain)
         if last is not None:
-            gap = self.seconds + random.uniform(0, self.jitter)
+            gap = max(self.seconds, self.min_gap.get(domain, 0.0)) + random.uniform(0, self.jitter)
             remaining = last + gap - now
             if remaining > 0:
                 time.sleep(remaining)
@@ -128,6 +130,9 @@ class BaseScraper(ABC):
                 log.warning("could not read %s (%s), assuming allowed", robots_url, exc)
                 rp.parse([])
             BaseScraper._robots[base] = rp
+            delay = rp.crawl_delay(self.user_agent)
+            if delay:
+                BaseScraper._throttle.min_gap[parts.netloc] = float(delay)
         return rp.can_fetch(self.user_agent, url)
 
     # Fetching

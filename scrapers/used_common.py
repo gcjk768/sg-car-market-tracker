@@ -165,8 +165,15 @@ class UsedScraperBase(BaseScraper):
         return node
 
     @staticmethod
+    def _depre_from_text(text: str) -> Optional[int]:
+        """Unlabelled depreciation written as "$18,681/yr"."""
+        m = re.search(r"\$\s*(\d[\d,]{3,})\s*/\s*yr", text)
+        return parse_money(m.group(1)) if m else None
+
+    @staticmethod
     def _price_from_text(text: str) -> Optional[int]:
-        m = re.search(r"S?\$\s*\d[\d,]{4,}", text)
+        # Skip "$18,681/yr" depreciation and "$1,376/mth" instalments that sit next to the price.
+        m = re.search(r"S?\$\s*\d[\d,]{4,}(?![\d,]|\s*/)", text)
         return parse_money(m.group(0)) if m else None
 
     # Detail pages
@@ -177,12 +184,17 @@ class UsedScraperBase(BaseScraper):
 
     def parse_detail(self, html: str, card: dict[str, Any]) -> UsedListing:
         tree = HTMLParser(html)
+        # Site menus carry words like "Scrap / Export" that would flag every car.
+        for node in tree.css("script, style, noscript, nav, header, footer"):
+            node.decompose()
         values = label_values(tree)
         page_text = text_of(tree.body) if tree.body else clean(html)
         title = text_of(tree.css_first("h1")) or card["title"]
         make, model, variant = split_make_model(title)
 
-        price = parse_money(self._label(values, "price")) or card.get("price")
+        # An unlabelled price is the first plain amount after the title.
+        after_title = page_text[page_text.find(title):] if title in page_text else ""
+        price = parse_money(self._label(values, "price")) or self._price_from_text(after_title) or card.get("price")
         if not price:
             raise ScraperUnavailable(f"{self.name}: no price for {card['url']}")
         reg_date = parse_date(self._label(values, "reg_date"))
@@ -224,7 +236,7 @@ class UsedScraperBase(BaseScraper):
             mileage_km=parse_km(self._label(values, "mileage")),
             owners=parse_int(self._label(values, "owners")),
             price=price,
-            depreciation_per_year=parse_money(self._label(values, "depreciation")),
+            depreciation_per_year=parse_money(self._label(values, "depreciation")) or self._depre_from_text(after_title),
             coe_expiry=coe_expiry,
             coe_years_remaining=coe_years,
             omv=parse_money(self._label(values, "omv")),

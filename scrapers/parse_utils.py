@@ -147,6 +147,12 @@ def label_values(html: str | HTMLParser) -> dict[str, str]:
         dts, dds = dl.css("dt"), dl.css("dd")
         for dt, dd in zip(dts, dds):
             put(text_of(dt), text_of(dd))
+    # Label and value as the only two text children of one row, e.g. Motorist's
+    # <div><i/><span>Registration Date</span><span>15/06/2022</span></div>.
+    for row in tree.css("div, li"):
+        kids = [c for c in row.iter() if c.tag != "-text" and text_of(c)]
+        if len(kids) == 2 and not any(True for _ in kids[0].iter()) and len(text_of(kids[0])) < 40:
+            put(text_of(kids[0]), text_of(kids[1]))
     block_tags = {"li", "p", "div", "table", "ul", "ol", "section", "article", "dl"}
     for node in tree.css("li, p, div, span"):
         if any(child.tag in block_tags for child in node.iter()):

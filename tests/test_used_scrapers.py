@@ -75,3 +75,28 @@ def test_bare_href_is_skipped_not_a_crash(cfg):
     html = "<a href>menu</a>" + (FIX / "sgcarmart_used_list.html").read_text()
     s = SgcarmartUsedScraper(cfg, "ua", RUN, group="ev")
     assert len(s.parse(html)) == 3
+
+
+def test_motorist_live_detail_page(cfg):
+    # Saved from motorist.sg on 2026-09-29: label and value are sibling spans, the price has
+    # no label, and the site menu says "Scrap / Export".
+    s = MotoristUsedScraper(cfg, "ua", RUN, group="ev")
+    card = {"listing_id": "53696", "url": "https://www.motorist.sg/used-car/53696/x", "title": "", "price": None}
+    listing = s.parse_detail((FIX / "motorist_used_detail_live.html").read_text(encoding="utf-8"), card)
+    assert (listing.price, listing.depreciation_per_year) == (136800, 18681)
+    assert (listing.reg_date, listing.owners, listing.omv) == (date(2022, 6, 15), 1, 73984)
+    assert listing.coe_expiry == date(2032, 6, 14)
+    assert listing.flags == []
+
+
+def test_throttle_honours_crawl_delay(monkeypatch):
+    from scrapers.base import _Throttle
+    import scrapers.base as base
+
+    slept = []
+    monkeypatch.setattr(base.time, "sleep", slept.append)
+    t = _Throttle(2.0, 0.0)
+    t.min_gap["www.sgcarmart.com"] = 30.0
+    t.wait("www.sgcarmart.com")
+    t.wait("www.sgcarmart.com")
+    assert slept and slept[0] > 29
