@@ -101,3 +101,25 @@ def test_analyst_note(cfg, monkeypatch):
     note = analyst_note(ClaudeCli(cfg), {"coe": {"A": 131890}})
     assert note.startswith("Cat A is high")
     assert json.loads(calls[0]["input"]) == {"coe": {"A": 131890}}
+
+
+def test_ask_answers_from_saved_report(cfg, monkeypatch, tmp_path):
+    from ai import report_text
+    from bot_listener import ask_text
+    from db import Database
+
+    cfg["ai"]["enabled"] = True
+    cfg["general"]["db_path"] = str(tmp_path / "cars.db")
+    monkeypatch.setattr("ai.shutil.which", lambda cmd: "/usr/bin/claude")
+    run, calls = _fake_run({"result": "Buy the Atto 3 & keep it 7 years."})
+    monkeypatch.setattr("ai.subprocess.run", run)
+
+    assert "No report saved" in ask_text("which car?", cfg)
+    db = Database(cfg["general"]["db_path"])
+    db.set_state("last_report", report_text(["<b>Used EV</b>\n1. <a href='x'>BYD Atto 3</a> $118,800 &amp; more"]))
+    db.close()
+
+    assert "for example" in ask_text("", cfg)
+    assert ask_text("which car?", cfg) == "Buy the Atto 3 &amp; keep it 7 years."
+    assert calls[0]["args"][2].endswith("Question: which car?")
+    assert calls[0]["input"] == "Used EV\n1. BYD Atto 3 $118,800 & more"

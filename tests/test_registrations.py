@@ -19,8 +19,8 @@ MERCEDES BENZ PI Petrol-Electric 2 2 2
 
 def test_parse_sums_halves_by_make():
     makes, months = parse_registrations(TEXT)
-    assert makes["BYD"] == {"total": 3200, "ev": 2852}
-    assert makes["BMW"] == {"total": 352, "ev": 127}
+    assert makes["BYD"] == {"total": 3200, "ev": 2852, "petrol": 348}
+    assert makes["BMW"] == {"total": 352, "ev": 127, "petrol": 225}
     assert makes["MERCEDES BENZ"]["total"] == 2
     assert "Total" not in makes
     assert months == ["2026-01", "2026-02", "2026-03", "2026-07", "2026-08"]
@@ -29,6 +29,8 @@ def test_parse_sums_halves_by_make():
 def test_section_ranks_by_registrations():
     makes, months = parse_registrations(TEXT)
     html = top_sellers_section(makes, months, top_n=2).html
-    assert html.index("BYD") < html.index("BMW")
+    ev, petrol = html.split("Top petrol brands")
+    assert ev.index("BYD") < ev.index("BMW")
+    assert petrol.index("BYD") < petrol.index("BMW")
     assert "Mercedes" not in html
     assert "from Jan to Aug 2026" in html

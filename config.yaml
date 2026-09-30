@@ -59,6 +59,8 @@ ai:
   fallback_when_missing: [price, mileage_km, coe_years_remaining]
   # Three sentence note on the summary section.
   analyst_note: true
+  # /ask in Telegram sends the question with the latest report, which is longer than a page.
+  ask_max_input_chars: 40000
   # Extra CLI flags, for example ["--permission-mode", "plan"].
   extra_args: []
 

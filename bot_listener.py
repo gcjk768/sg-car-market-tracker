@@ -3,7 +3,8 @@
   uv run python bot_listener.py
 
 Commands: /run sends a full report now, /coe sends only the COE table, /filters shows the
-current used car filters. Messages from any chat other than TELEGRAM_CHAT_ID are ignored.
+current used car filters, /ask <question> answers from the latest report through the Claude
+CLI. Messages from any chat other than TELEGRAM_CHAT_ID are ignored.
 """
 from __future__ import annotations
 
@@ -12,6 +13,7 @@ import sys
 import time
 from datetime import date
 
+from ai import ClaudeCli, answer_question
 from db import Database
 from pipeline import Pipeline
 from report import SECTION_TITLES
@@ -38,7 +40,28 @@ def filters_text(cfg: dict) -> str:
     return "\n".join(lines)
 
 
-def handle(command: str, cfg: dict, client: TelegramClient) -> None:
+def ask_text(question: str, cfg: dict) -> str:
+    if not question:
+        return "Ask a question after the command, for example: /ask Is a used Atto 3 better value than a new MG4?"
+    db = Database(cfg["general"]["db_path"])
+    try:
+        report = db.get_state("last_report")
+    finally:
+        db.close()
+    if not report:
+        return "No report saved yet. Try again after the next daily run, or send /run first."
+    cli = ClaudeCli(cfg)
+    cli.max_chars = int(cfg.get("ai", {}).get("ask_max_input_chars", 40000))
+    if not cli.available():
+        return "AI is off. Set ai.enabled in config.yaml and sign the Claude CLI in on the NAS."
+    answer = answer_question(cli, question, report)
+    return escape(answer) if answer else "The Claude CLI did not answer. It is probably not signed in on the NAS, see logs/run.log."
+
+
+def handle(command: str, cfg: dict, client: TelegramClient, arg: str = "") -> None:
+    if command == "/ask":
+        client.send_message(ask_text(arg, cfg))
+        return
     if command == "/filters":
         client.send_message(filters_text(cfg))
         return
@@ -61,7 +84,7 @@ def main() -> int:
     )
     chat_id = str(secrets["telegram_chat_id"])
     offset = None
-    log.info("listening for /run, /coe and /filters")
+    log.info("listening for /run, /coe, /filters and /ask")
     while True:
         try:
             # Long poll shorter than the 30 s HTTP timeout, or every idle poll ends in a ReadTimeout.
@@ -80,16 +103,18 @@ def main() -> int:
                 continue
             if client.thread_id and msg.get("message_thread_id") != client.thread_id:
                 continue
-            text = (msg.get("text") or "").strip().split("@")[0].lower()
-            if text in ("/run", "/coe", "/filters"):
+            # "/ask@bot question" or "/ask question": the command is lower cased, the question kept.
+            head, _, arg = (msg.get("text") or "").strip().partition(" ")
+            text = head.split("@")[0].lower()
+            if text in ("/run", "/coe", "/filters", "/ask"):
                 log.info("command %s", text)
                 try:
-                    handle(text, cfg, client)
+                    handle(text, cfg, client, arg.strip())
                 except Exception as exc:
                     log.exception("command failed")
                     client.send_message(f"Command failed: {escape(str(exc))}")
             elif text.startswith("/"):
-                client.send_message("Commands: /run, /coe, /filters")
+                client.send_message("Commands: /run, /coe, /filters, /ask &lt;question&gt;")
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ from pathlib import Path
 
 from rich.console import Console
 
+from ai import report_text
 from db import Database
 from models import ReportSection
 import json
@@ -74,6 +75,9 @@ def main(argv: list[str] | None = None) -> int:
         else:
             db.start_run(run_date)
             sections, pipe = build_report(cfg, db, run_date, args.section, args.since, args.force)
+            if args.section == "all" and not args.dry_run:
+                # Kept even when nothing is sent, so /ask always answers from today's figures.
+                db.set_state("last_report", report_text([s.html for s in sections]))
 
         limit = cfg["telegram"]["max_message_length"]
         for s in sections:

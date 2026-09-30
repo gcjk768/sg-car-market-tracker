@@ -16,6 +16,7 @@ ai.max_calls_per_run so a broken parser cannot turn into a large bill.
 """
 from __future__ import annotations
 
+import html
 import json
 import logging
 import re
@@ -132,3 +133,21 @@ def analyst_note(cli: ClaudeCli, facts: dict[str, Any]) -> Optional[str]:
     )
     text = cli.ask(prompt, json.dumps(facts, default=str))
     return text.strip() if text else None
+
+
+def report_text(sections_html: list[str]) -> str:
+    """Plain text of a built report, saved so /ask can answer from it."""
+    return "\n\n".join(html.unescape(re.sub(r"<[^>]+>", "", h)).strip() for h in sections_html)
+
+
+def answer_question(cli: ClaudeCli, question: str, report: str) -> Optional[str]:
+    """Answer a Telegram /ask question from the latest report, plus general car knowledge."""
+    prompt = (
+        "You help a buyer in Singapore choose a car. Standard input holds the latest report from "
+        "their car tracker: COE premiums, new and used EV and petrol car lists with prices and "
+        "running costs, top selling brands and pump prices. Answer this question in at most eight "
+        "short plain sentences. Use the report's figures where they apply and say when you rely "
+        "on general knowledge instead. Do not invent prices. No headings, no dashes, no markdown. "
+        "Do not use any tools. Question: " + question
+    )
+    return cli.ask(prompt, report)

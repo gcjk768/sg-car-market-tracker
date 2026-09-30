@@ -22,18 +22,24 @@ MONTH = re.compile(r"(20\d\d)-(0[1-9]|1[0-2])")
 
 
 def parse_registrations(text: str) -> tuple[dict[str, dict[str, int]], list[str]]:
-    """({make: {"total": n, "ev": n}}, sorted months covered) from the table's text."""
+    """({make: {"total": n, "ev": n, "petrol": n}}, sorted months covered) from the table's text.
+
+    petrol counts petrol and petrol hybrid rows, since most petrol cars sold now are hybrids.
+    """
     makes: dict[str, dict[str, int]] = {}
     for line in text.splitlines():
         m = ROW.match(line.strip())
         if not m:
             continue
         make = m["make"].replace(".", "").strip()
-        row = makes.setdefault(make, {"total": 0, "ev": 0})
+        row = makes.setdefault(make, {"total": 0, "ev": 0, "petrol": 0})
         n = int(m["total"])
         row["total"] += n
-        if m["fuel"].strip() == "Electric":
+        fuel = m["fuel"].strip()
+        if fuel == "Electric":
             row["ev"] += n
+        elif fuel.startswith("Petrol"):
+            row["petrol"] += n
     months = sorted({f"{y}-{mo}" for y, mo in MONTH.findall(text)})
     return makes, months
 

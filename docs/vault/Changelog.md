@@ -6,6 +6,8 @@ updated: 2026-09-30
 
 ## 2026-09-30
 
+* Top sellers in SG split into Top EV brands and Top petrol brands on request, each ranked by that fuel's new registrations with its share. Petrol counts petrol and petrol hybrid rows, since pure petrol is only 2,004 of 13,615 (`scrapers/registrations.py` `petrol` count, `report.py` `top_sellers_section`).
+* New `/ask <question>` Telegram command (`bot_listener.py` `ask_text`). Answers from the last full report plus general knowledge through the Claude CLI, so it needs the CLI signed in on the NAS.
 * `ai.py`: a failed `claude` call switches AI off for the rest of the run and logs stdout when stderr is empty. The unsigned CLI on the NAS was spending all 20 calls per run on the same login error.
 * `scrapers/base.py`: only transient errors are retried (network, 403, 429, 5xx), via `_transient`. A 404 was fetched three times. `scrapers/used_common.py` logs a 404 past page 1 as the normal end of Motorist results, not a warning.
 * Docs: README rewritten (highlights, flow, stack, limitations) and a new draw.io architecture diagram, `docs/architecture.drawio` with `docs/architecture.drawio.svg` and `docs/architecture.png` exports.
