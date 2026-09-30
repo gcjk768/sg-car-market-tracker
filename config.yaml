@@ -18,6 +18,52 @@ general:
   log_dir: logs
   honour_robots_txt: true
 
+# Keeps the container alive and the report arriving. Read by scheduler.py.
+resilience:
+  # A report runs as a child process and is stopped after this long. A full run takes about an
+  # hour because Sgcarmart asks for a 30 s crawl delay.
+  max_run_minutes: 180
+  # A failed or degraded run is tried again after this many minutes, at most this many times a day.
+  retry_after_minutes: 60
+  max_retries_per_day: 2
+  # The scheduler writes data/heartbeat every tick. If its own loop stops ticking for this long,
+  # a watchdog exits the process so Docker's restart policy starts it fresh.
+  tick_seconds: 30
+  watchdog_minutes: 15
+  # Housekeeping, once a day: page cache folders and self repair records older than this go.
+  cache_keep_days: 7
+  self_heal_keep_days: 30
+  # Log files rotate at this size, keeping this many old files.
+  log_max_mb: 5
+  log_backups: 5
+  # One Telegram alert a day when the report still fails after every retry and self repair.
+  alert_on_failure: true
+  verified_on: "2026-09-30"
+
+# Self repair through the Claude Code CLI (claude -p), used when a run keeps failing after its
+# retries, usually because a site changed its layout. Claude reads the log and today's cached
+# pages, edits the scraper code and runs the tests. The change is kept only when it touches
+# scrapers/ (plus new files under fixtures/ and tests/), the tests pass and the failed sections
+# recover on a dry run. Otherwise every file is put back. Each attempt is saved under
+# data/self_heal/ and reported on Telegram. Needs the CLI signed in inside the container.
+self_heal:
+  enabled: true
+  max_attempts_per_day: 1
+  timeout_minutes: 40
+  max_turns: 60
+  # Spending cap per attempt, passed to the CLI as --max-budget-usd.
+  max_budget_usd: 3.0
+  # Files Claude may change, and folders where it may only add new files.
+  editable: ["scrapers/"]
+  addable: ["fixtures/", "tests/"]
+  # Commands Claude may run. Anything else, git included, is refused by the CLI.
+  allowed_tools: "Read,Grep,Glob,Edit,Write,Bash(python -m pytest:*),Bash(python main.py --dry-run:*)"
+  test_command: ["python", "-m", "pytest", "-q", "-x"]
+  test_timeout_minutes: 20
+  # Failures that are not code problems, so no repair is attempted for them.
+  ignore_unavailable: []
+  verified_on: "2026-09-30"
+
 telegram:
   # Send only when something in the watched sections changed since the last report that was
   # sent. The job still runs daily so the database keeps tracking prices. --force always sends.

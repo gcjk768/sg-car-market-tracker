@@ -8,7 +8,20 @@ services:
     container_name: sg-car-scraper
     # Rebuild on every up, so Dockge Update picks up requirements.txt changes.
     pull_policy: build
+    # scheduler.py supervises the report and the listener as child processes, retries failed
+    # runs and exits on purpose if its own loop stalls, so Docker restarts it.
     restart: unless-stopped
+    # A small init reaps finished child processes such as Chromium.
+    init: true
+    # Healthy while the scheduler's heartbeat (data/heartbeat) is fresh. Shows in Dockge and
+    # `docker ps`. The scheduler restarts itself when it stalls, so this is for visibility.
+    healthcheck:
+      test: ["CMD", "python", "scheduler.py", "--health"]
+      interval: 2m
+      timeout: 30s
+      retries: 3
+      start_period: 3m
+    stop_grace_period: 30s
     env_file: .env
     environment:
       TZ: Asia/Singapore
@@ -29,5 +42,6 @@ services:
     tty: true
     # Chromium needs a bit of shared memory.
     shm_size: "512m"
-    # Chromium plus one claude -p call. Caps a runaway page so the NAS keeps its RAM.
-    mem_limit: 1536m
+    # Chromium plus a self repair (the Claude CLI, the tests and a dry run). Caps a runaway page
+    # so the NAS keeps its RAM.
+    mem_limit: 2g

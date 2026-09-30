@@ -6,7 +6,7 @@ A self hosted Docker service that scrapes the Singapore car market every morning
 ![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)
 ![Playwright](https://img.shields.io/badge/playwright-chromium-2EAD33?logo=playwright&logoColor=white)
 ![SQLite](https://img.shields.io/badge/sqlite-003B57?logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-110%20passing-brightgreen?logo=pytest&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-128%20passing-brightgreen?logo=pytest&logoColor=white)
 
 ![Architecture](docs/architecture.drawio.svg)
 
@@ -45,7 +45,7 @@ Buying a car in Singapore means tracking a COE price that moves every two weeks,
 
 The numbers match the diagram.
 
-1. **Trigger.** `scheduler.py` runs `main.py` daily at `general.schedule_time` (08:00 SGT). `bot_listener.py` can also start a run from Telegram (`/run`, `/coe`, `/filters`).
+1. **Trigger.** `scheduler.py` runs `main.py` daily at `general.schedule_time` (08:00 SGT) as a supervised child process, with retries and self repair (see "Staying up without anyone watching"). `bot_listener.py` can also start a run from Telegram (`/run`, `/coe`, `/filters`).
 2. **Fetch.** Scrapers pull from Motorist, Sgcarmart and LTA through `BaseScraper` (httpx, or Playwright Chromium for rendered pages), with robots.txt checks, throttling, retries and the daily cache.
 3. **Parse.** Label based parsers turn pages into pydantic models (`models.py`). Missing required fields optionally go to the Claude CLI fallback.
 4. **Store.** `db.py` upserts COE results, new EV variants, used listings with price history, and fuel prices into `data/cars.db`, and marks listings that disappeared.
@@ -112,19 +112,33 @@ docker compose logs -f
 
 * `RUN_ON_START=1` sends a report as soon as the container starts, which doubles as the delivery test. `RUN_LISTENER=1` answers `/run`, `/coe` and `/filters`.
 * The project folder is bind mounted at `/app`, so a code or config update is copy the files and restart. A `requirements.txt` change needs a rebuild (`pull_policy: build` does that on every `up`).
-* `mem_limit: 1536m` and `shm_size: 512m` cap Chromium so a runaway page cannot starve the NAS. The image is about 2 GB because of Chromium.
+* `mem_limit: 2g` and `shm_size: 512m` cap Chromium and a self repair so a runaway page cannot starve the NAS. The image is about 2 GB because of Chromium.
 * Optional Claude CLI sign in, stored in `data/claude/` on the host so it survives rebuilds:
 
   ```bash
   docker compose exec -it sg-car-scraper claude auth login
   ```
 
+### Staying up without anyone watching
+
+`scheduler.py` supervises everything, with limits in the `resilience` and `self_heal` blocks of `config.yaml`:
+
+* **Child processes with time limits.** Each report runs as its own process and is stopped after `max_run_minutes`, together with any Chromium it started, so a hung page cannot freeze the service. The Telegram listener is a second process, restarted with a growing backoff if it exits.
+* **Retries.** A run that crashes, cannot reach Telegram or leaves sections unavailable is tried again after `retry_after_minutes`, up to `max_retries_per_day`.
+* **Self repair.** When a run fails a second time for a reason other than Telegram, `heal.py` asks the Claude CLI (`claude -p`) to fix the code. Claude may only edit `scrapers/`, add files under `fixtures/` and `tests/`, and run the tests or a dry run. It cannot use git and is capped by `max_turns` and `max_budget_usd`. The change is kept only when it stays inside those folders, the tests pass and the failed sections recover on a dry run. Otherwise every file is put back. Each attempt is saved under `data/self_heal/` and reported on Telegram. A kept change exists only on the NAS: see it with `git diff`, and stash or commit it before the next `git pull`.
+* **One alert.** If the report still fails after every retry and repair, one Telegram message a day says what is wrong.
+* **Heartbeat and watchdog.** The loop writes `data/heartbeat` every tick. Docker's healthcheck (`python scheduler.py --health`) reads it, and a watchdog exits the process if the loop stalls, so `restart: unless-stopped` brings it back. `init: true` reaps finished child processes.
+* **Catch up and housekeeping.** A run missed while the container was down happens on start. Once a day, page cache folders and repair records past their keep days are removed, and log files rotate at `log_max_mb`.
+
+Self repair needs the Claude CLI signed in inside the container (see above). A rehearsal against a deliberately broken COE parser was fixed and kept for $0.17.
+
 A GitHub Actions alternative is in `.github/workflows/daily.yml`: 00:00 UTC schedule, `data/cars.db` kept in the actions cache (evicted after 7 idle days), secrets as repository secrets.
 
 ## Project structure
 
 ```
-main.py, scheduler.py       CLI entry point and the daily scheduler used in the container
+main.py, scheduler.py       CLI entry point and the supervisor used in the container
+heal.py                     self repair through claude -p, kept only when safe and working
 bot_listener.py             optional Telegram command listener
 pipeline.py                 runs scrapers, persists results, builds sections, change detection
 filters.py, costs.py        used car filters and ranking, cost of ownership engine
@@ -157,6 +171,8 @@ Latest local run: **100 passed** in about 34 s. The suite covers:
 1. Save the live page into `fixtures/<site>_<kind>.html` (today's copy is already in `data/cache/YYYY-MM-DD/`).
 2. Run `uv run pytest tests/test_<scraper>.py`. The failing assertion names the field that stopped parsing.
 3. Fix the parser, usually a new label synonym or link pattern, then run the full suite and a dry run.
+
+On the NAS, self repair tries these steps on its own after a second failed run. When it keeps a change, bring it into the repository from `git diff` in the project folder.
 
 ## Design decisions and limitations
 

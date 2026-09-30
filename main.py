@@ -29,9 +29,12 @@ from telegram_bot import TelegramClient, TelegramError
 SECTIONS = ("coe", "new", "used", "costs", "all")
 
 
-def setup_logging(log_dir: Path) -> None:
+def setup_logging(log_dir: Path, max_mb: float = 5, backups: int = 5, filename: str = "run.log") -> None:
+    from logging.handlers import RotatingFileHandler
+
     log_dir.mkdir(parents=True, exist_ok=True)
-    handlers = [logging.StreamHandler(sys.stderr), logging.FileHandler(log_dir / "run.log", encoding="utf-8")]
+    handlers = [logging.StreamHandler(sys.stderr),
+                RotatingFileHandler(log_dir / filename, maxBytes=int(max_mb * 1024 * 1024), backupCount=backups, encoding="utf-8")]
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -62,7 +65,8 @@ def build_report(cfg: dict, db: Database, run_date: date, section: str, since: d
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     cfg = load_config(args.config) if args.config else load_config()
-    setup_logging(Path(cfg["general"]["log_dir"]))
+    res = cfg.get("resilience", {})
+    setup_logging(Path(cfg["general"]["log_dir"]), res.get("log_max_mb", 5), res.get("log_backups", 5))
     log = logging.getLogger("main")
     run_date = date.today()
     db = Database(cfg["general"]["db_path"])
@@ -75,6 +79,11 @@ def main(argv: list[str] | None = None) -> int:
         else:
             db.start_run(run_date)
             sections, pipe = build_report(cfg, db, run_date, args.section, args.since, args.force)
+            # Read by scheduler.py and heal.py to decide on a retry or a self repair.
+            db.set_state("last_run_health", json.dumps({
+                "date": run_date.isoformat(), "section": args.section, "dry_run": args.dry_run,
+                "unavailable": pipe.unavailable,
+            }))
             if args.section == "all" and not args.dry_run:
                 # Kept even when nothing is sent, so /ask always answers from today's figures.
                 db.set_state("last_report", report_text([s.html for s in sections]))

@@ -112,9 +112,15 @@ def main() -> int:
                     handle(text, cfg, client, arg.strip())
                 except Exception as exc:
                     log.exception("command failed")
-                    client.send_message(f"Command failed: {escape(str(exc))}")
+                    try:
+                        client.send_message(f"Command failed: {escape(str(exc))}")
+                    except Exception:
+                        log.exception("could not report the failure")  # stay up, the next command may work
             elif text.startswith("/"):
-                client.send_message("Commands: /run, /coe, /filters, /ask &lt;question&gt;")
+                try:
+                    client.send_message("Commands: /run, /coe, /filters, /ask &lt;question&gt;")
+                except Exception:
+                    log.exception("could not send the command list")
 
 
 if __name__ == "__main__":
