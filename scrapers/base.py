@@ -18,9 +18,17 @@ from typing import Any, ClassVar, Optional
 from urllib.parse import urlsplit
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 log = logging.getLogger(__name__)
+
+
+def _transient(exc: BaseException) -> bool:
+    """Worth retrying: network errors, rate limits, blocks and server errors. A 404 is not."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        return code in (403, 429) or code >= 500
+    return isinstance(exc, httpx.TransportError)
 
 
 class FetchError(Exception):
@@ -154,7 +162,7 @@ class BaseScraper(ABC):
         @retry(
             stop=stop_after_attempt(self.max_retries),
             wait=wait_exponential(multiplier=2, min=2, max=30),
-            retry=retry_if_exception_type((httpx.TransportError, httpx.HTTPStatusError)),
+            retry=retry_if_exception(_transient),
             reraise=True,
         )
         def _go() -> str:

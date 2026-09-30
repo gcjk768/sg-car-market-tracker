@@ -325,7 +325,9 @@ class UsedScraperBase(BaseScraper):
             except Exception as exc:
                 if page == 1:
                     raise ScraperUnavailable(f"{self.name} results page failed: {exc}") from exc
-                log.warning("%s page %d failed: %s", self.name, page, exc)
+                # Motorist answers a page past the last one with 404, which just means no more pages.
+                level = logging.INFO if "404" in str(exc) else logging.WARNING
+                log.log(level, "%s page %d failed: %s", self.name, page, exc)
                 break
             if not page_cards:
                 break

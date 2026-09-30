@@ -54,9 +54,12 @@ def test_cli_error_and_bad_json_are_swallowed(cfg, monkeypatch):
     run, _ = _fake_run("not json at all")
     monkeypatch.setattr("ai.subprocess.run", run)
     assert ClaudeCli(cfg).ask_json("x") is None
-    run, _ = _fake_run({"result": ""}, returncode=1)
+    run, calls = _fake_run({"result": "Not logged in"}, returncode=1)
     monkeypatch.setattr("ai.subprocess.run", run)
-    assert ClaudeCli(cfg).ask("x") is None
+    cli = ClaudeCli(cfg)
+    assert cli.ask("x") is None
+    assert cli.ask("y") is None
+    assert len(calls) == 1
 
 
 def test_extract_listing_fields_keeps_known_keys_only(cfg, monkeypatch):

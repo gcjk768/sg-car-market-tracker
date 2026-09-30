@@ -72,7 +72,11 @@ class ClaudeCli:
             log.warning("ai: claude cli failed: %s", exc)
             return None
         if proc.returncode != 0:
-            log.warning("ai: claude cli exit %s: %s", proc.returncode, proc.stderr.strip()[:300])
+            # A failing CLI is almost always a missing login, so stop for the rest of the run
+            # instead of spending the whole call budget on the same error.
+            detail = (proc.stderr.strip() or proc.stdout.strip())[:300]
+            log.warning("ai: claude cli exit %s, AI off for this run: %s", proc.returncode, detail)
+            self.enabled = False
             return None
         try:
             envelope = json.loads(proc.stdout)
