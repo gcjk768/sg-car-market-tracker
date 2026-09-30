@@ -102,6 +102,9 @@ class UsedScraperBase(BaseScraper):
     name: ClassVar[str] = "used"
     listing_href: ClassVar[re.Pattern] = re.compile(r"$^")
     needs_js: ClassVar[bool] = False
+    # Marks a sold car on the detail page. Sold pages show no price, so the unlabelled price
+    # fallback would read the COE premium instead.
+    sold_marker: ClassVar[Optional[re.Pattern]] = None
     # Site specific label synonyms, lower case, checked before the generic ones.
     labels: ClassVar[dict[str, tuple[str, ...]]] = {}
 
@@ -134,6 +137,13 @@ class UsedScraperBase(BaseScraper):
         self.max_list_pages = used_cfg.get("max_list_pages", 3)
         self.max_details = used_cfg.get("max_detail_pages_per_search", 40)
         self.search_url = used_cfg["searches"][group]["urls"][self.name]
+        # Search URLs take {price_max} and {year_min} from the filters, so the sites only list
+        # cars that can pass. year_min is the stricter of the age limit and the COE left rule.
+        f = used_cfg["filters"]
+        ages = f["max_age_years"]
+        max_age = ages["ev"] if group == "ev" else max(ages["ice"], ages["hybrid"])
+        coe_age = int(f.get("coe_term_years", 10) - f.get("min_coe_years_remaining", 0))
+        self.url_params = {"price_max": f.get("price_ceiling_sgd", ""), "year_min": self.run_date.year - min(max_age, coe_age)}
         self.flag_keywords = used_cfg["filters"]["exclude_keywords"]
 
     # Result pages
@@ -153,7 +163,7 @@ class UsedScraperBase(BaseScraper):
             listing_id = m.group("id")
             if listing_id in cards:
                 continue
-            container = self._card_container(a)
+            container = self._card_container(a, listing_id)
             title = text_of(a) or text_of(container.css_first("h1, h2, h3, h4, .title"))
             card_text = text_of(container)
             card: dict[str, Any] = {
@@ -166,13 +176,21 @@ class UsedScraperBase(BaseScraper):
             cards[listing_id] = card
         return list(cards.values())
 
-    @staticmethod
-    def _card_container(a: Node) -> Node:
+    def _card_container(self, a: Node, listing_id: str) -> Node:
+        """Climb from the link to its card, never into a parent that holds another listing.
+
+        A sold card shows no price, so climbing until a "$" appears would reach the whole list
+        and give every sold card its neighbour's text and price.
+        """
         node = a
         for _ in range(6):
-            if node.parent is None or node.parent.tag in ("body", "html"):
+            parent = node.parent
+            if parent is None or parent.tag in ("body", "html"):
                 break
-            node = node.parent
+            ids = {m.group("id") for x in parent.css("a[href]") if (m := self.listing_href.search(x.attributes.get("href") or ""))}
+            if ids - {listing_id}:
+                break
+            node = parent
             if "$" in text_of(node):
                 return node
         return node
@@ -196,6 +214,8 @@ class UsedScraperBase(BaseScraper):
         return first_match(values, *needles)
 
     def parse_detail(self, html: str, card: dict[str, Any]) -> UsedListing:
+        if self.sold_marker is not None and self.sold_marker.search(html):
+            raise ScraperUnavailable(f"{self.name}: {card['url']} is sold")
         tree = HTMLParser(html)
         # Site menus carry words like "Scrap / Export" that would flag every car.
         for node in tree.css("script, style, noscript, nav, header, footer"):
@@ -205,8 +225,12 @@ class UsedScraperBase(BaseScraper):
         title = text_of(tree.css_first("h1")) or card["title"]
         make, model, variant = split_make_model(title)
 
-        # An unlabelled price is the first plain amount after the title.
+        # An unlabelled price is the first plain amount after the title, before the spec table,
+        # where the next amounts are the COE premium, OMV and road tax.
         after_title = page_text[page_text.find(title):] if title in page_text else ""
+        specs = re.search(r"\b(?:Registration Date|Reg Date)\b", after_title)
+        if specs:
+            after_title = after_title[: specs.start()]
         price = parse_money(self._label(values, "price")) or self._price_from_text(after_title) or card.get("price")
         if not price:
             raise ScraperUnavailable(f"{self.name}: no price for {card['url']}")
@@ -272,14 +296,17 @@ class UsedScraperBase(BaseScraper):
             flags=flags,
             description=description[:2000],
         )
-        return self._ai_fill(listing, page_text)
+        # A field the page labels but leaves blank ("Mileage N.A.") is not a parser miss, and the
+        # model cannot find it either.
+        stated = {f for f, key in (("price", "price"), ("mileage_km", "mileage"), ("coe_years_remaining", "coe")) if self._label(values, key)}
+        return self._ai_fill(listing, page_text, stated)
 
-    def _ai_fill(self, listing: UsedListing, page_text: str) -> UsedListing:
+    def _ai_fill(self, listing: UsedListing, page_text: str, stated: set[str] = frozenset()) -> UsedListing:
         """When enabled, ask the Claude CLI for the fields the label parser missed."""
         if self.ai is None or not self.ai.available():
             return listing
         wanted = self.cfg.get("ai", {}).get("fallback_when_missing", [])
-        if not any(getattr(listing, f, None) in (None, 0) for f in wanted):
+        if not any(getattr(listing, f, None) in (None, 0) and f not in stated for f in wanted):
             return listing
         from ai import extract_listing_fields
 
@@ -319,7 +346,7 @@ class UsedScraperBase(BaseScraper):
     def run(self) -> list[UsedListing]:
         cards: list[dict[str, Any]] = []
         for page in range(1, self.max_list_pages + 1):
-            url = self.search_url.format(page=page)
+            url = self.search_url.format(page=page, **self.url_params)
             try:
                 page_cards = self.parse(self._get(url))
             except Exception as exc:
@@ -341,6 +368,9 @@ class UsedScraperBase(BaseScraper):
         min_coe = filters.get("min_coe_years_remaining")
 
         def worth_opening(c: dict[str, Any]) -> bool:
+            # Motorist keeps sold cars in its results, marked "SOLD" on the card.
+            if re.search(r"\bSOLD\b", c.get("text", "")):
+                return False
             if ceiling and c.get("price") and c["price"] > ceiling:
                 return False
             left = re.search(r"\(([^()]*COE left)\)", c.get("text", ""), re.I)

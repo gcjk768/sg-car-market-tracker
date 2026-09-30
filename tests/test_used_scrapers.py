@@ -1,7 +1,10 @@
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 from models import Drivetrain
+from scrapers.base import ScraperUnavailable
 from scrapers.used_carro import CarroUsedScraper
 from scrapers.used_common import detect_drivetrain, split_make_model
 from scrapers.used_motorist import MotoristUsedScraper
@@ -109,3 +112,57 @@ def test_coe_left_short_and_long_forms():
 
     assert _coe_left_years("7yrs 10mths 24days COE left") == 7.83
     assert round(_coe_left_years("1y 1m COE left"), 2) == 1.08
+
+
+def test_motorist_sold_cars_are_skipped(cfg):
+    # Saved from motorist.sg on 2026-09-30. Sold cards show no price, and used to climb into the
+    # whole list and borrow a neighbour's text and price.
+    s = MotoristUsedScraper(cfg, "ua", RUN, group="ev")
+    cards = s.parse((FIX / "motorist_used_list_sold.html").read_text(encoding="utf-8"))
+    assert len(cards) == 28 and all("SOLD" in c["text"] for c in cards)
+    assert len({c["text"] for c in cards}) == len(cards)
+    assert sum(c["price"] is None for c in cards) == 27  # one seller note quotes a dollar amount
+    # A sold detail page shows no asking price, so the COE premium must not be read as one.
+    card = {"listing_id": "50793", "url": "https://www.motorist.sg/used-car/50793/byd-atto-3", "title": "", "price": None}
+    with pytest.raises(ScraperUnavailable, match="sold"):
+        s.parse_detail((FIX / "motorist_used_detail_sold.html").read_text(encoding="utf-8"), card)
+
+
+def test_search_urls_follow_the_filters(cfg):
+    # Six years of COE left on a ten year COE means registered in the last four years, which is
+    # stricter than max_age_years for both groups.
+    s = SgcarmartUsedScraper(cfg, "ua", date(2026, 9, 30), group="ice")
+    assert s.url_params == {"price_max": 120000, "year_min": 2022}
+    url = s.search_url.format(page=1, **s.url_params)
+    assert "pr2=120000&fr=2022" in url and "{" not in url
+
+
+class _FakeAI:
+    def available(self):
+        return True
+
+
+def test_ai_skipped_when_page_states_na(cfg, monkeypatch):
+    import ai
+
+    calls = []
+    monkeypatch.setattr(ai, "extract_listing_fields", lambda *a: calls.append(a) or {})
+    s = MotoristUsedScraper(cfg, "ua", RUN, group="ev", ai=_FakeAI())
+    html = "<h1>BYD ATTO 3</h1><div>$99,800</div><table><tr><td>Mileage</td><td>N.A.</td></tr><tr><td>COE Expiry Date</td><td>01/01/2033</td></tr></table>"
+    card = {"listing_id": "1", "url": "u", "title": "", "price": None}
+    assert s.parse_detail(html, card).mileage_km is None and calls == []
+    # Without the Mileage label it is a parser miss, so the model is asked.
+    s.parse_detail(html.replace("<tr><td>Mileage</td><td>N.A.</td></tr>", ""), card)
+    assert len(calls) == 1
+
+
+def test_403_is_not_retried():
+    import httpx
+
+    from scrapers.base import _transient
+
+    def err(code):
+        return httpx.HTTPStatusError("x", request=httpx.Request("GET", "https://x"), response=httpx.Response(code))
+
+    assert not _transient(err(403)) and not _transient(err(404))
+    assert _transient(err(429)) and _transient(err(503))

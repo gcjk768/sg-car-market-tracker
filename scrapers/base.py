@@ -24,10 +24,11 @@ log = logging.getLogger(__name__)
 
 
 def _transient(exc: BaseException) -> bool:
-    """Worth retrying: network errors, rate limits, blocks and server errors. A 404 is not."""
+    """Worth retrying: network errors, rate limits and server errors. A 404 is not, and neither
+    is a 403: that is an anti bot block (Tesla), and asking again would be trying to get past it."""
     if isinstance(exc, httpx.HTTPStatusError):
         code = exc.response.status_code
-        return code in (403, 429) or code >= 500
+        return code == 429 or code >= 500
     return isinstance(exc, httpx.TransportError)
 
 

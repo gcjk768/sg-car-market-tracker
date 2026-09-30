@@ -259,6 +259,8 @@ used:
     max_km_per_year_of_age: 15000
     max_owners: 2
     min_coe_years_remaining: 6.0
+    # A COE runs 10 years, so with the rule above only cars from the last 4 years qualify.
+    coe_term_years: 10
     max_age_years:
       ev: 6
       ice: 8
@@ -296,20 +298,20 @@ used:
     ev:
       fuel_types: [electric]
       urls:
-        sgcarmart: "https://www.sgcarmart.com/used-cars/listing?q=Electric&cat=18&avl=a&ord=DEP_ASC&page={page}"
+        sgcarmart: "https://www.sgcarmart.com/used-cars/listing?q=Electric&cat=18&avl=a&pr2={price_max}&fr={year_min}&ord=DEP_ASC&page={page}"
         # Carro is off: its fuel filter changed in 2026 and listings now sit in page JSON.
         # carro: "https://carro.co/sg/en/buy?fuel_type=electric&page={page}"
-        # price_max and year_min mirror price_ceiling_sgd and max_age_years.ev, so detail pages
-        # are not spent on cars the filters reject. Update them together.
-        motorist: "https://www.motorist.sg/used-cars/electric-car?price_max=120000&year_min=2020&page={page}"
+        # {price_max} and {year_min} are filled from the filters above (pr2 and fr on Sgcarmart),
+        # so detail pages are not spent on cars the filters reject.
+        motorist: "https://www.motorist.sg/used-cars/electric-car?price_max={price_max}&year_min={year_min}&page={page}"
     ice:
       fuel_types: [petrol, hybrid, petrol-electric]
       urls:
         # No fuel filter on the new site: every available car, EVs dropped by the detail page.
-        sgcarmart: "https://www.sgcarmart.com/used-cars/listing?cat=18&avl=a&ord=DEP_ASC&page={page}"
+        sgcarmart: "https://www.sgcarmart.com/used-cars/listing?cat=18&avl=a&pr2={price_max}&fr={year_min}&ord=DEP_ASC&page={page}"
         # carro: "https://carro.co/sg/en/buy?fuel_type=petrol,hybrid&page={page}"
-        # Same pre filter as above, with max_age_years.ice.
-        motorist: "https://www.motorist.sg/used-cars?price_max=120000&year_min=2018&page={page}"
+        # Same pre filter as above.
+        motorist: "https://www.motorist.sg/used-cars?price_max={price_max}&year_min={year_min}&page={page}"
 
 costs:
   verified_on: "2026-09-29"
