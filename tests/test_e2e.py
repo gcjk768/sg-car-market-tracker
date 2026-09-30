@@ -25,6 +25,7 @@ def route(path: str) -> str | None:
     p = path.lower()
     rules = [
         ("robots.txt", None),
+        ("m03", "lta_m03.xlsx"),
         ("coe", "onemotoring_coe.html"),
         ("info.php", "sgcarmart_used_detail.html"),
         ("/used-cars/info/", "sgcarmart_used_detail.html"),
@@ -103,6 +104,7 @@ def e2e_config(tmp_path, cfg, server, monkeypatch):
         "motorist_coe": f"{server}/coe/motorist", "sgcarmart_new_cars": f"{server}/new_cars/",
         "fuel_price": f"{server}/petrol-prices", "fuel_price_fallback": f"{server}/petrol-prices",
         "cnergy": f"{server}/cnergy/", "brand_pages": {"Tesla": f"{server}/brand/tesla"},
+        "lta_registrations_by_make_xlsx": f"{server}/lta/m03.xlsx",
     })
     cfg["used"]["searches"]["ev"]["urls"] = {
         "sgcarmart": f"{server}/used_cars/listing.php?FUE=4&PAGE={{page}}",
@@ -149,8 +151,11 @@ def test_full_run_sends_every_section_to_the_mock_bot_api(e2e_config, capsys):
     assert all(len(t) <= MAX_MESSAGE_LENGTH for t in texts)
     assert all(m["chat_id"] == "42" and m["message_thread_id"] == 7 and m["parse_mode"] == "HTML" for m in Handler.sent)
     joined = "\n".join(texts)
-    for title in ("SG car market daily", "COE position", "New EV Car Best Value list", "Used EV Car Best Value list", "Used Petrol Car Best Value list", "Cost of ownership"):
+    for title in ("SG car market daily", "COE position", "Best Selling Top EV", "Used EV Car Best Value list", "Used Petrol Car Best Value list", "Cost of ownership"):
         assert title in joined, title
+    assert "New EV Car Best Value list" not in joined
+    # The Tesla sedan count comes from the spreadsheet, the Model 3 price from the model page.
+    assert "#1 EV sedan brand · 660 registered" in joined
     # Real data flowed through: the COE fixture, the Tesla model page, the used listings and Cnergy.
     assert "131,890" in joined
     assert "Tesla Model 3 RWD 110" in joined

@@ -85,6 +85,9 @@ sources:
   lta_parf: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/rebates/parf-coe-rebate.html"
   # LTA table M03, new car registrations by make, both halves of the current year. PDF.
   lta_registrations_by_make: "https://www.lta.gov.sg/content/dam/ltagov/who_we_are/statistics_and_publications/statistics/pdf/M03-Car_Regn_by_make.pdf"
+  # The same table as a spreadsheet on LTA DataMall. Every count keeps its body type column
+  # (HB, SDN, MPV, STW, SUV, CPE/Conv), which the PDF text loses. Feeds Best Selling Top EV.
+  lta_registrations_by_make_xlsx: "https://datamall.lta.gov.sg/content/dam/datamall/TempXLS/M03-Car_Regn_by_make.xlsx"
   mas_loan_rules: "https://www.mas.gov.sg/regulation/explainers/motor-vehicle-loans"
   lta_ves_eeai_extension: "https://www.lta.gov.sg/content/ltagov/en/newsroom/2025/9/news-releases/extension_of_ves_and_eeai_to_support_vehicle_electrification.html"
   lta_parf_revision_2026: "https://www.lta.gov.sg/content/ltagov/en/newsroom/2026/2/news-releases/revision-parf-rebate-schedule-cap.html"
@@ -146,7 +149,15 @@ new_ev:
     numerator: price_with_coe
     denominator: range_km
     tiebreak: battery_warranty_years_desc
-  # Group the new EV list by body type, showing the best value cars in each group.
+  # sales: Best Selling Top EV, brands ranked by LTA new EV registrations in each body type,
+  # with their models from today's price list. value: the older Best Value list, ranked by
+  # price divided by range. When LTA's spreadsheet cannot be read the list falls back to value.
+  rank_by: sales
+  best_selling:
+    brands_per_body_type: 3
+    models_per_brand: 3
+    verified_on: "2026-09-30"
+  # Group the value list by body type, showing the best value cars in each group.
   group_by_body_type: true
   top_n_per_body_type: 6
   body_type_order: [Hatchback, Sedan, SUV, MPV, Coupe, Wagon, Other]

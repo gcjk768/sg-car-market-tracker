@@ -20,8 +20,8 @@ from scrapers.base import ScraperUnavailable
 from scrapers.coe import next_tender_date, scrape_coe
 from scrapers.fuel_cnergy import scrape_cnergy
 from scrapers.fuel_price import pick_price, scrape_fuel_price
-from scrapers.registrations import scrape_registrations
-from scrapers.new_ev import group_by_body_type, rank_new_evs, scrape_new_evs
+from scrapers.registrations import scrape_body_types, scrape_registrations
+from scrapers.new_ev import best_selling_by_body_type, group_by_body_type, rank_new_evs, scrape_new_evs, top_best_seller
 from scrapers.used_carro import CarroUsedScraper
 from scrapers.used_motorist import MotoristUsedScraper
 from scrapers.used_sgcarmart import SgcarmartUsedScraper
@@ -63,6 +63,8 @@ class Pipeline:
         self.rejections: dict[str, int] = {}
         self.financing: list = []
         self.new_ev_groups = None
+        self.best_selling = None
+        self.best_selling_months: list[str] = []
         self.ai = ClaudeCli(cfg)
 
     # Steps
@@ -153,6 +155,20 @@ class Pipeline:
         stored = self.db.new_ev_on(self.run_date)
         self.new_evs = rank_new_evs(stored, self.cfg)
         self.new_ev_groups = group_by_body_type(stored, self.cfg) if self.cfg["new_ev"].get("group_by_body_type") else None
+        self.best_selling = None
+        if stored and self.cfg["new_ev"].get("rank_by", "sales") == "sales":
+            reg = scrape_body_types(self.cfg, self.ua, self.run_date, self.force)
+            if reg:
+                counts, self.best_selling_months = reg
+                groups = best_selling_by_body_type(stored, counts, self.cfg)
+                if any(e["models"] for _, entries in groups for e in entries):
+                    self.best_selling = groups
+                    # The cost comparison's new EV is the best seller, not the best value.
+                    top = top_best_seller(groups)
+                    if top is not None:
+                        self.new_evs = [top] + [v for v in self.new_evs if v is not top]
+            if self.best_selling is None:
+                self.unavailable["best selling EV"] = "LTA registrations by body type could not be read, list shown in value order"
 
     # Sections
 
@@ -262,7 +278,13 @@ class Pipeline:
             elif key == "coe":
                 sections.append(self.coe_section())
             elif key == "new_ev":
-                if self.new_evs:
+                if self.best_selling:
+                    s = report.best_selling_ev_section(self.best_selling, self.best_selling_months, cfg=self.cfg,
+                                                       source_url=self.cfg["sources"].get("lta_registrations_by_make_xlsx"))
+                    if self.brand_notes:
+                        s.html += "\n\nBrand page check: " + "; ".join(f"{k}: {v}" for k, v in sorted(self.brand_notes.items()))
+                    sections.append(s)
+                elif self.new_evs:
                     s = report.new_ev_section(self.new_evs, self.cfg["telegram"]["table_width"], cfg=self.cfg, groups=self.new_ev_groups)
                     if self.brand_notes:
                         s.html += "\n\nBrand page check: " + "; ".join(f"{k}: {v}" for k, v in sorted(self.brand_notes.items()))
@@ -350,7 +372,10 @@ class Pipeline:
             sig["coe"] = {r.category.value: r.quota_premium for r in self.coe_latest}
             sig["coe_tender"] = self.coe_latest[0].tender_date.isoformat() if self.coe_latest else None
         if "new_ev" in watched:
-            items = [v for _, vs in (self.new_ev_groups or []) for v in vs] if self.new_ev_groups else self.new_evs
+            if self.best_selling:
+                items = [v for _, entries in self.best_selling for e in entries for v in e["models"]]
+            else:
+                items = [v for _, vs in (self.new_ev_groups or []) for v in vs] if self.new_ev_groups else self.new_evs
             sig["new_ev"] = sorted([v.make, v.model, v.variant, v.price_with_coe or 0] for v in items)
         if "used_ev" in watched:
             sig["used_ev"] = sorted([l.source, l.listing_id, l.price] for l, _ in self.used_ev)

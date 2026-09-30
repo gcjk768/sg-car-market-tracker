@@ -319,6 +319,64 @@ def group_by_body_type(variants: list[NewEvVariant], cfg: dict[str, Any]) -> lis
     return out
 
 
+def _make_tokens(make: str) -> set[str]:
+    return {t for t in re.split(r"[^A-Z0-9]+", make.upper().replace(".", "")) if t}
+
+
+def make_matches(lta_make: str, make: str) -> bool:
+    """LTA writes BYD, MERCEDES BENZ, B.M.W. or AION. The price list writes BYD, Mercedes-Benz,
+    BMW or GAC Aion. They match when the joined letters agree or they share a word."""
+    a, b = _make_tokens(lta_make), _make_tokens(make)
+    return bool(a and b) and ("".join(sorted(a)) == "".join(sorted(b)) or bool(a & b))
+
+
+def best_selling_by_body_type(variants: list[NewEvVariant], counts: dict[str, dict[str, int]],
+                              cfg: dict[str, Any]) -> list[tuple[str, list[dict[str, Any]]]]:
+    """[(body type, [entry, ...])] in the configured body type order.
+
+    Each entry is {"make", "registrations", "share", "rank", "models"}: a brand ranked by its
+    electric registrations in that body type, with the cheapest variant of each of its models of
+    that body type on today's price list. LTA counts brands, not models, so a brand with several
+    models of one body type lists them all under its single count.
+    """
+    ncfg = cfg["new_ev"]
+    bs = ncfg.get("best_selling", {})
+    per_body = int(bs.get("brands_per_body_type", 3))
+    per_brand = int(bs.get("models_per_brand", 3))
+    order = ncfg.get("body_type_order", ["Hatchback", "Sedan", "SUV", "MPV", "Coupe", "Wagon", "Other"])
+    for v in variants:
+        v.body_type = v.body_type or detect_body_type(v.make, v.model, cfg)
+    out = []
+    for body in order + [b for b in counts if b not in order]:
+        brands = {m: n for m, n in (counts.get(body) or {}).items() if n > 0}
+        if not brands:
+            continue
+        pool = sum(brands.values())
+        entries = []
+        for rank, (make, n) in enumerate(sorted(brands.items(), key=lambda t: -t[1])[:per_body], start=1):
+            cheapest: dict[str, NewEvVariant] = {}
+            for v in variants:
+                if v.body_type != body or not v.price_with_coe or not make_matches(make, v.make):
+                    continue
+                key = v.model.lower()
+                if key not in cheapest or v.price_with_coe < cheapest[key].price_with_coe:
+                    cheapest[key] = v
+            models = sorted(cheapest.values(), key=lambda v: v.price_with_coe)[:per_brand]
+            entries.append({"make": make, "registrations": n, "share": n * 100 / pool, "rank": rank, "models": models})
+        out.append((body, entries))
+    return out
+
+
+def top_best_seller(groups: list[tuple[str, list[dict[str, Any]]]]) -> Optional[NewEvVariant]:
+    """The cheapest model of the brand and body type with the most registrations overall."""
+    best = None
+    for _, entries in groups:
+        for e in entries:
+            if e["models"] and (best is None or e["registrations"] > best["registrations"]):
+                best = e
+    return best["models"][0] if best else None
+
+
 def rank_new_evs(variants: list[NewEvVariant], cfg: dict[str, Any]) -> list[NewEvVariant]:
     """Top N by score plus the always included models, deduplicated, in score order."""
     scored = [v for v in variants if v.score is not None]

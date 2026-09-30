@@ -33,7 +33,9 @@ from telegram_bot import (
 SECTION_TITLES = {
     "summary": "SG car market daily",
     "coe": "COE position",
-    "new_ev": "New EV Car Best Value list",
+    "new_ev": "Best Selling Top EV",
+    # Used when LTA's registrations cannot be read and the list falls back to value order.
+    "new_ev_value": "New EV Car Best Value list",
     "used_ev": "Used EV Car Best Value list",
     "used_ice": "Used Petrol Car Best Value list",
     "top_sellers": "Top sellers in SG",
@@ -146,10 +148,66 @@ def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60, cfg: d
         for v in items:
             n += 1
             parts.append(_new_ev_card(n, v, cfg))
-    return ReportSection(key="new_ev", title=SECTION_TITLES["new_ev"], html=build_section(SECTION_TITLES["new_ev"], parts))
+    title = SECTION_TITLES["new_ev_value"]
+    return ReportSection(key="new_ev", title=title, html=build_section(title, parts))
 
 
-def _new_ev_card(n: int, v: NewEvVariant, cfg: dict[str, Any] | None = None) -> str:
+BODY_PLURALS = {"Hatchback": "hatchbacks", "Sedan": "sedans", "SUV": "SUVs", "MPV": "MPVs",
+                "Coupe": "coupes", "Wagon": "wagons"}
+
+
+def brand_name(make: str) -> str:
+    """LTA writes makes in capitals. Keep acronyms, title case the rest."""
+    return make if make in ("BMW", "BYD", "GAC", "MG", "DS", "GWM", "JAC") else make.title()
+
+
+def best_selling_ev_section(groups: Sequence[tuple[str, Sequence[dict[str, Any]]]], months: Sequence[str],
+                            cfg: dict[str, Any] | None = None, source_url: str | None = None) -> ReportSection:
+    """Best selling new EVs per body type. groups comes from scrapers.new_ev.best_selling_by_body_type.
+
+    Each model is a numbered card with its price, deposit and instalment, and a last line with
+    its brand's rank and registrations in that body type. Brands in the top list with no model
+    on today's price list are named on one line under the body type, unnumbered.
+    """
+    titles = (cfg or {}).get("new_ev", {}).get("body_type_titles", {})
+    span = ""
+    if months:
+        first, last = (date.fromisoformat(f"{m}-01") for m in (months[0], months[-1]))
+        span = f" from {first.strftime('%b')} to {last.strftime('%b %Y')}" if first != last else f" in {last.strftime('%b %Y')}"
+    intro = (f"Brands ranked by new electric car registrations{span} in each body type, from LTA table M03."
+             " LTA counts brands, not models, so each brand shows its models of that body type from today's"
+             " price list, cheapest first, under one registration count.")
+    intro += " Prices are dealer figures with COE, net of the VES and EEAI rebates."
+    if cfg:
+        f = cfg["costs"]["financing"]
+        intro += (f" Deposit is the minimum under the MAS rule, instalment on the rest at {f['flat_rate_new'] * 100:.2f} percent"
+                  f" flat over {f['max_tenure_years']} years. Depreciation is indicative over"
+                  f" {cfg['costs']['depreciation']['new_car_horizon_years']} years.")
+    parts = [note(escape(intro))]
+    n = 0
+    for body, entries in groups:
+        if not entries:
+            continue
+        parts.append(f"<u>{escape(titles.get(body, body))}</u>")
+        plural = BODY_PLURALS.get(body, body.lower() + "s")
+        missing = []
+        for e in entries:
+            sales = f"#{e['rank']} EV {plural[:-1] if plural.endswith('s') else plural} brand · {fmt_int(e['registrations'])} registered · {e['share']:.0f}%"
+            if not e["models"]:
+                missing.append(f"#{e['rank']} {brand_name(e['make'])} {fmt_int(e['registrations'])}")
+                continue
+            for v in e["models"]:
+                n += 1
+                parts.append(_new_ev_card(n, v, cfg, show_score=False) + "\n" + f"<i>{escape(sales)}</i>")
+        if missing:
+            parts.append(note(escape("Also in the top list, no model on today's price list: " + ", ".join(missing) + ".")))
+    if source_url:
+        parts.append(f"Source: <a href=\"{html_lib.escape(source_url, quote=True)}\">LTA table M03</a>")
+    title = SECTION_TITLES["new_ev"]
+    return ReportSection(key="new_ev", title=title, html=build_section(title, parts))
+
+
+def _new_ev_card(n: int, v: NewEvVariant, cfg: dict[str, Any] | None = None, show_score: bool = True) -> str:
     fin = _fin(cfg, v.price_with_coe, None, True)
     dep = None
     if cfg and v.price_with_coe:
@@ -160,7 +218,7 @@ def _new_ev_card(n: int, v: NewEvVariant, cfg: dict[str, Any] | None = None) -> 
         dot(fmt_money(v.price_with_coe, "$"),
             f"{fmt_int(v.range_km)} km" if v.range_km else None,
             f"Cat {v.coe_category.value}" if v.coe_category else None,
-            f"${v.score:.0f}/km" if v.score else None),
+            f"${v.score:.0f}/km" if v.score and show_score else None),
         dot(f"Deposit {fmt_money(fin.deposit, '$')}", f"{fmt_money(fin.monthly, '$')}/mth over {fin.tenure_years}y") if fin else "",
         dot(f"Dep {fmt_money(dep, '$')}/yr" if dep else None,
             f"{v.battery_warranty_years:g}y battery warranty" if v.battery_warranty_years else None),
@@ -393,9 +451,17 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         NewEvVariant(make="BYD", model="Atto 2", variant="", price_with_coe=151388, coe_category="A", range_km=312, range_standard="WLTP", power_kw=130, battery_kwh=45.1, battery_warranty_years=8, listing_url=src, price_source_url="https://www.byd.com/sg", source="sample"),
         NewEvVariant(make="Xpeng", model="G6", variant="Standard Range", price_with_coe=213899, coe_category="B", range_km=435, range_standard="WLTP", power_kw=190, battery_kwh=66, battery_warranty_years=8, listing_url=src, price_source_url="https://www.xpeng.com/sg", source="sample"),
     ]
-    from scrapers.new_ev import group_by_body_type, rank_new_evs
+    from scrapers.new_ev import best_selling_by_body_type, rank_new_evs
 
-    new_ev_groups = group_by_body_type(list(new_evs), cfg)
+    # Illustrative EV registrations by body type, January to August. The daily run reads the
+    # real split from the LTA spreadsheet.
+    sample_counts = {
+        "Hatchback": {"BYD": 1480, "AION": 690, "MG": 610},
+        "Sedan": {"TESLA": 1390, "BYD": 940, "BMW": 310},
+        "SUV": {"BYD": 4230, "TESLA": 2330, "ZEEKR": 880},
+        "MPV": {"BYD": 620, "DENZA": 240},
+    }
+    best_selling = best_selling_by_body_type(list(new_evs), sample_counts, cfg)
     new_evs = rank_new_evs(new_evs, cfg)
 
     def used(**kw) -> UsedListing:
@@ -433,7 +499,8 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
             best_pick=("BYD Atto 3 2023, 28,000 km, $118,800", used_ev[0][0].url, "Lowest depreciation per year in the used EV list with 7.4 years of COE left."),
         ),
         coe_section(tender, "sample tender", coe_rows, tender + timedelta(days=14), cfg["sources"]["onemotoring_coe"]),
-        new_ev_section(new_evs, cfg=cfg, groups=new_ev_groups if cfg["new_ev"].get("group_by_body_type") else None),
+        best_selling_ev_section(best_selling, ["2026-01", "2026-08"], cfg=cfg,
+                                source_url=cfg["sources"].get("lta_registrations_by_make_xlsx")),
         used_section("used_ev", used_ev, cfg=cfg),
         used_section("used_ice", used_ice, cfg=cfg),
         # Real LTA figures, January to August 2026, top five brands.

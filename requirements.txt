@@ -9,3 +9,4 @@ rich>=13.7
 pytest>=8.2
 tzdata>=2024.1
 pypdf>=6.0
+openpyxl>=3.1
