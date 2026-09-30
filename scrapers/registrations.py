@@ -147,7 +147,9 @@ def parse_body_types_rows(sheets: list[list[tuple]]) -> tuple[dict[str, dict[str
                 text = str(cell or "").lower()
                 if "make" in text and make_col is None:
                     make_col = j
-                if "fuel" in text and fuel_col is None:
+                # LTA's live header is one cell, "Make/ Importer Type/ Fuel Type/ Car Type", so a
+                # fuel column equal to the make column means no fuel header; use the fallback.
+                if "fuel" in text and fuel_col is None and j != make_col:
                     fuel_col = j
         make_col = 0 if make_col is None else make_col
         current_make = None

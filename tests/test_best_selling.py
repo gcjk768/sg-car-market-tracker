@@ -43,6 +43,19 @@ def test_rows_without_make_or_fuel_headers_fall_back_to_positions():
     assert counts == {"Sedan": {"TESLA": 4}, "SUV": {"TESLA": 6}}
 
 
+def test_live_header_with_make_and_fuel_in_one_cell():
+    # As LTA's DataMall spreadsheet has it since 2026-09.
+    rows = [
+        ("Period (Month)", None, None, "Total", "2026-07", None, None, None, None, None, "Total"),
+        ("Make/ Importer Type 3/ Fuel Type/ Car Type 2", None, None, None, "HB", "SDN", "MPV", "STW", "SUV", "CPE/ Conv", "Total"),
+        ("AUDI", "AMD", "Petrol", 10, None, 7, None, None, None, None, 7),
+        ("AUDI", "AMD", "Electric", 17, None, None, None, None, 10, None, 10),
+    ]
+    counts, months = parse_body_types_rows([rows])
+    assert counts == {"SUV": {"AUDI": 10}}
+    assert months == ["2026-07"]
+
+
 def test_make_matching():
     assert make_matches("BYD", "BYD")
     assert make_matches("MERCEDES BENZ", "Mercedes-Benz")
