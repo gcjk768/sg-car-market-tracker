@@ -38,7 +38,7 @@ The numbers match the diagram.
 4. **Store.** `db.py` upserts COE results, new EV variants, used listings with price history, and fuel prices into `data/cars.db`, and marks listings that disappeared.
 5. **Filter and cost.** `filters.py` applies the hard filters (price ceiling, mileage per year, owners, COE years left, flag words) and ranks by value. `costs.py` computes road tax, depreciation, PARF, energy, insurance band, deposit and instalment.
 6. **Diff.** `should_send()` compares the watched sections with the last sent report.
-7. **Build.** `report.py` builds the sections (summary, COE position, Best Selling Top EV by body type, Used EV and Used petrol Best Value lists, Top sellers, Pump prices, cost of ownership). `telegram_bot.py` renders fixed width tables and splits at Telegram's 4096 character limit.
+7. **Build.** `report.py` builds the sections (summary, COE position, Best Selling Top EV by body type, Best Selling Used EV and Used Petrol Car lists, Top sellers, Pump prices, cost of ownership). `telegram_bot.py` renders fixed width tables and splits at Telegram's 4096 character limit.
 8. **Send.** One message per section to the chat, or to a forum topic when `TELEGRAM_THREAD_ID` is set.
 
 ## Tech stack

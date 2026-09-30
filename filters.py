@@ -73,8 +73,33 @@ def score(listing: UsedListing, cfg: dict[str, Any]) -> tuple[float, float]:
     return (dep, listing.mileage_km if listing.mileage_km is not None else 10**9)
 
 
-def shortlist(listings: Iterable[UsedListing], cfg: dict[str, Any], today: date, top_n: int | None = None) -> tuple[list[UsedListing], Counter]:
-    """Apply the filters, rank, and return (top listings, rejection counts by reason)."""
+def brand_count(make: str, brand_sales: dict[str, int]) -> int:
+    """New registrations of the listing's brand, matching LTA's spelling of the make."""
+    from scrapers.new_ev import make_matches
+
+    return max((n for m, n in brand_sales.items() if make_matches(m, make)), default=0)
+
+
+def brand_rank(make: str, brand_sales: dict[str, int]) -> int | None:
+    """1 for the best selling brand, None when the brand sold none."""
+    n = brand_count(make, brand_sales)
+    if not n:
+        return None
+    return 1 + sum(1 for v in brand_sales.values() if v > n)
+
+
+def sales_key(listing: UsedListing, cfg: dict[str, Any], brand_sales: dict[str, int]) -> tuple:
+    """Best selling brand first, then the value score within the brand."""
+    return (-brand_count(listing.make, brand_sales), score(listing, cfg))
+
+
+def shortlist(listings: Iterable[UsedListing], cfg: dict[str, Any], today: date, top_n: int | None = None,
+              brand_sales: dict[str, int] | None = None) -> tuple[list[UsedListing], Counter]:
+    """Apply the filters, rank, and return (top listings, rejection counts by reason).
+
+    With brand_sales ({LTA make: new registrations}) the cars of the best selling brands come
+    first and the value score only orders cars within a brand. Without it, value order.
+    """
     kept: list[UsedListing] = []
     rejected: Counter = Counter()
     for l in listings:
@@ -83,7 +108,10 @@ def shortlist(listings: Iterable[UsedListing], cfg: dict[str, Any], today: date,
             rejected[reason] += 1
         else:
             kept.append(l)
-    kept.sort(key=lambda l: score(l, cfg))
+    if brand_sales:
+        kept.sort(key=lambda l: sales_key(l, cfg, brand_sales))
+    else:
+        kept.sort(key=lambda l: score(l, cfg))
     n = top_n or cfg["used"]["top_n"]
     return kept[:n], rejected
 

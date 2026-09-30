@@ -202,6 +202,12 @@ new_ev:
 
 used:
   top_n: 20
+  # sales: Best Selling Used EV and Best Selling Used Petrol Car. Cars that pass the filters are
+  # ordered by their brand's new registrations this year (LTA table M03, electric for the EV list,
+  # petrol and petrol hybrid for the other), then by the ranking below within a brand.
+  # value: the Best Value lists, ordered by the ranking below only. Also the fallback when the
+  # LTA table cannot be read.
+  rank_by: sales
   filters:
     price_ceiling_sgd: 120000
     max_km_per_year_of_age: 15000
@@ -229,6 +235,7 @@ used:
       - "agent serviced"
       - "authorised dealer serviced"
     bonus_score: 0.05   # fraction of depreciation deducted when a bonus keyword is present
+  # Value order: the whole list with rank_by value, within a brand with rank_by sales.
   ranking:
     - depreciation_per_year_asc
     - mileage_km_asc

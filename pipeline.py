@@ -65,6 +65,7 @@ class Pipeline:
         self.new_ev_groups = None
         self.best_selling = None
         self.best_selling_months: list[str] = []
+        self.used_sales: dict[str, Optional[dict[str, int]]] = {"ev": None, "ice": None}
         self.ai = ClaudeCli(cfg)
 
     # Steps
@@ -93,6 +94,12 @@ class Pipeline:
             self.db.upsert_fuel_price(fp)
         latest = self.db.latest_fuel_price()
         self.petrol_price = latest.ron95_per_litre if latest else None
+
+    def registrations(self):
+        """LTA new registrations by make, read once per run and shared by the used lists and Top sellers."""
+        if not hasattr(self, "_registrations"):
+            self._registrations = scrape_registrations(self.cfg, self.ua, self.run_date, self.force)
+        return self._registrations
 
     def run_coe(self) -> None:
         try:
@@ -132,8 +139,17 @@ class Pipeline:
                 l.depreciation_per_year = costs.depreciation_used(l, self.cfg, self.run_date)
         evs = [l for l in listings if l.drivetrain == Drivetrain.ev]
         others = [l for l in listings if l.drivetrain != Drivetrain.ev]
-        top_ev, rej_ev = shortlist(evs, self.cfg, self.run_date)
-        top_ice, rej_ice = shortlist(others, self.cfg, self.run_date)
+        self.used_sales = {"ev": None, "ice": None}
+        if self.cfg["used"].get("rank_by", "sales") == "sales":
+            reg = self.registrations()
+            if reg:
+                makes = reg[0]
+                self.used_sales = {"ev": {m: v.get("ev", 0) for m, v in makes.items()},
+                                   "ice": {m: v.get("petrol", 0) for m, v in makes.items()}}
+            else:
+                self.unavailable["best selling used"] = "LTA registrations could not be read, used lists shown in value order"
+        top_ev, rej_ev = shortlist(evs, self.cfg, self.run_date, brand_sales=self.used_sales["ev"])
+        top_ice, rej_ice = shortlist(others, self.cfg, self.run_date, brand_sales=self.used_sales["ice"])
         self.rejections = dict(rej_ev + rej_ice)
         self.used_ev = tagged(top_ev, self.since)
         self.used_ice = tagged(top_ice, self.since)
@@ -294,7 +310,10 @@ class Pipeline:
             elif key in ("used_ev", "used_ice"):
                 rows = self.used_ev if key == "used_ev" else self.used_ice
                 if rows:
-                    sections.append(report.used_section(key, rows, self.cfg["telegram"]["table_width"], cfg=self.cfg))
+                    sales = self.used_sales["ev" if key == "used_ev" else "ice"]
+                    months = (self.registrations() or (None, []))[1] if sales else []
+                    sections.append(report.used_section(key, rows, self.cfg["telegram"]["table_width"], cfg=self.cfg,
+                                                        brand_sales=sales, months=months))
                 else:
                     # Only this group's failures, after the fact that nothing passed, so a working
                     # source whose cars were all filtered out is not blamed on the broken ones.
@@ -303,7 +322,7 @@ class Pipeline:
                     reason = "no listing passed the filters" + (". Failed sources: " + "; ".join(failed) if failed else "")
                     sections.append(report.unavailable_section(key, reason))
             elif key == "top_sellers":
-                reg = scrape_registrations(self.cfg, self.ua, self.run_date, self.force)
+                reg = self.registrations()
                 if reg:
                     sections.append(report.top_sellers_section(*reg, top_n=self.cfg.get("top_sellers", {}).get("top_n", 20),
                                                                max_width=self.cfg["telegram"]["table_width"],

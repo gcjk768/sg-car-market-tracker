@@ -52,6 +52,25 @@ def test_ranking_and_bonus(cfg):
     assert rejected == {"price above ceiling": 1}
 
 
+def test_sales_ranking_puts_best_selling_brands_first(cfg):
+    from filters import brand_count, brand_rank
+
+    sales = {"BYD": 8318, "TESLA": 3723, "MERCEDES BENZ": 360}
+    cheap_hyundai = make(listing_id="h", make="Hyundai", model="Ioniq 5", depreciation_per_year=9000)
+    tesla = make(listing_id="t", make="Tesla", model="Model 3", depreciation_per_year=13000)
+    byd_dear = make(listing_id="b2", depreciation_per_year=12500)
+    byd_cheap = make(listing_id="b1", depreciation_per_year=11000)
+    merc = make(listing_id="m", make="Mercedes-Benz", model="EQA", depreciation_per_year=10000)
+    top, _ = shortlist([cheap_hyundai, tesla, byd_dear, byd_cheap, merc], cfg, TODAY, top_n=5, brand_sales=sales)
+    assert [l.listing_id for l in top] == ["b1", "b2", "t", "m", "h"]
+    # Without sales figures the same cars fall back to value order.
+    top, _ = shortlist([cheap_hyundai, tesla, byd_dear, byd_cheap, merc], cfg, TODAY, top_n=5)
+    assert [l.listing_id for l in top] == ["h", "m", "b1", "b2", "t"]
+    assert brand_count("Mercedes-Benz", sales) == 360
+    assert brand_rank("Tesla", sales) == 2
+    assert brand_rank("Hyundai", sales) is None
+
+
 def test_tags():
     today = date(2026, 9, 29)
     new = make(first_seen=today, price_history=[PricePoint(seen_on=today, price=118800)])

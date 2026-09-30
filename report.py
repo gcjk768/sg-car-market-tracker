@@ -36,8 +36,11 @@ SECTION_TITLES = {
     "new_ev": "Best Selling Top EV",
     # Used when LTA's registrations cannot be read and the list falls back to value order.
     "new_ev_value": "New EV Car Best Value list",
-    "used_ev": "Used EV Car Best Value list",
-    "used_ice": "Used Petrol Car Best Value list",
+    "used_ev": "Best Selling Used EV",
+    "used_ice": "Best Selling Used Petrol Car",
+    # Used when LTA's registrations cannot be read and the used lists fall back to value order.
+    "used_ev_value": "Used EV Car Best Value list",
+    "used_ice_value": "Used Petrol Car Best Value list",
     "top_sellers": "Top sellers in SG",
     "fuel": "Pump prices",
     "costs": "Cost of ownership, top 3",
@@ -243,13 +246,19 @@ def _finance_intro(cfg: dict[str, Any], new_car: bool) -> str:
             f"over {f['max_tenure_years']} years.")
 
 
-def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_width: int = 60, cfg: dict[str, Any] | None = None) -> ReportSection:
+def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_width: int = 60, cfg: dict[str, Any] | None = None,
+                 brand_sales: dict[str, int] | None = None, months: Sequence[str] = ()) -> ReportSection:
     """listings: (listing, tag) pairs where tag is NEW, DROP ▼1,000 or empty.
-    One card per car. max_width is unused, kept for callers."""
+    One card per car. With brand_sales ({LTA make: new registrations this year}) the list is the
+    Best Selling list and each card names its brand's rank. Without it, the Best Value list.
+    max_width is unused, kept for callers."""
+    from filters import brand_count, brand_rank
+
+    fuel = "EV" if key == "used_ev" else "petrol"
     cards = []
     for n, (l, tag) in enumerate(listings, start=1):
         fin = _fin(cfg, l.price, l.omv, False)
-        cards.append(card(n, l.display_name, l.url, [
+        lines = [
             dot(fmt_money(l.price, "$"), str(l.year) if l.year else None,
                 f"{fmt_int(l.mileage_km)} km" if l.mileage_km is not None else None,
                 f"{l.coe_years_remaining:.1f}y COE left" if l.coe_years_remaining is not None else None),
@@ -257,9 +266,25 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
             dot(f"Dep {fmt_money(l.depreciation_per_year, '$')}/yr",
                 f"{l.owners} owner" + ("s" if l.owners != 1 else "") if l.owners is not None else None,
                 l.seller_type),
-        ], tag))
-    title = SECTION_TITLES[key]
-    intro = "Ranked by lowest depreciation per year, then lowest mileage."
+        ]
+        if brand_sales:
+            rank = brand_rank(l.make, brand_sales)
+            sold = f"#{rank} {fuel} brand · {fmt_int(brand_count(l.make, brand_sales))} new this year" if rank else f"brand not in this year's LTA {fuel} figures"
+            lines.append(f"<i>{escape(sold)}</i>")
+        cards.append(card(n, l.display_name, l.url, lines, tag))
+    if brand_sales:
+        title = SECTION_TITLES[key]
+        span = ""
+        if months:
+            first, last = (date.fromisoformat(f"{m}-01") for m in (months[0], months[-1]))
+            span = f" from {first.strftime('%b')} to {last.strftime('%b %Y')}" if first != last else f" in {last.strftime('%b %Y')}"
+        kind = "electric" if key == "used_ev" else "petrol and petrol hybrid"
+        intro = (f"Ranked by how many new {kind} cars of the car's brand were registered{span}, from LTA table M03,"
+                 " then by lowest depreciation per year within a brand. No used car sales figures are published, so"
+                 " new car sales stand in for how popular a brand is. Every car here passed your filters.")
+    else:
+        title = SECTION_TITLES[f"{key}_value"]
+        intro = "Ranked by lowest depreciation per year, then lowest mileage."
     if cfg:
         f = cfg["costs"]["financing"]
         intro += (f" Deposit is the minimum under the MAS rule, instalment on the rest at"
@@ -479,6 +504,16 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         (used(listing_id="2202", make="Honda", model="Civic", variant="1.5 VTEC Turbo", drivetrain="ice", year=2022, mileage_km=38000, owners=1, price=112800, depreciation_per_year=12600, coe_years_remaining=7.1, engine_cc=1498), "NEW"),
         (used(listing_id="2203", make="Mazda", model="3", variant="1.5 Mild Hybrid", drivetrain="hybrid", year=2020, mileage_km=63000, owners=2, price=88800, depreciation_per_year=12900, coe_years_remaining=4.9, engine_cc=1496), "DROP ▼1,500"),
     ]
+    # Real LTA figures, January to August 2026, top five brands.
+    sample_makes = {"BYD": {"total": 9028, "ev": 8318, "petrol": 710}, "TOYOTA": {"total": 4412, "ev": 245, "petrol": 4165},
+                    "TESLA": {"total": 3723, "ev": 3723, "petrol": 0}, "MERCEDES BENZ": {"total": 2299, "ev": 360, "petrol": 1939},
+                    "BMW": {"total": 2031, "ev": 790, "petrol": 1241}}
+    from filters import sales_key
+
+    ev_sales = {m: v["ev"] for m, v in sample_makes.items()}
+    ice_sales = {m: v["petrol"] for m, v in sample_makes.items()}
+    used_ev.sort(key=lambda p: sales_key(p[0], cfg, ev_sales))
+    used_ice.sort(key=lambda p: sales_key(p[0], cfg, ice_sales))
     costs = [
         (CostBreakdown(label="Tesla Model 3 RWD 110 (new)", drivetrain="ev", road_tax=1678, insurance_low=1800, insurance_high=2800, depreciation=18000, energy=936, fixed_extras=2900), new_evs[0].listing_url),
         (CostBreakdown(label="BYD Atto 3 2023 (used)", drivetrain="ev", road_tax=1404, insurance_low=1800, insurance_high=2800, depreciation=11900, energy=936, fixed_extras=2900), used_ev[0][0].url),
@@ -501,13 +536,9 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         coe_section(tender, "sample tender", coe_rows, tender + timedelta(days=14), cfg["sources"]["onemotoring_coe"]),
         best_selling_ev_section(best_selling, ["2026-01", "2026-08"], cfg=cfg,
                                 source_url=cfg["sources"].get("lta_registrations_by_make_xlsx")),
-        used_section("used_ev", used_ev, cfg=cfg),
-        used_section("used_ice", used_ice, cfg=cfg),
-        # Real LTA figures, January to August 2026, top five brands.
-        top_sellers_section({"BYD": {"total": 9028, "ev": 8318, "petrol": 710}, "TOYOTA": {"total": 4412, "ev": 245, "petrol": 4165},
-                             "TESLA": {"total": 3723, "ev": 3723, "petrol": 0}, "MERCEDES BENZ": {"total": 2299, "ev": 360, "petrol": 1939},
-                             "BMW": {"total": 2031, "ev": 790, "petrol": 1241}}, ["2026-01", "2026-08"],
-                            source_url=cfg["sources"]["lta_registrations_by_make"]),
+        used_section("used_ev", used_ev, cfg=cfg, brand_sales=ev_sales, months=["2026-01", "2026-08"]),
+        used_section("used_ice", used_ice, cfg=cfg, brand_sales=ice_sales, months=["2026-01", "2026-08"]),
+        top_sellers_section(sample_makes, ["2026-01", "2026-08"], source_url=cfg["sources"]["lta_registrations_by_make"]),
         fuel_section(FuelPrice(observed_on=run_date, ron95_per_litre=3.49, source="sample",
                                station_prices={"95": {"public": 2.54}},
                                grades={"SPC": {"92": 3.46, "95": 3.48, "98": 4.00, "Diesel": 3.97},

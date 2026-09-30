@@ -140,6 +140,12 @@ def e2e_config(tmp_path, cfg, server, monkeypatch):
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "42")
     monkeypatch.setenv("TELEGRAM_THREAD_ID", "7")
     monkeypatch.setenv("TELEGRAM_API_BASE", server)
+    # No PDF fixture for LTA table M03 exists, so the brand totals it would give are supplied here.
+    import pipeline
+
+    monkeypatch.setattr(pipeline, "scrape_registrations", lambda *a, **k: (
+        {"BYD": {"total": 9028, "ev": 8318, "petrol": 710}, "TOYOTA": {"total": 4412, "ev": 245, "petrol": 4165},
+         "TESLA": {"total": 3723, "ev": 3723, "petrol": 0}}, ["2026-01", "2026-08"]))
     Handler.sent.clear()
     return path
 
@@ -151,9 +157,11 @@ def test_full_run_sends_every_section_to_the_mock_bot_api(e2e_config, capsys):
     assert all(len(t) <= MAX_MESSAGE_LENGTH for t in texts)
     assert all(m["chat_id"] == "42" and m["message_thread_id"] == 7 and m["parse_mode"] == "HTML" for m in Handler.sent)
     joined = "\n".join(texts)
-    for title in ("SG car market daily", "COE position", "Best Selling Top EV", "Used EV Car Best Value list", "Used Petrol Car Best Value list", "Cost of ownership"):
+    for title in ("SG car market daily", "COE position", "Best Selling Top EV", "Best Selling Used EV", "Best Selling Used Petrol Car", "Cost of ownership"):
         assert title in joined, title
-    assert "New EV Car Best Value list" not in joined
+    assert "Best Value list" not in joined
+    assert "#1 EV brand · 8,318 new this year" in joined  # the used BYD Atto 3
+    assert "#1 petrol brand · 4,165 new this year" in joined  # the used Toyota Corolla Altis
     # The Tesla sedan count comes from the spreadsheet, the Model 3 price from the model page.
     assert "#1 EV sedan brand · 660 registered" in joined
     # Real data flowed through: the COE fixture, the Tesla model page, the used listings and Cnergy.
