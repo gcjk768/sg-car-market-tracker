@@ -34,3 +34,10 @@ def test_section_ranks_by_registrations():
     assert petrol.index("BYD") < petrol.index("BMW")
     assert "Mercedes" not in html
     assert "from Jan to Aug 2026" in html
+
+
+def test_ev_list_can_be_longer_than_petrol():
+    makes = {f"Make{i}": {"total": 100 - i, "ev": 100 - i, "petrol": 100 - i} for i in range(60)}
+    ev, petrol = top_sellers_section(makes, [], top_n=20, top_n_ev=50).html.split("Top petrol brands")
+    assert "50. " in ev and "51. " not in ev
+    assert "20. " in petrol and "21. " not in petrol

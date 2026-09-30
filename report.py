@@ -295,13 +295,13 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
 # Top sellers
 
 
-def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str], top_n: int = 20, max_width: int = 60, source_url: str | None = None) -> ReportSection:
+def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str], top_n: int = 20, max_width: int = 60, source_url: str | None = None, top_n_ev: int | None = None) -> ReportSection:
     """makes: {make: {"total": n, "ev": n, "petrol": n}} of new registrations over `months` (YYYY-MM)."""
     grand = sum(m["total"] for m in makes.values()) or 1
 
     def ranked(kind: str, label: str) -> str:
         pool = sum(m.get(kind, 0) for m in makes.values()) or 1
-        top = sorted(((k, m[kind]) for k, m in makes.items() if m.get(kind)), key=lambda t: -t[1])[:top_n]
+        top = sorted(((k, m[kind]) for k, m in makes.items() if m.get(kind)), key=lambda t: -t[1])[: (top_n_ev or top_n) if kind == "ev" else top_n]
         rows = [f"{n}. <b>{escape(make if make in ('BMW', 'BYD', 'GAC', 'MG', 'DS') else make.title())}</b>  "
                 + dot(fmt_int(count), f"{count * 100 / pool:.1f}%")
                 for n, (make, count) in enumerate(top, start=1)]
