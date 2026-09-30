@@ -77,7 +77,7 @@ def summary_section(
     if best_pick:
         label, url, reason = best_pick
         parts.append(
-            f"Best value today: <a href=\"{html_lib.escape(url, quote=True)}\">{escape(label)}</a>\n{escape(reason)}"
+            f"Cheapest to own today: <a href=\"{html_lib.escape(url, quote=True)}\">{escape(label)}</a>\n{escape(reason)}"
         )
     if unavailable:
         parts.append("Unavailable today: " + escape(", ".join(unavailable)))

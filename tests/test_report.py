@@ -10,6 +10,8 @@ def test_sample_report_has_all_sections_in_order(cfg):
     sections = sample_report(cfg, date(2026, 9, 29))
     assert [s.key for s in sections] == cfg["telegram"]["section_order"]
     assert all(isinstance(s, ReportSection) for s in sections)
+    summary = sections[0].html
+    assert "Cheapest to own today: <a href=" in summary and "Best value" not in summary
 
 
 def test_every_sample_section_fits_one_message(cfg):

@@ -6,11 +6,24 @@ A self hosted Docker service that scrapes the Singapore car market every morning
 ![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)
 ![Playwright](https://img.shields.io/badge/playwright-chromium-2EAD33?logo=playwright&logoColor=white)
 ![SQLite](https://img.shields.io/badge/sqlite-003B57?logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-100%20passing-brightgreen?logo=pytest&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-110%20passing-brightgreen?logo=pytest&logoColor=white)
 
 ![Architecture](docs/architecture.drawio.svg)
 
 <sub>Editable source: [`docs/architecture.drawio`](docs/architecture.drawio). PNG fallback: [`docs/architecture.png`](docs/architecture.png).</sub>
+
+## What the report looks like
+
+The bot posts one message per section, in this order: summary, COE position, Best Selling Top EV, Best Selling Used EV, Best Selling Used Petrol Car, Top sellers in SG, Pump prices, cost of ownership. Car names are links, method notes are collapsed quotes, and only the pump price and cost tables use a fixed width block.
+
+<p>
+<img src="docs/telegram_preview/1_summary_coe.png" width="200" alt="Summary and COE position">
+<img src="docs/telegram_preview/2_best_selling_top_ev.png" width="200" alt="Best Selling Top EV">
+<img src="docs/telegram_preview/3_best_selling_used.png" width="200" alt="Best Selling Used EV and Used Petrol Car">
+<img src="docs/telegram_preview/4_top_sellers_pump_costs.png" width="200" alt="Top sellers, pump prices and cost of ownership">
+</p>
+
+<sub>Rendered from the exact HTML the bot sends, using the sample report (sample figures). Regenerate with `uv run python scripts/telegram_preview.py` after changing `report.py`.</sub>
 
 ## Why this exists
 
