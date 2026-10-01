@@ -261,7 +261,9 @@ new_ev:
   # Dealer prices in Singapore are advertised with COE and already net of the VES and EEAI
   # rebates, which are applied to ARF at registration. The report says so on every price.
   prices_include_rebates: true
-  max_model_pages: 40
+  # Sgcarmart's EV index lists about 85 models (2026-10-02); 40 left most line up models unpriced. Each page waits
+  # Sgcarmart's 30 second crawl delay, so 90 pages add about 25 minutes, cached for the day.
+  max_model_pages: 90
   # VES rebates by band for cars registered this year. Single band A from 2026. Verified 2026-09-29.
   ves_rebates:
     A: 22500
