@@ -1,3 +1,4 @@
+import re
 from report import top_sellers_section
 from scrapers.registrations import parse_registrations
 
@@ -49,8 +50,8 @@ def test_ev_list_names_each_brands_best_seller():
     html = top_sellers_section(makes, [], ev_models={"BYD": "Atto 3", "TESLA": "Model Y"}, models_checked_on="2026-10-01").html
     ev = html.split("Top petrol brands")[0]
     assert "Top EV brands" not in html and "1,110 cars" not in html
-    assert "<b>BYD</b> Atto 3" in ev and "<b>Tesla</b> Model Y" in ev
-    assert "3. <b>Opel</b>  10" in ev  # no model known, brand alone
+    assert "<b>1. BYD</b> · Atto 3" in ev and "<b>2. Tesla</b> · Model Y" in ev
+    assert "<b>3. Opel</b>\n📊 10 registered" in ev  # no model known, brand alone
     assert "checked 2026-10-01" in html
 
 def test_ev_list_has_no_cap_by_default_and_shows_price():
@@ -58,7 +59,7 @@ def test_ev_list_has_no_cap_by_default_and_shows_price():
     makes["BYD"] = {"total": 900, "ev": 800, "petrol": 0}
     html = top_sellers_section(makes, [], top_n=20, ev_models={"BYD": "Atto 3"}, ev_prices={"BYD": 152888}).html
     assert "61. " in html
-    assert "<b>BYD</b> Atto 3  from $152,888" in html
+    assert re.search(r"<b>1\. BYD</b> · Atto 3\n📊 800 registered · [\d.]+%\n💰 from \$152,888\n", html)
     assert "cheapest variant on today's price list" in html
 
 
@@ -67,9 +68,9 @@ def test_ev_price_line_adds_deposit_and_instalment():
     makes = {"BYD": {"total": 900, "ev": 800, "petrol": 0}, "TESLA": {"total": 300, "ev": 300, "petrol": 0}}
     html = top_sellers_section(makes, [], ev_models={"BYD": "Atto 3", "TESLA": "Model Y"}, ev_prices={"BYD": 150000},
                                cfg=load_config()).html
-    byd, tesla = html.split("<b>Tesla</b>")
+    byd, tesla = html.split("<b>2. Tesla</b>")
     assert "Deposit $" in byd and "/mth over 7y" in byd
-    assert "Deposit" not in tesla.split("Top petrol brands")[0]  # no price, model only
+    assert "Deposit" not in tesla.split("\n\n")[0]  # no price, model only
 
 
 def test_model_prices_takes_cheapest_whole_word_match():

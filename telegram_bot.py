@@ -122,10 +122,15 @@ REPORT_BUTTONS = {"inline_keyboard": [[{"text": "🔄 Run again", "callback_data
                                        {"text": "🎫 COE only", "callback_data": "/coe"}]]}
 
 
-def card(n: int, title: str, url: str, lines: Iterable[str], tag: str = "") -> str:
-    """One car as a bold numbered link followed by short lines. Wide tables wrap on a phone,
-    cards do not, and the link sits on the car itself instead of a separate list."""
-    head = f'<b>{n}. <a href="{html.escape(url, quote=True)}">{escape(title)}</a></b>'
+DIVIDER = "━━━━━━━━━━━━━━━━"
+
+
+def card(n: int, title: str, url: str, lines: Iterable[str], tag: str = "", emoji: str = "", desc: str = "") -> str:
+    """One item block: `emoji <b>n. linked name</b> · description`, then short detail lines that
+    the caller leads with an emoji. Wide tables wrap on a phone, blocks do not."""
+    head = (f"{emoji} " if emoji else "") + f'<b>{n}. <a href="{html.escape(url, quote=True)}">{escape(title)}</a></b>'
+    if desc:
+        head += f" · {escape(desc)}"
     if tag:
         mark = TAG_EMOJI.get(tag.split()[0], "")
         head += f" {mark} <i>{escape(tag)}</i>" if mark else f" <i>{escape(tag)}</i>"
@@ -133,14 +138,36 @@ def card(n: int, title: str, url: str, lines: Iterable[str], tag: str = "") -> s
 
 
 def note(text: str) -> str:
-    """Collapsed quote for the method notes, so the numbers come first. Text is HTML already."""
+    """Collapsed quote for method notes and other background. build_section moves it to the end."""
     return f"<blockquote expandable>{text}</blockquote>" if text else ""
 
 
-def build_section(title: str, body_parts: Iterable[str]) -> str:
-    """Join a bold title and the body parts with blank lines, skipping empty parts."""
-    parts = [f"<b>{escape(title)}</b>"] + [p for p in body_parts if p]
-    return "\n\n".join(parts)
+def header(title: str, subtitle: str = "") -> str:
+    """`emoji <b>TITLE</b> · subtitle`. The title's first word is its fixed emoji (report.SECTION_TITLES)."""
+    emoji, _, name = title.partition(" ")
+    if not name or emoji.isascii():
+        emoji, name = "", title
+    head = (f"{emoji} " if emoji else "") + f"<b>{escape(name.upper())}</b>"
+    return head + (f" · {escape(subtitle)}" if subtitle else "")
+
+
+def build_section(title: str, body_parts: Iterable[str], subtitle: str = "") -> str:
+    """Header, then the body parts with blank lines between, skipping empty parts.
+    Collapsed notes go last, so the numbers are read first."""
+    parts = [p for p in body_parts if p]
+    notes = [p for p in parts if p.startswith("<blockquote")]
+    return "\n\n".join([header(title, subtitle)] + [p for p in parts if p not in notes] + notes)
+
+
+_TAG_RE = re.compile(r"<a href=\"([^\"]+)\">(.*?)</a>|<[^>]+>")
+
+
+def html_to_text(text: str) -> str:
+    """Plain text for the console and for the resend when Telegram rejects the HTML. Links keep their URL."""
+    def repl(m: re.Match) -> str:
+        return f"{m.group(2)} <{html.unescape(m.group(1))}>" if m.group(1) else ""
+
+    return html.unescape(_TAG_RE.sub(repl, text))
 
 
 _PRE_OPEN = re.compile(r"<pre>")
@@ -260,7 +287,16 @@ class TelegramClient:
                 payload["message_thread_id"] = self.thread_id
             if buttons and i == len(chunks) - 1:
                 payload["reply_markup"] = buttons
-            results.append(self._post("sendMessage", payload))
+            try:
+                results.append(self._post("sendMessage", payload))
+            except TelegramError as exc:
+                if "parse entities" not in str(exc):
+                    raise
+                # Bad HTML must not lose the report: resend this chunk as plain text.
+                log.warning("telegram rejected the HTML, resending as plain text: %s", exc)
+                payload["text"] = html_to_text(chunk)[:limit]
+                payload.pop("parse_mode")
+                results.append(self._post("sendMessage", payload))
             time.sleep(0.5)
         return results
 

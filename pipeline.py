@@ -279,7 +279,7 @@ class Pipeline:
                     unavailable=sorted(self.unavailable),
                 )
                 if self.change_reasons:
-                    summary.html += "\n\nSince the last report: " + report.escape("; ".join(self.change_reasons)) + "."
+                    summary.html += "\n\n🔄 Since the last report: " + report.escape("; ".join(self.change_reasons)) + "."
                 if self.cfg.get("ai", {}).get("analyst_note") and self.ai.available():
                     facts = {
                         "coe": {r.category.value: r.quota_premium for r in self.coe_latest},
@@ -289,7 +289,7 @@ class Pipeline:
                     }
                     note = analyst_note(self.ai, facts)
                     if note:
-                        summary.html += "\n\n<i>" + report.escape(note) + "</i>"
+                        summary.html += "\n\n" + report.note("🤖 " + report.escape(note))
                 sections.append(summary)
             elif key == "coe":
                 sections.append(self.coe_section())
@@ -298,12 +298,12 @@ class Pipeline:
                     s = report.best_selling_ev_section(self.best_selling, self.best_selling_months, cfg=self.cfg,
                                                        source_url=self.cfg["sources"].get("lta_registrations_by_make_xlsx"))
                     if self.brand_notes:
-                        s.html += "\n\nBrand page check: " + "; ".join(f"{k}: {v}" for k, v in sorted(self.brand_notes.items()))
+                        s.html += "\n\n" + report.note(report.escape("Brand page check: " + "; ".join(f"{k}: {v}" for k, v in sorted(self.brand_notes.items()))))
                     sections.append(s)
                 elif self.new_evs:
                     s = report.new_ev_section(self.new_evs, self.cfg["telegram"]["table_width"], cfg=self.cfg, groups=self.new_ev_groups)
                     if self.brand_notes:
-                        s.html += "\n\nBrand page check: " + "; ".join(f"{k}: {v}" for k, v in sorted(self.brand_notes.items()))
+                        s.html += "\n\n" + report.note(report.escape("Brand page check: " + "; ".join(f"{k}: {v}" for k, v in sorted(self.brand_notes.items()))))
                     sections.append(s)
                 else:
                     sections.append(report.unavailable_section("new_ev", self.unavailable.get("new_ev", "no variants parsed")))

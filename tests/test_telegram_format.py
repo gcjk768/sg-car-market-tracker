@@ -92,3 +92,29 @@ def test_split_message_never_cuts_a_card():
         assert len(chunk) <= 500
         for block in chunk.split("\n\n")[1 if chunk.startswith("<b>Title") else 0:]:
             assert block.startswith("<b>") and block.endswith("Deposit $40,000"), block
+
+
+def test_header_and_notes_go_last():
+    from telegram_bot import build_section, note
+
+    html = build_section("🎫 COE position", [note("method"), "body"], "23 Sep tender")
+    assert html.startswith("🎫 <b>COE POSITION</b> · 23 Sep tender")
+    assert html.endswith("<blockquote expandable>method</blockquote>")
+
+
+def test_rejected_html_is_resent_as_plain_text(monkeypatch):
+    from telegram_bot import TelegramClient, TelegramError
+
+    client = TelegramClient("t", "1")
+    sent = []
+
+    def post(method, payload):
+        if payload.get("parse_mode"):
+            raise TelegramError("sendMessage failed: Bad Request: can't parse entities")
+        sent.append(payload)
+        return {}
+
+    monkeypatch.setattr(client, "_post", post)
+    monkeypatch.setattr("telegram_bot.time.sleep", lambda s: None)
+    client.send_message('<b>Hi</b> &amp; <a href="https://x.y">go</a>')
+    assert sent[0]["text"] == "Hi & go <https://x.y>" and "parse_mode" not in sent[0]

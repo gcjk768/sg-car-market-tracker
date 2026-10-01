@@ -158,10 +158,10 @@ def test_full_run_sends_every_section_to_the_mock_bot_api(e2e_config, capsys):
     assert all(m["chat_id"] == "42" and m["message_thread_id"] == 7 and m["parse_mode"] == "HTML" for m in Handler.sent)
     joined = "\n".join(texts)
     for title in ("SG car market daily", "COE position", "Best Selling Top EV", "Best Selling Used EV", "Best Selling Used Petrol Car", "Cost of ownership"):
-        assert title in joined, title
-    assert "Best Value list" not in joined
-    assert "#1 EV brand · 8,318 new this year" in joined  # the used BYD Atto 3
-    assert "#1 petrol brand · 4,165 new this year" in joined  # the used Toyota Corolla Altis
+        assert title.upper() in joined, title
+    assert "best value list" not in joined.lower()
+    assert "</a></b> · #1 EV brand" in joined  # the used BYD Atto 3
+    assert "</a></b> · #1 petrol brand" in joined  # the used Toyota Corolla Altis
     # The Tesla sedan count comes from the spreadsheet, the Model 3 price from the model page.
     assert "#1 EV sedan brand · 660 registered" in joined
     # Real data flowed through: the COE fixture, the Tesla model page, the used listings and Cnergy.
@@ -174,7 +174,7 @@ def test_full_run_sends_every_section_to_the_mock_bot_api(e2e_config, capsys):
         assert t.count("<pre>") == t.count("</pre>")
         assert t.count("<a href=") == t.count("</a>")
     # Every car list is numbered cards, the car name is the link.
-    assert re.search(r'^<b>1\. <a href="http', joined, flags=re.M)
+    assert re.search(r'^\S+ <b>1\. <a href="http', joined, flags=re.M)
 
     # Same day again: idempotent, nothing resent.
     before = len(Handler.sent)

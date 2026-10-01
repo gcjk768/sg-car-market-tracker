@@ -16,8 +16,10 @@ from rich.panel import Panel
 
 from models import CostBreakdown, Financing, FuelPrice, NewEvVariant, ReportSection, UsedListing
 from telegram_bot import (
+    DIVIDER,
     Column,
     build_section,
+    html_to_text,
     card,
     dot,
     escape,
@@ -50,8 +52,14 @@ SECTION_TITLES = {
 
 def unavailable_section(key: str, reason: str = "source unavailable today") -> ReportSection:
     title = SECTION_TITLES.get(key, key)
-    body = f"This section is unavailable today. {escape(reason)}"
-    return ReportSection(key=key, title=title, html=build_section(title, [body]), available=False)
+    body = f"⚠️ This section is unavailable today.\n<i>{escape(reason)}</i>"
+    return ReportSection(key=key, title=title, html=build_section(title, [body], "unavailable"), available=False)
+
+
+def source_links(*links: tuple[str, str | None]) -> str:
+    """`🌐 <a>label</a>  ·  <a>label</a>` for the (label, url) pairs that have a url."""
+    tags = [f'<a href="{html_lib.escape(u, quote=True)}">{escape(n)}</a>' for n, u in links if u]
+    return "🌐 " + "  ·  ".join(tags) if tags else ""
 
 
 # Section 1: summary
@@ -66,7 +74,7 @@ def summary_section(
     best_pick: tuple[str, str, str] | None,
     unavailable: Sequence[str] = (),
 ) -> ReportSection:
-    title = f"{SECTION_TITLES['summary']} {run_date.strftime('%a %d %b %Y')}"
+    title = SECTION_TITLES["summary"]
     lines = [
         f"🆕 New listings: <b>{new_count}</b>",
         f"🟢 Price drops: <b>{drop_count}</b>",
@@ -77,11 +85,11 @@ def summary_section(
     if best_pick:
         label, url, reason = best_pick
         parts.append(
-            f"Cheapest to own today: <a href=\"{html_lib.escape(url, quote=True)}\">{escape(label)}</a>\n{escape(reason)}"
+            f"🏆 <b>Cheapest to own today</b> · <a href=\"{html_lib.escape(url, quote=True)}\">{escape(label)}</a>\n💰 {escape(reason)}"
         )
     if unavailable:
-        parts.append("Unavailable today: " + escape(", ".join(unavailable)))
-    return ReportSection(key="summary", title=title, html=build_section(title, parts))
+        parts.append("⚠️ Unavailable today: " + escape(", ".join(unavailable)))
+    return ReportSection(key="summary", title=title, html=build_section(title, parts, run_date.strftime("%a %d %b %Y")))
 
 
 # Section 2: COE
@@ -108,21 +116,19 @@ def coe_section(
     source_url: str | None = None,
 ) -> ReportSection:
     """rows: dicts with category, premium, delta, delta_pct, history (oldest first), bids, quota."""
-    lines = [
-        f"{coe_dot(r.get('delta'))} <b>Cat {escape(r['category'])}</b>  {fmt_money(r['premium'], '$')}  {fmt_delta(r.get('delta'), r.get('delta_pct'))}\n"
-        f"<i>{fmt_int(r.get('bids'))} bids for {fmt_int(r.get('quota'))} quota</i>"
+    blocks = [
+        f"{coe_dot(r.get('delta'))} <b>Cat {escape(r['category'])}</b> · {fmt_money(r['premium'], '$')}  {fmt_delta(r.get('delta'), r.get('delta_pct'))}\n"
+        f"🧾 {fmt_int(r.get('bids'))} bids for {fmt_int(r.get('quota'))} quota"
         for r in rows
     ]
-    intro = f"Latest tender is {tender_date.day} {tender_date.strftime('%B %Y')} ({escape(exercise.replace(f' {tender_date.year}', ''))})."
-    footer = []
-    if next_tender:
-        footer.append(f"Next results expected: {next_tender.strftime('%a %d %b %Y')}")
-    if source_url:
-        footer.append(f'Source: <a href="{html_lib.escape(source_url, quote=True)}">COE results</a>')
+    subtitle = f"{tender_date.day} {tender_date.strftime('%b %Y')} tender"
+    exercise = escape(exercise.replace(f" {tender_date.year}", ""))
+    footer = [f"📅 Next results expected {next_tender.strftime('%a %d %b %Y')}" if next_tender else "",
+              source_links(("COE results", source_url))]
     return ReportSection(
         key="coe",
         title=SECTION_TITLES["coe"],
-        html=build_section(SECTION_TITLES["coe"], [intro, "\n".join(lines), "\n".join(footer)]),
+        html=build_section(SECTION_TITLES["coe"], [f"<i>{exercise}</i>"] + blocks + ["\n".join(f for f in footer if f)], subtitle),
     )
 
 
@@ -152,7 +158,7 @@ def new_ev_section(variants: Sequence[NewEvVariant], max_width: int = 60, cfg: d
     n = 0
     for title, items in ordered:
         if title and items:
-            parts.append(f"<u>{escape(titles.get(title, title))}</u>")
+            parts.append(f"{DIVIDER}\n<u>{escape(titles.get(title, title))}</u>")
         for v in items:
             n += 1
             parts.append(_new_ev_card(n, v, cfg))
@@ -196,7 +202,7 @@ def best_selling_ev_section(groups: Sequence[tuple[str, Sequence[dict[str, Any]]
     for body, entries in groups:
         if not entries:
             continue
-        parts.append(f"<u>{escape(titles.get(body, body))}</u>")
+        parts.append(f"{DIVIDER}\n<u>{escape(titles.get(body, body))}</u>")
         plural = BODY_PLURALS.get(body, body.lower() + "s")
         missing = []
         for e in entries:
@@ -206,31 +212,36 @@ def best_selling_ev_section(groups: Sequence[tuple[str, Sequence[dict[str, Any]]
                 continue
             for v in e["models"]:
                 n += 1
-                parts.append(_new_ev_card(n, v, cfg, show_score=False) + "\n" + f"<i>{escape(sales)}</i>")
+                parts.append(_new_ev_card(n, v, cfg, show_score=False, desc=sales))
         if missing:
-            parts.append(note(escape("Also in the top list, no model on today's price list: " + ", ".join(missing) + ".")))
-    if source_url:
-        parts.append(f"Source: <a href=\"{html_lib.escape(source_url, quote=True)}\">LTA table M03</a>")
+            parts.append("<i>" + escape("Also in the top list, no model on today's price list: " + ", ".join(missing) + ".") + "</i>")
+    parts.append(source_links(("LTA table M03", source_url)))
     title = SECTION_TITLES["new_ev"]
     return ReportSection(key="new_ev", title=title, html=build_section(title, parts))
 
 
-def _new_ev_card(n: int, v: NewEvVariant, cfg: dict[str, Any] | None = None, show_score: bool = True) -> str:
+def _new_ev_card(n: int, v: NewEvVariant, cfg: dict[str, Any] | None = None, show_score: bool = True, desc: str = "") -> str:
     fin = _fin(cfg, v.price_with_coe, None, True)
     dep = None
     if cfg and v.price_with_coe:
         from costs import depreciation_new
 
         dep = depreciation_new(v.price_with_coe, None, cfg, date.today())
+    dep_line = dot(f"Dep {fmt_money(dep, '$')}/yr" if dep else None,
+                   f"{v.battery_warranty_years:g}y battery warranty" if v.battery_warranty_years else None)
     return card(n, v.display_name, v.listing_url, [
-        dot(fmt_money(v.price_with_coe, "$"),
-            f"{fmt_int(v.range_km)} km" if v.range_km else None,
-            f"Cat {v.coe_category.value}" if v.coe_category else None,
-            f"${v.score:.0f}/km" if v.score and show_score else None),
-        dot(f"Deposit {fmt_money(fin.deposit, '$')}", f"{fmt_money(fin.monthly, '$')}/mth over {fin.tenure_years}y") if fin else "",
-        dot(f"Dep {fmt_money(dep, '$')}/yr" if dep else None,
-            f"{v.battery_warranty_years:g}y battery warranty" if v.battery_warranty_years else None),
-    ])
+        "💰 " + dot(fmt_money(v.price_with_coe, "$"),
+                   f"{fmt_int(v.range_km)} km" if v.range_km else None,
+                   f"Cat {v.coe_category.value}" if v.coe_category else None,
+                   f"${v.score:.0f}/km" if v.score and show_score else None),
+        fin_line(fin),
+        f"📉 {dep_line}" if dep_line else "",
+    ], emoji="⚡", desc=desc)
+
+
+def fin_line(fin: Financing | None) -> str:
+    """`🏦 Deposit $x · $y/mth over 7y`, or empty without a price."""
+    return "🏦 " + dot(f"Deposit {fmt_money(fin.deposit, '$')}", f"{fmt_money(fin.monthly, '$')}/mth over {fin.tenure_years}y") if fin else ""
 
 
 # Section 4 and 5: used cars
@@ -264,19 +275,19 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
     for n, (l, tag) in enumerate(listings, start=1):
         fin = _fin(cfg, l.price, l.omv, False)
         lines = [
-            dot(fmt_money(l.price, "$"), str(l.year) if l.year else None,
-                f"{fmt_int(l.mileage_km)} km" if l.mileage_km is not None else None,
-                f"{l.coe_years_remaining:.1f}y COE left" if l.coe_years_remaining is not None else None),
-            dot(f"Deposit {fmt_money(fin.deposit, '$')}", f"{fmt_money(fin.monthly, '$')}/mth over {fin.tenure_years}y") if fin else "",
-            dot(f"Dep {fmt_money(l.depreciation_per_year, '$')}/yr",
-                f"{l.owners} owner" + ("s" if l.owners != 1 else "") if l.owners is not None else None,
-                l.seller_type),
+            "💰 " + dot(fmt_money(l.price, "$"), str(l.year) if l.year else None,
+                       f"{fmt_int(l.mileage_km)} km" if l.mileage_km is not None else None,
+                       f"{l.coe_years_remaining:.1f}y COE left" if l.coe_years_remaining is not None else None),
+            fin_line(fin),
+            "📉 " + dot(f"Dep {fmt_money(l.depreciation_per_year, '$')}/yr",
+                       f"{l.owners} owner" + ("s" if l.owners != 1 else "") if l.owners is not None else None,
+                       l.seller_type),
         ]
+        sold = ""
         if brand_sales:
             rank = brand_rank(l.make, brand_sales)
-            sold = f"#{rank} {fuel} brand · {fmt_int(brand_count(l.make, brand_sales))} new this year" if rank else f"brand not in this year's LTA {fuel} figures"
-            lines.append(f"<i>{escape(sold)}</i>")
-        cards.append(card(n, l.display_name, l.url, lines, tag))
+            sold = f"#{rank} {fuel} brand" if rank else "unranked brand"
+        cards.append(card(n, l.display_name, l.url, lines, tag, emoji="🔋" if key == "used_ev" else "🚙", desc=sold))
     if brand_sales:
         title = SECTION_TITLES[key]
         span = ""
@@ -309,23 +320,23 @@ def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str],
     instalment on a second line. top_n_ev None lists every EV brand."""
     grand = sum(m["total"] for m in makes.values()) or 1
 
-    def fin_line(price: int | None) -> str:
-        fin = _fin(cfg, price, None, True)
-        return "\n   " + dot(f"Deposit {fmt_money(fin.deposit, '$')}", f"{fmt_money(fin.monthly, '$')}/mth over {fin.tenure_years}y") if fin else ""
-
-    def ranked(kind: str, label: str) -> str:
+    def ranked(kind: str) -> list[tuple[int, str, int, float]]:
         pool = sum(m.get(kind, 0) for m in makes.values()) or 1
         top = sorted(((k, m[kind]) for k, m in makes.items() if m.get(kind)), key=lambda t: -t[1])[: top_n_ev if kind == "ev" else top_n]
-        models = (ev_models or {}) if kind == "ev" else {}
-        prices = (ev_prices or {}) if kind == "ev" else {}
-        rows = [f"{n}. <b>{escape(make if make in ('BMW', 'BYD', 'GAC', 'MG', 'DS') else make.title())}</b>"
-                + (f" {escape(models[make])}" if models.get(make) else "") + "  "
-                + dot(f"from {fmt_money(prices[make], '$')}" if prices.get(make) else None,
-                      fmt_int(count), f"{count * 100 / pool:.1f}%")
-                + fin_line(prices.get(make))
-                for n, (make, count) in enumerate(top, start=1)]
-        total = "" if kind == "ev" else f", {fmt_int(pool)} cars"
-        return f"<b>{label}</b>{total}\n" + "\n".join(rows)
+        return [(n, make, count, count * 100 / pool) for n, (make, count) in enumerate(top, start=1)]
+
+    models, prices = ev_models or {}, ev_prices or {}
+    ev_blocks = []
+    for n, make, count, share in ranked("ev"):
+        price = prices.get(make)
+        head = f"🔌 <b>{n}. {escape(brand_name(make))}</b>" + (f" · {escape(models[make])}" if models.get(make) else "")
+        lines = [head, f"📊 {fmt_int(count)} registered · {share:.1f}%"]
+        if price:
+            lines += [f"💰 from {fmt_money(price, '$')}", fin_line(_fin(cfg, price, None, True))]
+        ev_blocks.append("\n".join(l for l in lines if l))
+    petrol = ranked("petrol")
+    petrol_pool = sum(m.get("petrol", 0) for m in makes.values())
+    petrol_rows = "\n".join(f"<b>{n}. {escape(brand_name(make))}</b> · {fmt_int(count)} · {share:.1f}%" for n, make, count, share in petrol)
     span = ""
     if months:
         first, last = (date.fromisoformat(f"{m}-01") for m in (months[0], months[-1]))
@@ -339,11 +350,12 @@ def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str],
         intro += " The price is that model's cheapest variant on today's price list, with COE, net of rebates."
         if cfg:
             intro += " " + _finance_intro(cfg, True)
-    parts = [note(escape(intro)), ranked("ev", "Best selling EV of each brand"), ranked("petrol", "Top petrol brands")]
-    if source_url:
-        parts.append(f"Source: <a href=\"{html_lib.escape(source_url, quote=True)}\">LTA table M03</a>")
+    parts = [note(escape(intro)), "<u>Best selling EV of each brand</u>"] + ev_blocks
+    if petrol:
+        parts.append(f"{DIVIDER}\n<u>Top petrol brands</u> · {fmt_int(petrol_pool)} cars\n{petrol_rows}")
+    parts.append(source_links(("LTA table M03", source_url)))
     title = SECTION_TITLES["top_sellers"]
-    return ReportSection(key="top_sellers", title=title, html=build_section(title, parts))
+    return ReportSection(key="top_sellers", title=title, html=build_section(title, parts, span.strip().replace("from ", "")))
 
 
 # Pump prices
@@ -361,10 +373,11 @@ def fuel_section(fuel: FuelPrice, preferred_station: str | None = None, max_widt
             f"{fuel.station_prices[g]['public']:.2f}" if fuel.station_prices.get(g, {}).get("public") else "n/a" for g in grades])
     for brand, by_grade in sorted(fuel.grades.items(), key=lambda t: t[1].get("95", 99)):
         rows.append([brand] + [f"{by_grade[g]:.2f}" if g in by_grade else "n/a" for g in grades])
-    intro = f"Listed before card or loyalty discounts, per litre, {fuel.observed_on.strftime('%d %b %Y')}."
-    missing = f"{preferred_station} does not publish its pump prices online." if preferred_station and not fuel.station_prices else ""
+    intro = "<i>Listed before card or loyalty discounts, per litre.</i>"
+    missing = f"⚪ <i>{escape(preferred_station)} does not publish its pump prices online.</i>" if preferred_station and not fuel.station_prices else ""
     title = SECTION_TITLES["fuel"]
-    return ReportSection(key="fuel", title=title, html=build_section(title, [intro, pre_block(render_table(cols, rows, max_width)), missing]))
+    return ReportSection(key="fuel", title=title, html=build_section(title, [intro, pre_block(render_table(cols, rows, max_width)), missing],
+                                                                    fuel.observed_on.strftime("%d %b %Y")))
 
 
 # Section 6: cost of ownership
@@ -401,8 +414,10 @@ def costs_section(picks: Sequence[tuple[CostBreakdown, str]], assumptions: str, 
             frow(f"Mth {fins[0].tenure_years if fins[0] else 7}y", lambda f: fmt_money(f.monthly)),
             frow(f"Mth {fins[0].short_tenure_years if fins[0] else 5}y", lambda f: fmt_money(f.monthly_short)),
         ]
-    links = [(f"{h}: {b.label}", url) for h, (b, url) in zip(headers, picks)]
-    parts = [link_list(links), pre_block(render_table(cols, rows, max_width))]
+    pick_emoji = {"New EV": "⚡", "Used EV": "🔋", "Used ICE": "🚙"}
+    links = "\n".join(f'{pick_emoji.get(h, "🚗")} <b>{escape(h)}</b> · <a href="{html_lib.escape(url, quote=True)}">{escape(b.label)}</a>'
+                      for h, (b, url) in zip(headers, picks))
+    parts = [links, pre_block(render_table(cols, rows, max_width))]
     notes = [escape(assumptions.strip())]
     if fins and any(fins):
         rates = sorted({f.rate_flat for f in fins if f})
@@ -411,9 +426,7 @@ def costs_section(picks: Sequence[tuple[CostBreakdown, str]], assumptions: str, 
                             "The 7 year loan costs the most interest; the 5 year figure shows the trade off."))
     parts.append(note("\n".join(n for n in notes if n)))
     if insurance_links:
-        parts.append("Get a real insurance quote: " + ", ".join(
-            f'<a href="{html_lib.escape(u, quote=True)}">{escape(n)}</a>' for n, u in insurance_links
-        ))
+        parts.append("<i>Get a real insurance quote</i>\n" + source_links(*insurance_links))
     return ReportSection(key="costs", title=SECTION_TITLES["costs"], html=build_section(SECTION_TITLES["costs"], parts))
 
 
@@ -452,16 +465,6 @@ def considerations_section(cfg: dict[str, Any], cat_a: int | None, cat_b: int | 
 
 # Console rendering for dry runs
 
-_TAG_RE = re.compile(r"<a href=\"([^\"]+)\">(.*?)</a>|<[^>]+>")
-
-
-def html_to_text(text: str) -> str:
-    def repl(m: re.Match) -> str:
-        if m.group(1):
-            return f"{m.group(2)} <{m.group(1)}>"
-        return ""
-
-    return html_lib.unescape(_TAG_RE.sub(repl, text))
 
 
 def render_console(sections: Sequence[ReportSection], console: Console | None = None) -> None:
@@ -579,5 +582,5 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
     order = cfg["telegram"]["section_order"]
     sections = sorted((s for s in sections if s.key in order), key=lambda s: order.index(s.key))
     for s in sections:
-        s.html = "<i>SAMPLE DATA, delivery test</i>\n" + s.html
+        s.html = s.html.replace("\n\n", "\n<i>SAMPLE DATA, delivery test</i>\n\n", 1)  # under the header
     return sections

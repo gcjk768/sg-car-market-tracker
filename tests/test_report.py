@@ -11,7 +11,8 @@ def test_sample_report_has_all_sections_in_order(cfg):
     assert [s.key for s in sections] == cfg["telegram"]["section_order"]
     assert all(isinstance(s, ReportSection) for s in sections)
     summary = sections[0].html
-    assert "Cheapest to own today: <a href=" in summary and "Best value" not in summary
+    assert "<b>Cheapest to own today</b> · <a href=" in summary and "best value" not in summary.lower()
+    assert summary.startswith("🚗 <b>SG CAR MARKET DAILY</b> · Tue 29 Sep 2026")
 
 
 def test_every_sample_section_fits_one_message(cfg):
@@ -31,7 +32,7 @@ def test_car_lists_are_numbered_cards_without_tables(cfg):
     for key in ("new_ev", "used_ev", "used_ice"):
         html = sections[key].html
         assert "<pre>" not in html, key
-        cards = re.findall(r'^<b>(\d+)\. <a href="http', html, flags=re.M)
+        cards = re.findall(r'^\S+ <b>(\d+)\. <a href="http', html, flags=re.M)
         assert cards and [int(n) for n in cards] == list(range(1, len(cards) + 1)), key
 
 
@@ -44,8 +45,8 @@ def test_new_ev_section_is_grouped_by_body_type(cfg):
 def test_cost_table_links_match_car_columns(cfg):
     html = {s.key: s for s in sample_report(cfg, date(2026, 9, 29))}["costs"].html
     header = re.search(r"<pre>(.*?)\n", html, flags=re.S).group(1)
-    links = re.findall(r'^(\d+)\. <a href="', html, flags=re.M)
-    assert links == ["1", "2", "3"]
+    links = re.findall(r'^\S+ <b>(New EV|Used EV|Used ICE)</b> · <a href="', html, flags=re.M)
+    assert links == ["New EV", "Used EV", "Used ICE"]
     for name in ("New EV", "Used EV", "Used ICE"):
         assert name in header
 
@@ -73,7 +74,7 @@ def test_financing_rows_and_link_notes(cfg):
         assert label in costs_html
     assert re.search(r"Deposit +72,000", costs_html)
     # Price, deposit, monthly and depreciation sit on the car's own card.
-    assert re.search(r"Tesla Model 3 RWD 110</a></b>\n\$179,999 .*\nDeposit \$72,000 · \$1,509/mth over 7y\nDep \$[\d,]+/yr",
+    assert re.search(r"Tesla Model 3 RWD 110</a></b>.*\n💰 \$179,999 .*\n🏦 Deposit \$72,000 · \$1,509/mth over 7y\n📉 Dep \$[\d,]+/yr",
                      sections["new_ev"].html)
     assert "/mth over 7y" in sections["used_ev"].html
     for key in ("new_ev", "used_ev", "used_ice", "costs"):
