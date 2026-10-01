@@ -12,6 +12,8 @@ general:
   throttle_seconds: 2.0
   throttle_jitter_seconds: 1.5
   request_timeout_seconds: 30
+  # Headless Chromium pages (Sgcarmart results). They timed out at 30 seconds on the NAS, 2026-10-01.
+  render_timeout_seconds: 90
   max_retries: 3
   cache_dir: data/cache
   db_path: data/cars.db

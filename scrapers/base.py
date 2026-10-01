@@ -201,9 +201,14 @@ class BaseScraper(ABC):
             browser = p.chromium.launch(**launch_kwargs)
             try:
                 page = browser.new_page(user_agent=self.user_agent)
-                page.goto(url, timeout=self.timeout * 1000, wait_until="domcontentloaded")
+                # Only the HTML is read. Images, fonts and media made Sgcarmart's results page miss the
+                # 30 second load limit on the NAS, so they are not downloaded at all.
+                page.route("**/*", lambda route: route.abort() if route.request.resource_type in ("image", "media", "font")
+                           else route.continue_())
+                limit = self.cfg["general"].get("render_timeout_seconds", self.timeout) * 1000
+                page.goto(url, timeout=limit, wait_until="domcontentloaded")
                 if wait_selector:
-                    page.wait_for_selector(wait_selector, timeout=self.timeout * 1000)
+                    page.wait_for_selector(wait_selector, timeout=limit)
                 page.wait_for_timeout(wait_ms)
                 html = page.content()
             finally:
