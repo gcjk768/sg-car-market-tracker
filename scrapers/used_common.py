@@ -46,8 +46,10 @@ _MAKES_LOWER = sorted(((m.lower(), m) for m in KNOWN_MAKES), key=lambda t: -len(
 _INT_FIELDS = {"price", "depreciation_per_year", "mileage_km", "owners", "omv", "arf", "dereg_value", "engine_cc"}
 _FLOAT_FIELDS = {"power_kw", "coe_years_remaining"}
 
-EV_WORDS = ("electric", " ev", "(ev)", "bev", "kwh")
-HYBRID_WORDS = ("hybrid", "phev", "plug-in", "e:hev", "e-power", "mild hybrid")
+# "ev" is matched as a whole word in detect_drivetrain: a bare " ev" also matched Suzuki "Every".
+EV_WORDS = ("electric", "bev", "kwh")
+HYBRID_WORDS = ("hybrid", "phev", "plug-in", "e:hev", "e-power", "mild hybrid", "mhev", "petrol-electric", "diesel-electric")
+ICE_WORDS = (" petrol ", " diesel ")
 
 
 def split_make_model(title: str) -> tuple[str, str, str]:
@@ -88,12 +90,22 @@ def _coe_left_years(text: str) -> Optional[float]:
 
 
 def detect_drivetrain(text: str, default: Drivetrain) -> Drivetrain:
+    """Hybrid, then EV, then petrol or diesel words; the search's default only when the text names
+    no fuel. A petrol van found by the electric car search must not land in the EV list."""
     low = " " + text.lower() + " "
     if any(w in low for w in HYBRID_WORDS):
         return Drivetrain.hybrid
-    if any(w in low for w in EV_WORDS):
+    if any(w in low for w in EV_WORDS) or re.search(r"\bev\b", low):
         return Drivetrain.ev
+    if any(w in low for w in ICE_WORDS):
+        return Drivetrain.ice
     return default
+
+
+def is_commercial_model(title: str, models: list[str]) -> bool:
+    """True when a goods vehicle model name (Town Ace, N-Van) appears as whole words in the title."""
+    low = " " + re.sub(r"[^a-z0-9]+", " ", title.lower()) + " "
+    return any(f" {re.sub(r'[^a-z0-9]+', ' ', m.lower()).strip()} " in low for m in models)
 
 
 class UsedScraperBase(BaseScraper):
@@ -266,7 +278,9 @@ class UsedScraperBase(BaseScraper):
         own_text = " ".join([title, description, *values.values()])
         flags = contains_any(strip_negated(own_text), self.flag_keywords)
         vehicle_type = (self._label(values, "vehicle_type") or "").lower()
-        if any(w in vehicle_type for w in self.cfg["used"]["filters"].get("exclude_vehicle_types", [])):
+        f = self.cfg["used"]["filters"]
+        if (any(w in vehicle_type for w in f.get("exclude_vehicle_types", []))
+                or is_commercial_model(title, f.get("exclude_models", []))):
             flags.append("commercial vehicle")
         battery = self._label(values, "battery") if drivetrain == Drivetrain.ev else None
 

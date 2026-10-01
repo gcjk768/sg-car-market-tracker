@@ -320,6 +320,13 @@ used:
     require_mileage: true
     # Vans, trucks and buses match the "Electric" search too. Read from the listing's type field.
     exclude_vehicle_types: [van, truck, lorry, bus, pick-up, pickup, commercial]
+    # Motorist pages give no vehicle type, so goods vehicles are also caught by model name, whole words
+    # in the title. Checked 2026-10-02 against vans and lorries in the live used lists (Town Ace, Dyna,
+    # N-Van, Every), plus the common goods vehicles sold in Singapore.
+    exclude_models: [Town Ace, Townace, Lite Ace, Liteace, Dyna, Hiace, N-Van, Every, Carry, NV200, NV350,
+                     Urvan, Kangoo, Vito, eVito, Sprinter, eSprinter, Transit, Transit Custom, Canter, Porter,
+                     Atlas, Elf, Hilux, Ranger, Navara, Triton, D-Max, Proace, Berlingo, Partner, Caddy,
+                     Transporter, Crafter, Vivaro, Combo, Deliver 9, eDeliver, T60, Dolphin Van, e6 Van]
     exclude_keywords:
       - accident
       - "as is"
