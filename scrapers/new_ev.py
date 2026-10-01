@@ -332,12 +332,14 @@ def make_matches(lta_make: str, make: str) -> bool:
 
 def model_prices(variants: list[NewEvVariant], ev_models: dict[str, str]) -> dict[str, int]:
     """{LTA make: lowest price with COE} of each brand's named best seller on today's price list.
-    The model name must appear as a whole word, so Polestar "2" does not match a 2024 trim."""
+    The model name must appear as a whole word, so Polestar "2" does not match a 2024 trim. A model
+    named with the price list's make (GAC "Aion V", listed as make Aion) matches on that make."""
     out: dict[str, int] = {}
     for make, model in ev_models.items():
         pat = re.compile(r"(?<!\w)" + re.escape(str(model).lower()) + r"(?!\w)")
-        prices = [v.price_with_coe for v in variants if v.price_with_coe and make_matches(make, v.make)
-                  and pat.search(f"{v.model} {v.variant}".lower())]
+        prices = [v.price_with_coe for v in variants if v.price_with_coe
+                  and (make_matches(make, v.make) or v.make.lower() in str(model).lower())
+                  and pat.search(f"{v.make} {v.model} {v.variant}".lower())]
         if prices:
             out[make] = min(prices)
     return out

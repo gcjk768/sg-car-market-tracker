@@ -71,6 +71,7 @@ def test_model_prices_takes_cheapest_whole_word_match():
                             listing_url="u", price_source_url="u", source="t")
     variants = [v("BYD", "Atto 3", "Extended", 160000), v("BYD", "Atto 3", "Standard", 150000),
                 v("BYD", "Seal", "", 100000), v("Polestar", "4", "Long Range 2024", 200000),
-                v("Mercedes-Benz", "CLA 250+", "", 210000)]
-    got = model_prices(variants, {"BYD": "Atto 3", "POLESTAR": "2", "MERCEDES BENZ": "CLA", "TESLA": "Model Y"})
-    assert got == {"BYD": 150000, "MERCEDES BENZ": 210000}
+                v("Mercedes-Benz", "CLA 250+", "", 210000), v("Aion", "V", "Luxury", 170000)]
+    got = model_prices(variants, {"BYD": "Atto 3", "POLESTAR": "2", "MERCEDES BENZ": "CLA", "TESLA": "Model Y",
+                                  "GAC": "Aion V"})
+    assert got == {"BYD": 150000, "MERCEDES BENZ": 210000, "GAC": 170000}
