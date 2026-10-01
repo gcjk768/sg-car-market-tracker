@@ -115,12 +115,20 @@ def dot(*bits: object) -> str:
     return " · ".join(escape(b) for b in bits if b)
 
 
+TAG_EMOJI = {"NEW": "🆕", "DROP": "🟢"}
+
+# Buttons under the last message of a report. bot_listener.py runs the command in callback_data.
+REPORT_BUTTONS = {"inline_keyboard": [[{"text": "🔄 Run again", "callback_data": "/run"},
+                                       {"text": "🎫 COE only", "callback_data": "/coe"}]]}
+
+
 def card(n: int, title: str, url: str, lines: Iterable[str], tag: str = "") -> str:
     """One car as a bold numbered link followed by short lines. Wide tables wrap on a phone,
     cards do not, and the link sits on the car itself instead of a separate list."""
     head = f'<b>{n}. <a href="{html.escape(url, quote=True)}">{escape(title)}</a></b>'
     if tag:
-        head += f" <i>{escape(tag)}</i>"
+        mark = TAG_EMOJI.get(tag.split()[0], "")
+        head += f" {mark} <i>{escape(tag)}</i>" if mark else f" <i>{escape(tag)}</i>"
     return "\n".join([head] + [l for l in lines if l])
 
 
@@ -237,10 +245,11 @@ class TelegramClient:
             raise TelegramError(f"{method} failed: {data.get('description', resp.text)}")
         return data["result"]
 
-    def send_message(self, text: str, limit: int = MAX_MESSAGE_LENGTH) -> list[dict]:
-        """Send text, splitting into several messages if it is over the limit."""
+    def send_message(self, text: str, limit: int = MAX_MESSAGE_LENGTH, buttons: dict | None = None) -> list[dict]:
+        """Send text, splitting into several messages if it is over the limit. Buttons go on the last one."""
         results = []
-        for chunk in split_message(text, limit):
+        chunks = split_message(text, limit)
+        for i, chunk in enumerate(chunks):
             payload = {
                 "chat_id": self.chat_id,
                 "text": chunk,
@@ -249,15 +258,22 @@ class TelegramClient:
             }
             if self.thread_id:
                 payload["message_thread_id"] = self.thread_id
+            if buttons and i == len(chunks) - 1:
+                payload["reply_markup"] = buttons
             results.append(self._post("sendMessage", payload))
             time.sleep(0.5)
         return results
 
-    def send_many(self, messages: Iterable[str]) -> int:
+    def send_many(self, messages: Iterable[str], buttons: dict | None = None) -> int:
+        messages = list(messages)
         sent = 0
-        for m in messages:
-            sent += len(self.send_message(m))
+        for i, m in enumerate(messages):
+            sent += len(self.send_message(m, buttons=buttons if i == len(messages) - 1 else None))
         return sent
+
+    def answer_callback(self, callback_id: str, text: str = "") -> None:
+        """Stop the button's loading spinner. Telegram expects this within a few seconds of the press."""
+        self._post("answerCallbackQuery", {"callback_query_id": callback_id, "text": text})
 
     def get_updates(self, offset: int | None = None, timeout: int = 30) -> list[dict]:
         payload = {"timeout": timeout}

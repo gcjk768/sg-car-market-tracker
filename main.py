@@ -24,7 +24,7 @@ import json
 from pipeline import Pipeline, should_send
 from report import render_console, sample_report
 from settings import load_config, load_secrets, user_agent
-from telegram_bot import TelegramClient, TelegramError
+from telegram_bot import REPORT_BUTTONS, TelegramClient, TelegramError
 
 SECTIONS = ("coe", "new", "used", "costs", "all")
 
@@ -127,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
                 api_base=secrets.get("telegram_api_base"),
                 thread_id=secrets.get("telegram_thread_id"),
             )
-            sent = client.send_many(s.html for s in sections)
+            sent = client.send_many((s.html for s in sections), buttons=REPORT_BUTTONS)
         except TelegramError as exc:
             log.error("telegram delivery failed: %s", exc)
             if not args.sample:

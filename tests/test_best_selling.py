@@ -96,7 +96,7 @@ def test_section_cards_and_missing_brands(cfg):
         {"make": "ZEEKR", "registrations": 250, "share": 6.3, "rank": 2, "models": []},
     ])]
     html = best_selling_ev_section(groups, ["2026-01", "2026-08"], cfg=cfg, source_url="https://lta/m03.xlsx").html
-    assert html.startswith("<b>Best Selling Top EV</b>")
+    assert html.startswith("<b>⚡ Best Selling Top EV</b>")
     assert "<u>SUV and crossover</u>" in html
     assert re.search(r'<b>1\. <a href="https://x/Atto 3">BYD Atto 3</a></b>\n\$171,888', html)
     assert "<i>#1 EV SUV brand · 2,463 registered · 62%</i>" in html

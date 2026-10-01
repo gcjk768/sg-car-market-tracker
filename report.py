@@ -31,20 +31,20 @@ from telegram_bot import (
 )
 
 SECTION_TITLES = {
-    "summary": "SG car market daily",
-    "coe": "COE position",
-    "new_ev": "Best Selling Top EV",
+    "summary": "🚗 SG car market daily",
+    "coe": "🎫 COE position",
+    "new_ev": "⚡ Best Selling Top EV",
     # Used when LTA's registrations cannot be read and the list falls back to value order.
-    "new_ev_value": "New EV Car Best Value list",
-    "used_ev": "Best Selling Used EV",
-    "used_ice": "Best Selling Used Petrol Car",
+    "new_ev_value": "⚡ New EV Car Best Value list",
+    "used_ev": "🔋 Best Selling Used EV",
+    "used_ice": "🚙 Best Selling Used Petrol Car",
     # Used when LTA's registrations cannot be read and the used lists fall back to value order.
-    "used_ev_value": "Used EV Car Best Value list",
-    "used_ice_value": "Used Petrol Car Best Value list",
-    "top_sellers": "Top sellers in SG",
-    "fuel": "Pump prices",
-    "costs": "Cost of ownership, top 3",
-    "considerations": "Buying considerations",
+    "used_ev_value": "🔋 Used EV Car Best Value list",
+    "used_ice_value": "🚙 Used Petrol Car Best Value list",
+    "top_sellers": "🏆 Top sellers in SG",
+    "fuel": "⛽ Pump prices",
+    "costs": "💰 Cost of ownership, top 3",
+    "considerations": "📝 Buying considerations",
 }
 
 
@@ -68,10 +68,10 @@ def summary_section(
 ) -> ReportSection:
     title = f"{SECTION_TITLES['summary']} {run_date.strftime('%a %d %b %Y')}"
     lines = [
-        f"New listings: <b>{new_count}</b>",
-        f"Price drops: <b>{drop_count}</b>",
-        f"Gone since last run: <b>{gone_count}</b>",
-        f"COE: {escape(coe_line)}",
+        f"🆕 New listings: <b>{new_count}</b>",
+        f"🟢 Price drops: <b>{drop_count}</b>",
+        f"❌ Gone since last run: <b>{gone_count}</b>",
+        f"🎫 COE: {escape(coe_line)}",
     ]
     parts = ["\n".join(lines)]
     if best_pick:
@@ -95,6 +95,11 @@ def trend_arrows(premiums: Sequence[int]) -> str:
     return "".join(arrows) or "n/a"
 
 
+def coe_dot(delta: float | int | None) -> str:
+    """A fall is good news for a buyer, so it is green."""
+    return "⚪" if not delta else ("🟢" if delta < 0 else "🔴")
+
+
 def coe_section(
     tender_date: date,
     exercise: str,
@@ -104,7 +109,7 @@ def coe_section(
 ) -> ReportSection:
     """rows: dicts with category, premium, delta, delta_pct, history (oldest first), bids, quota."""
     lines = [
-        f"<b>Cat {escape(r['category'])}</b>  {fmt_money(r['premium'], '$')}  {fmt_delta(r.get('delta'), r.get('delta_pct'))}\n"
+        f"{coe_dot(r.get('delta'))} <b>Cat {escape(r['category'])}</b>  {fmt_money(r['premium'], '$')}  {fmt_delta(r.get('delta'), r.get('delta_pct'))}\n"
         f"<i>{fmt_int(r.get('bids'))} bids for {fmt_int(r.get('quota'))} quota</i>"
         for r in rows
     ]
