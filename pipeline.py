@@ -327,7 +327,7 @@ class Pipeline:
                     ts = self.cfg.get("top_sellers", {})
                     sections.append(report.top_sellers_section(*reg, top_n=ts.get("top_n", 20), top_n_ev=ts.get("top_n_ev"),
                                                                ev_models=ts.get("ev_models"), models_checked_on=ts.get("ev_models_checked_on"),
-                                                               ev_prices=model_prices(self.new_evs, ts.get("ev_models") or {}),
+                                                               ev_prices=model_prices(self.new_evs, ts.get("ev_models") or {}), cfg=self.cfg,
                                                                max_width=self.cfg["telegram"]["table_width"],
                                                                source_url=self.cfg["sources"]["lta_registrations_by_make"]))
                 else:

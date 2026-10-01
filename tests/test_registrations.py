@@ -62,6 +62,16 @@ def test_ev_list_has_no_cap_by_default_and_shows_price():
     assert "cheapest variant on today's price list" in html
 
 
+def test_ev_price_line_adds_deposit_and_instalment():
+    from settings import load_config
+    makes = {"BYD": {"total": 900, "ev": 800, "petrol": 0}, "TESLA": {"total": 300, "ev": 300, "petrol": 0}}
+    html = top_sellers_section(makes, [], ev_models={"BYD": "Atto 3", "TESLA": "Model Y"}, ev_prices={"BYD": 150000},
+                               cfg=load_config()).html
+    byd, tesla = html.split("<b>Tesla</b>")
+    assert "Deposit $" in byd and "/mth over 7y" in byd
+    assert "Deposit" not in tesla.split("Top petrol brands")[0]  # no price, model only
+
+
 def test_model_prices_takes_cheapest_whole_word_match():
     from models import NewEvVariant
     from scrapers.new_ev import model_prices

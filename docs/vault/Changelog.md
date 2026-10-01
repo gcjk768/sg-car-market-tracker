@@ -6,7 +6,7 @@ updated: 2026-10-01
 
 ## 2026-10-02
 
-* Best selling EV of each brand, in Top sellers, now lists every EV brand LTA counts (no `top_sellers.top_n_ev` cap, set it to cap again) and shows the price of each brand's named best seller, its cheapest variant on today's new EV price list (`scrapers/new_ev.py` `model_prices`, `report.py` `top_sellers_section` `ev_prices`). The model name must match as a whole word, so Polestar "2" does not take a 2024 trim. A model not on today's list shows without a price. A model named with the price list's make matches on it (GAC "Aion V" is listed as make Aion), and `ev_models` now uses the price list's names for MG (S5) and Porsche (Macan).
+* Best selling EV of each brand, in Top sellers, now lists every EV brand LTA counts (no `top_sellers.top_n_ev` cap, set it to cap again) and shows the price of each brand's named best seller, its cheapest variant on today's new EV price list (`scrapers/new_ev.py` `model_prices`, `report.py` `top_sellers_section` `ev_prices`). The model name must match as a whole word, so Polestar "2" does not take a 2024 trim. A model not on today's list shows without a price. A model named with the price list's make matches on it (GAC "Aion V" is listed as make Aion), and `ev_models` now uses the price list's names for MG (S5) and Porsche (Macan). Each priced brand gets a second line with the minimum deposit and the 7 year instalment, from the same `costs.py` `financing` as the Best Selling Top EV cards; a brand with no price shows its model only.
 
 ## 2026-10-01
 

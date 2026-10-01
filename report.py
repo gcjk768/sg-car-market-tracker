@@ -302,11 +302,16 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
 
 def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str], top_n: int = 20, max_width: int = 60, source_url: str | None = None, top_n_ev: int | None = None,
                        ev_models: dict[str, str] | None = None, models_checked_on: str | None = None,
-                       ev_prices: dict[str, int] | None = None) -> ReportSection:
+                       ev_prices: dict[str, int] | None = None, cfg: dict[str, Any] | None = None) -> ReportSection:
     """makes: {make: {"total": n, "ev": n, "petrol": n}} of new registrations over `months` (YYYY-MM).
     ev_models: {make: best selling EV model}, kept by hand in config.yaml since LTA counts brands only.
-    ev_prices: {make: lowest price of that model today}. top_n_ev None lists every EV brand."""
+    ev_prices: {make: lowest price of that model today}, with cfg also its minimum deposit and
+    instalment on a second line. top_n_ev None lists every EV brand."""
     grand = sum(m["total"] for m in makes.values()) or 1
+
+    def fin_line(price: int | None) -> str:
+        fin = _fin(cfg, price, None, True)
+        return "\n   " + dot(f"Deposit {fmt_money(fin.deposit, '$')}", f"{fmt_money(fin.monthly, '$')}/mth over {fin.tenure_years}y") if fin else ""
 
     def ranked(kind: str, label: str) -> str:
         pool = sum(m.get(kind, 0) for m in makes.values()) or 1
@@ -317,6 +322,7 @@ def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str],
                 + (f" {escape(models[make])}" if models.get(make) else "") + "  "
                 + dot(f"from {fmt_money(prices[make], '$')}" if prices.get(make) else None,
                       fmt_int(count), f"{count * 100 / pool:.1f}%")
+                + fin_line(prices.get(make))
                 for n, (make, count) in enumerate(top, start=1)]
         total = "" if kind == "ev" else f", {fmt_int(pool)} cars"
         return f"<b>{label}</b>{total}\n" + "\n".join(rows)
@@ -331,6 +337,8 @@ def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str],
                   + (f", checked {models_checked_on}." if models_checked_on else "."))
     if ev_prices:
         intro += " The price is that model's cheapest variant on today's price list, with COE, net of rebates."
+        if cfg:
+            intro += " " + _finance_intro(cfg, True)
     parts = [note(escape(intro)), ranked("ev", "Best selling EV of each brand"), ranked("petrol", "Top petrol brands")]
     if source_url:
         parts.append(f"Source: <a href=\"{html_lib.escape(source_url, quote=True)}\">LTA table M03</a>")
