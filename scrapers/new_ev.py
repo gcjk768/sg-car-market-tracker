@@ -330,6 +330,19 @@ def make_matches(lta_make: str, make: str) -> bool:
     return bool(a and b) and ("".join(sorted(a)) == "".join(sorted(b)) or bool(a & b))
 
 
+def model_prices(variants: list[NewEvVariant], ev_models: dict[str, str]) -> dict[str, int]:
+    """{LTA make: lowest price with COE} of each brand's named best seller on today's price list.
+    The model name must appear as a whole word, so Polestar "2" does not match a 2024 trim."""
+    out: dict[str, int] = {}
+    for make, model in ev_models.items():
+        pat = re.compile(r"(?<!\w)" + re.escape(str(model).lower()) + r"(?!\w)")
+        prices = [v.price_with_coe for v in variants if v.price_with_coe and make_matches(make, v.make)
+                  and pat.search(f"{v.model} {v.variant}".lower())]
+        if prices:
+            out[make] = min(prices)
+    return out
+
+
 def best_selling_by_body_type(variants: list[NewEvVariant], counts: dict[str, dict[str, int]],
                               cfg: dict[str, Any]) -> list[tuple[str, list[dict[str, Any]]]]:
     """[(body type, [entry, ...])] in the configured body type order.

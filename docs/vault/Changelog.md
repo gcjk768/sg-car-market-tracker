@@ -4,6 +4,10 @@ updated: 2026-10-01
 ---
 # Changelog
 
+## 2026-10-02
+
+* Best selling EV of each brand, in Top sellers, now lists every EV brand LTA counts (no `top_sellers.top_n_ev` cap, set it to cap again) and shows the price of each brand's named best seller, its cheapest variant on today's new EV price list (`scrapers/new_ev.py` `model_prices`, `report.py` `top_sellers_section` `ev_prices`). The model name must match as a whole word, so Polestar "2" does not take a 2024 trim. A model not on today's list shows without a price.
+
 ## 2026-10-01
 
 * Telegram look, on request (step 1 of the visual options, no dashboard image): every section title starts with an emoji (`report.py` `SECTION_TITLES`), car tags read 🆕 NEW and 🟢 DROP (`telegram_bot.py` `TAG_EMOJI`), COE lines get 🟢 for a fall and 🔴 for a rise (`report.py` `coe_dot`), and the summary counts are marked. The last message of a full report carries two buttons, 🔄 Run again and 🎫 COE only (`telegram_bot.py` `REPORT_BUTTONS`, sent by `main.py` and `/run`). `bot_listener.py` `parse_update` turns a button press into the same command as typing it, only for /run and /coe and only in our chat and topic, and answers the press so the spinner stops.

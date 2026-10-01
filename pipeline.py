@@ -21,7 +21,7 @@ from scrapers.coe import next_tender_date, scrape_coe
 from scrapers.fuel_cnergy import scrape_cnergy
 from scrapers.fuel_price import pick_price, scrape_fuel_price
 from scrapers.registrations import scrape_body_types, scrape_registrations
-from scrapers.new_ev import best_selling_by_body_type, group_by_body_type, rank_new_evs, scrape_new_evs, top_best_seller
+from scrapers.new_ev import best_selling_by_body_type, group_by_body_type, model_prices, rank_new_evs, scrape_new_evs, top_best_seller
 from scrapers.used_carro import CarroUsedScraper
 from scrapers.used_motorist import MotoristUsedScraper
 from scrapers.used_sgcarmart import SgcarmartUsedScraper
@@ -327,6 +327,7 @@ class Pipeline:
                     ts = self.cfg.get("top_sellers", {})
                     sections.append(report.top_sellers_section(*reg, top_n=ts.get("top_n", 20), top_n_ev=ts.get("top_n_ev"),
                                                                ev_models=ts.get("ev_models"), models_checked_on=ts.get("ev_models_checked_on"),
+                                                               ev_prices=model_prices(self.new_evs, ts.get("ev_models") or {}),
                                                                max_width=self.cfg["telegram"]["table_width"],
                                                                source_url=self.cfg["sources"]["lta_registrations_by_make"]))
                 else:

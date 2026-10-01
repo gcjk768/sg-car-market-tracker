@@ -174,8 +174,7 @@ coe:
 top_sellers:
   # Brands shown, ranked by new registrations this year. LTA does not publish models.
   top_n: 20
-  # Longer list for EV brands, on request. Petrol keeps top_n.
-  top_n_ev: 50
+  # Every EV brand is listed, on request (2026-10-02). Set top_n_ev to cap it. Petrol keeps top_n.
   verified_on: "2026-09-30"
   # Best selling EV model per LTA make, kept by hand: LTA counts brands only. From news, distributor
   # releases and the MotorMetrics body type split of LTA data. Brands left out show without a model.
