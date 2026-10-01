@@ -21,6 +21,7 @@ from db import Database
 from models import ReportSection
 import json
 
+import vault
 from pipeline import Pipeline, should_send
 from report import render_console, sample_report
 from settings import load_config, load_secrets, user_agent
@@ -78,12 +79,15 @@ def main(argv: list[str] | None = None) -> int:
             sections = sample_report(cfg, run_date)
         else:
             db.start_run(run_date)
+            vault.event("▶️", "run started", f"section {args.section}" + (", dry run" if args.dry_run else ""))
             sections, pipe = build_report(cfg, db, run_date, args.section, args.since, args.force)
             # Read by scheduler.py and heal.py to decide on a retry or a self repair.
             db.set_state("last_run_health", json.dumps({
                 "date": run_date.isoformat(), "section": args.section, "dry_run": args.dry_run,
                 "unavailable": pipe.unavailable,
             }))
+            if pipe.unavailable:
+                vault.event("⚠️", "sections unavailable", ", ".join(sorted(pipe.unavailable)))
             if args.section == "all" and not args.dry_run:
                 # Kept even when nothing is sent, so /ask always answers from today's figures.
                 db.set_state("last_report", report_text([s.html for s in sections]))
@@ -100,6 +104,7 @@ def main(argv: list[str] | None = None) -> int:
                 verdict = "would send" if send else "would not send, nothing changed since the last report"
                 console.print(f"[cyan]{verdict}[/cyan]" + (f": {'; '.join(reasons)}" if reasons else ""))
                 db.finish_run(run_date, "dry-run")
+                vault.event("🧪", "dry run finished", verdict)
             return 0
 
         if not args.sample and db.already_sent(run_date) and not args.force:
@@ -113,6 +118,7 @@ def main(argv: list[str] | None = None) -> int:
             if not send:
                 console.print("[yellow]Nothing changed since the last report. Not sending.[/yellow]")
                 log.info("no changes since last sent report, skipping send")
+                vault.event("💤", "run finished", "nothing changed since the last report, not sent")
                 db.finish_run(run_date, "no-change")
                 return 0
             log.info("sending because: %s", "; ".join(reasons))
@@ -132,6 +138,7 @@ def main(argv: list[str] | None = None) -> int:
             log.error("telegram delivery failed: %s", exc)
             if not args.sample:
                 db.finish_run(run_date, "send-failed", str(exc))
+                vault.event("🚨", "send failed", str(exc)[:160])
             return 2
         console.print(f"[green]Sent {sent} Telegram messages.[/green]")
         if not args.sample:
@@ -139,6 +146,9 @@ def main(argv: list[str] | None = None) -> int:
             if signature is not None:
                 db.set_state("last_sent_signature", json.dumps(signature))
             db.finish_run(run_date, "ok")
+            vault.event("✅", "report sent", f"{sent} messages" + (f", {'; '.join(reasons)}" if reasons else ""))
+            if pipe is not None:
+                vault.cars_reported([l for l, _ in pipe.used_ev + pipe.used_ice], run_date)
         return 0
     finally:
         db.close()

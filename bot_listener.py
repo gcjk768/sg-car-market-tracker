@@ -13,6 +13,7 @@ import sys
 import time
 from datetime import date
 
+import vault
 from ai import ClaudeCli, answer_question
 from db import Database
 from pipeline import Pipeline
@@ -54,7 +55,8 @@ def ask_text(question: str, cfg: dict) -> str:
     cli.max_chars = int(cfg.get("ai", {}).get("ask_max_input_chars", 40000))
     if not cli.available():
         return "AI is off. Set ai.enabled in config.yaml and sign the Claude CLI in on the NAS."
-    answer = answer_question(cli, question, report)
+    answer = answer_question(cli, question, report, vault.memory(query=question))
+    vault.event("💬", "/ask", f"{question[:80]} · {'answered' if answer else 'no answer'}")
     return escape(answer) if answer else "The Claude CLI did not answer. It is probably not signed in on the NAS, see logs/run.log."
 
 
@@ -64,12 +66,18 @@ def handle(command: str, cfg: dict, client: TelegramClient, arg: str = "") -> No
         return
     if command == "/filters":
         client.send_message(filters_text(cfg))
+        vault.event("💬", "/filters", "answered")
         return
     section = "coe" if command == "/coe" else "all"
     db = Database(cfg["general"]["db_path"])
     try:
-        sections = Pipeline(cfg, db, date.today(), user_agent(cfg)).build(section)
-        client.send_many((s.html for s in sections), buttons=REPORT_BUTTONS if section == "all" else None)
+        vault.event("💬", command, f"{section} report requested")
+        today = date.today()
+        pipe = Pipeline(cfg, db, today, user_agent(cfg))
+        sections = pipe.build(section)
+        sent = client.send_many((s.html for s in sections), buttons=REPORT_BUTTONS if section == "all" else None)
+        vault.event("✅", f"{command} sent", f"{sent} messages")
+        vault.cars_reported([l for l, _ in pipe.used_ev + pipe.used_ice], today)
     finally:
         db.close()
 

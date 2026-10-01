@@ -317,6 +317,7 @@ def notice(result: HealResult) -> str:
 
 
 def main() -> int:
+    import vault
     from main import setup_logging
     from settings import PROJECT_ROOT, load_config, load_secrets
     from telegram_bot import TelegramClient
@@ -328,6 +329,7 @@ def main() -> int:
     health = read_health(cfg, root)
     result = attempt(cfg, root, health.get("unavailable", {}))
     log.info("self repair %s: %s", result.status, result.reason)
+    vault.event("🩹", f"self repair {result.status}", f"{', '.join(result.failing) or 'crashed run'}: {result.reason[:160]}")
     secrets = load_secrets()
     try:
         client = TelegramClient(secrets["telegram_bot_token"], secrets["telegram_chat_id"],

@@ -9,3 +9,4 @@ data/cache/
 logs/*.log
 .playwright/
 data/claude/
+data/vault/

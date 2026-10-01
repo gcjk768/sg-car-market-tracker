@@ -12,6 +12,7 @@ from typing import Any, Optional
 
 import costs
 import report
+import vault
 from ai import ClaudeCli, analyst_note
 from db import Database
 from filters import shortlist, tagged
@@ -109,6 +110,10 @@ class Pipeline:
             log.error("COE scrape failed: %s", exc)
             self.unavailable["coe"] = str(exc)
         self.coe_latest = self.db.latest_coe()
+        if vault.enabled():
+            for r in self.coe_latest:
+                hist = self.db.coe_history(r.category.value, 2)
+                vault.coe_result(r, r.quota_premium - hist[1].quota_premium if len(hist) == 2 else None)
 
     def run_used(self) -> None:
         for name, cls in USED_SCRAPERS.items():
@@ -123,17 +128,21 @@ class Pipeline:
                     self.stats["new"] += stats["new"]
                     self.stats["drops"] += stats["drops"]
                     log.info("%s %s: %d listings, %d new, %d drops", name, group, len(listings), stats["new"], stats["drops"])
+                    vault.event("🔎", f"scraped {name} {group}", f"{len(listings)} listings, {stats['new']} new, {stats['drops']} drops")
                 except Exception as exc:
                     ok = False
                     log.error("used scraper %s %s failed: %s", name, group, exc)
                     self.unavailable[f"used {name} {group}"] = str(exc)
+                    vault.event("⚠️", f"{name} {group} unavailable", str(exc)[:160])
                 finally:
                     scraper.close()
             if ok:
+                vault.cars_gone(self.db, name, self.run_date)
                 self.stats["gone"] += self.db.mark_gone(name, self.run_date)
         if self.since != self.run_date:
             self.stats["gone"] = self.db.count_gone_since(self.since)
         listings = self.db.active_listings()
+        vault.track_cars(listings, self.run_date)
         for l in listings:
             if l.depreciation_per_year is None:
                 l.depreciation_per_year = costs.depreciation_used(l, self.cfg, self.run_date)
@@ -287,7 +296,14 @@ class Pipeline:
                         "changes": self.change_reasons,
                         "new": self.stats["new"], "drops": self.stats["drops"], "gone": self.stats["gone"],
                     }
-                    note = analyst_note(self.ai, facts)
+                    memory = ""
+                    if vault.enabled():
+                        shortlisted = [l for l, _ in self.used_ev[:3] + self.used_ice[:3]]
+                        # Cars not yet reported at today's price; the rest are not news.
+                        facts["not_yet_reported"] = [f"{l.display_name} {fmt_money(l.price, '$')}"
+                                                     for l, _ in self.used_ev + self.used_ice if not vault.already_reported(l)][:10]
+                        memory = vault.memory(cars=shortlisted)
+                    note = analyst_note(self.ai, facts, memory)
                     if note:
                         summary.html += "\n\n" + report.note("🤖 " + report.escape(note))
                 sections.append(summary)

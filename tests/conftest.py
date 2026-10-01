@@ -12,6 +12,8 @@ def no_real_env(monkeypatch):
     """Never read the project's .env in tests. On the NAS it holds the real bot token, and a test
     that removed TELEGRAM_BOT_TOKEN got it back from .env and posted to the live topic."""
     monkeypatch.setattr("settings.load_dotenv", lambda *a, **k: None)
+    # The container sets VAULT_DIR to the live Obsidian vault; tests (run by heal.py there) must not write to it.
+    monkeypatch.delenv("VAULT_DIR", raising=False)
 
 
 @pytest.fixture

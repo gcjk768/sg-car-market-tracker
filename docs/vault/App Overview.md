@@ -1,6 +1,6 @@
 ---
 tags: [active]
-updated: 2026-10-01
+updated: 2026-10-02
 ---
 # App Overview
 
@@ -12,6 +12,7 @@ Daily scrape of the Singapore car market, filtered and costed, sent to Telegram 
 * Report sections (`report.py`, order in `config.yaml`): summary, COE position, Best Selling Top EV (brands ranked by EV registrations per body type, from the LTA M03 spreadsheet, with their models and prices), Best Selling Used EV and Best Selling Used Petrol Car (filtered cars in order of their brand's new registrations, then lowest depreciation), Top sellers in SG (every EV brand with all its models best to least selling from the hand kept `config.yaml` `top_sellers.ev_models` list, each with its lowest price, deposit and instalment today via `scrapers/new_ev.py` `model_prices`, and Top petrol brands, petrol includes hybrids), Pump prices, cost of ownership.
 * Layout follows the global Telegram message style (`telegram_bot.py` `header`, `build_section`, `card`, `note`, `DIVIDER`). Each message opens `emoji <b>TITLE</b> · subtitle` (date, tender, months), the emoji fixed per section in `report.py` `SECTION_TITLES`. One block per item with a blank line between: `emoji <b>n. linked name</b> · short description` (brand rank), then up to three detail lines led by 💰 price, 🏦 deposit and instalment (`report.py` `fin_line`), 📉 depreciation. COE categories and Top sellers EV brands are blocks too. `━━━` divides body types and the petrol ranking. Links sit on 🌐 lines joined by `  ·  ` (`report.py` `source_links`). Method notes, brand page checks and the AI note go last in `<blockquote expandable>`. Markers: 🆕 NEW, 🟢 DROP or fall, 🔴 rise, ❌ gone, ⚠️ unavailable. If Telegram rejects the HTML, `TelegramClient.send_message` resends that chunk as plain text (`telegram_bot.py` `html_to_text`). The last report message has 🔄 Run again and 🎫 COE only buttons (`telegram_bot.py` `REPORT_BUTTONS`, handled by `bot_listener.py` `parse_update`). Only Pump prices and cost of ownership stay as `<pre>` tables at `telegram.table_width` 36. Long messages split on blank lines so a block is never cut.
 * Change detection: `pipeline.py` `should_send`, sends only when watched sections changed.
+* Vault, movement log and memory: `vault.py`, on when `VAULT_DIR` is set (`/vault` in the container, `/volume1/<USER>/Obsidian/SG Car Market` on the NAS). Writes `Activity/YYYY-MM-DD.md` (one line per event, from `main.py`, `pipeline.py` `run_coe` and `run_used`, `bot_listener.py` `handle` and `ask_text`, `heal.py` `main`), `Cars/` (one note per used listing, price History, `reported_price`) and `COE/` (one note per category). Reads back `vault.memory` (4,000 chars, newest first) into `ai.py` `analyst_note` and `answer_question`. Never changes the Telegram text; every call is best effort.
 * All filters and assumptions: `config.yaml`.
 
 ## Deployment
@@ -19,5 +20,6 @@ Daily scrape of the Singapore car market, filtered and costed, sent to Telegram 
 * Runs as the Dockge stack `sg-car-scraper` on the home NAS. Project folder is bind mounted at `/app`, so an update is copy files then Restart. A `requirements.txt` change needs a rebuild; a compose change needs Stop then Start.
 * Bot: @owner_sgcar_bot, posting to the owner's group topic "SG EV Car Tracker".
 * Logs: `logs/run.log` in the stack folder.
+* Vault: `/volume1/<USER>/Obsidian/SG Car Market`, mounted at `/vault` (compose sets `VAULT_DIR=/vault`, `.env` sets `VAULT_HOST_DIR=/volume1/<USER>/Obsidian/SG Car Market`). A compose change, so Stop then Start (or `docker compose up -d`).
 
 See [[Roadmap]] for what is not working against the live sites yet.

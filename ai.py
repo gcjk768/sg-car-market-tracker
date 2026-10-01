@@ -122,7 +122,16 @@ def extract_listing_fields(cli: ClaudeCli, page_text: str) -> dict[str, Any]:
     return {k: v for k, v in data.items() if k in LISTING_FIELDS and v not in (None, "", [])}
 
 
-def analyst_note(cli: ClaudeCli, facts: dict[str, Any]) -> Optional[str]:
+MEMORY_INTRO = ("\n\nWhat the tracker already did and learned, from its vault, newest first. Use it for price "
+                "trends and days on market. A car the memory shows was already reported at the same price is "
+                "not news, so do not flag it again:\n")
+
+
+def with_memory(prompt: str, memory: str) -> str:
+    return prompt + MEMORY_INTRO + memory if memory else prompt
+
+
+def analyst_note(cli: ClaudeCli, facts: dict[str, Any], memory: str = "") -> Optional[str]:
     """Three plain sentences on today's report. Facts are the numbers already computed."""
     prompt = (
         "You are given today's Singapore car market figures as JSON on standard input: COE "
@@ -131,7 +140,7 @@ def analyst_note(cli: ClaudeCli, facts: dict[str, Any]) -> Optional[str]:
         "three short plain sentences for a buyer deciding between them. No headings, no "
         "bullet points, no dashes. Do not invent figures. Do not use any tools."
     )
-    text = cli.ask(prompt, json.dumps(facts, default=str))
+    text = cli.ask(with_memory(prompt, memory), json.dumps(facts, default=str))
     return text.strip() if text else None
 
 
@@ -140,7 +149,7 @@ def report_text(sections_html: list[str]) -> str:
     return "\n\n".join(html.unescape(re.sub(r"<[^>]+>", "", h)).strip() for h in sections_html)
 
 
-def answer_question(cli: ClaudeCli, question: str, report: str) -> Optional[str]:
+def answer_question(cli: ClaudeCli, question: str, report: str, memory: str = "") -> Optional[str]:
     """Answer a Telegram /ask question from the latest report, plus general car knowledge."""
     prompt = (
         "You help a buyer in Singapore choose a car. Standard input holds the latest report from "
@@ -150,4 +159,4 @@ def answer_question(cli: ClaudeCli, question: str, report: str) -> Optional[str]
         "on general knowledge instead. Do not invent prices. No headings, no dashes, no markdown. "
         "Do not use any tools. Question: " + question
     )
-    return cli.ask(prompt, report)
+    return cli.ask(with_memory(prompt, memory), report)

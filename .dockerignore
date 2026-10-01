@@ -2,8 +2,8 @@
 .venv
 .pytest_cache
 __pycache__
-data/cache
-data/cars.db
+# Runtime state is bind mounted, never baked in. data/claude/sessions is root only and broke the build.
+data
 logs/*.log
 .env
 docs
