@@ -330,18 +330,30 @@ def make_matches(lta_make: str, make: str) -> bool:
     return bool(a and b) and ("".join(sorted(a)) == "".join(sorted(b)) or bool(a & b))
 
 
-def model_prices(variants: list[NewEvVariant], ev_models: dict[str, str]) -> dict[str, int]:
-    """{LTA make: lowest price with COE} of each brand's named best seller on today's price list.
-    The model name must appear as a whole word, so Polestar "2" does not match a 2024 trim. A model
-    named with the price list's make (GAC "Aion V", listed as make Aion) matches on that make."""
-    out: dict[str, int] = {}
-    for make, model in ev_models.items():
-        pat = re.compile(r"(?<!\w)" + re.escape(str(model).lower()) + r"(?!\w)")
-        prices = [v.price_with_coe for v in variants if v.price_with_coe
-                  and (make_matches(make, v.make) or v.make.lower() in str(model).lower())
-                  and pat.search(f"{v.make} {v.model} {v.variant}".lower())]
-        if prices:
-            out[make] = min(prices)
+def lineup(models: str | list | None) -> list[str]:
+    """config.yaml ev_models value as a list: one model, or the line up best seller first."""
+    if not models:
+        return []
+    return [str(m) for m in (models if isinstance(models, list) else [models])]
+
+
+def model_prices(variants: list[NewEvVariant], ev_models: dict[str, Any]) -> dict[str, dict[str, int]]:
+    """{LTA make: {model: lowest price with COE}} for each line up model on today's price list.
+    A model name must appear as a whole word, so Polestar "2" does not match a 2024 trim. A model
+    named with the price list's make (GAC "Aion V", listed as make Aion) matches on that make.
+    A variant goes to the longest matching name, so "Seal 6" is not priced as "Seal"."""
+    out: dict[str, dict[str, int]] = {}
+    for make, models in ev_models.items():
+        names = lineup(models)
+        pats = {m: re.compile(r"(?<!\w)" + re.escape(m.lower()) + r"(?!\w)") for m in names}
+        for v in variants:
+            text = f"{v.make} {v.model} {v.variant}".lower()
+            hits = [m for m in names if v.price_with_coe and (make_matches(make, v.make) or v.make.lower() in m.lower())
+                    and pats[m].search(text)]
+            if hits:
+                best = max(hits, key=len)
+                prices = out.setdefault(make, {})
+                prices[best] = min(prices.get(best, v.price_with_coe), v.price_with_coe)
     return out
 
 

@@ -312,12 +312,14 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
 
 
 def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str], top_n: int = 20, max_width: int = 60, source_url: str | None = None, top_n_ev: int | None = None,
-                       ev_models: dict[str, str] | None = None, models_checked_on: str | None = None,
-                       ev_prices: dict[str, int] | None = None, cfg: dict[str, Any] | None = None) -> ReportSection:
+                       ev_models: dict[str, Any] | None = None, models_checked_on: str | None = None,
+                       ev_prices: dict[str, dict[str, int]] | None = None, cfg: dict[str, Any] | None = None) -> ReportSection:
     """makes: {make: {"total": n, "ev": n, "petrol": n}} of new registrations over `months` (YYYY-MM).
-    ev_models: {make: best selling EV model}, kept by hand in config.yaml since LTA counts brands only.
-    ev_prices: {make: lowest price of that model today}, with cfg also its minimum deposit and
-    instalment on a second line. top_n_ev None lists every EV brand."""
+    ev_models: {make: model or [models, best seller first]}, kept by hand in config.yaml since LTA
+    counts brands only. ev_prices: {make: {model: lowest price today}}; with cfg a priced model's
+    line also has its minimum deposit and instalment. top_n_ev None lists every EV brand."""
+    from scrapers.new_ev import lineup
+
     grand = sum(m["total"] for m in makes.values()) or 1
 
     def ranked(kind: str) -> list[tuple[int, str, int, float]]:
@@ -328,12 +330,14 @@ def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str],
     models, prices = ev_models or {}, ev_prices or {}
     ev_blocks = []
     for n, make, count, share in ranked("ev"):
-        price = prices.get(make)
-        head = f"🔌 <b>{n}. {escape(brand_name(make))}</b>" + (f" · {escape(models[make])}" if models.get(make) else "")
-        lines = [head, f"📊 {fmt_int(count)} registered · {share:.1f}%"]
-        if price:
-            lines += [f"💰 from {fmt_money(price, '$')}", fin_line(_fin(cfg, price, None, True))]
-        ev_blocks.append("\n".join(l for l in lines if l))
+        lines = [f"🔌 <b>{n}. {escape(brand_name(make))}</b> · {fmt_int(count)} registered · {share:.1f}%"]
+        for model in lineup(models.get(make)):
+            price = prices.get(make, {}).get(model)
+            fin = _fin(cfg, price, None, True)
+            lines.append("🚗 " + dot(model, fmt_money(price, "$") if price else None,
+                                    f"{fmt_money(fin.deposit, '$')} down" if fin else None,
+                                    f"{fmt_money(fin.monthly, '$')}/mth" if fin else None))
+        ev_blocks.append("\n".join(lines))
     petrol = ranked("petrol")
     petrol_pool = sum(m.get("petrol", 0) for m in makes.values())
     petrol_rows = "\n".join(f"<b>{n}. {escape(brand_name(make))}</b> · {fmt_int(count)} · {share:.1f}%" for n, make, count, share in petrol)
@@ -344,13 +348,15 @@ def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str],
     intro = (f"Brands ranked by new car registrations{span}, {fmt_int(grand)} cars in total. The share is of that"
              " fuel's cars. Petrol includes petrol hybrids. LTA publishes registrations by brand only, not by model.")
     if ev_models:
-        intro += (" The EV model named is the brand's best seller in Singapore from news and dealer reports"
+        intro += (" Each brand's EV models are listed from best to least selling in Singapore, an order taken from news"
+                  " and dealer reports since no model figures are published"
                   + (f", checked {models_checked_on}." if models_checked_on else "."))
     if ev_prices:
-        intro += " The price is that model's cheapest variant on today's price list, with COE, net of rebates."
+        intro += (" The price is the model's cheapest variant on today's price list, with COE, net of rebates."
+                  " A model with no price is not on today's list.")
         if cfg:
             intro += " " + _finance_intro(cfg, True)
-    parts = [note(escape(intro)), "<u>Best selling EV of each brand</u>"] + ev_blocks
+    parts = [note(escape(intro)), "<u>EV models by brand</u>"] + ev_blocks
     if petrol:
         parts.append(f"{DIVIDER}\n<u>Top petrol brands</u> · {fmt_int(petrol_pool)} cars\n{petrol_rows}")
     parts.append(source_links(("LTA table M03", source_url)))

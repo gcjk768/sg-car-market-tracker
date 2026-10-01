@@ -176,53 +176,57 @@ top_sellers:
   top_n: 20
   # Every EV brand is listed, on request (2026-10-02). Set top_n_ev to cap it. Petrol keeps top_n.
   verified_on: "2026-09-30"
-  # Best selling EV model per LTA make, kept by hand: LTA counts brands only. From news, distributor
-  # releases and the MotorMetrics body type split of LTA data. Brands left out show without a model.
-  # Least certain: MG, Maxus, Mercedes, Hyundai, Mini, Audi, Kia, Opel, Polestar, Smart, VW, Cupra, Nissan, Skoda.
-  ev_models_checked_on: "2026-10-01"
+  # Every EV model each LTA make sells new in Singapore, best to least selling, kept by hand: LTA counts
+  # brands only and no model sales are published, so the order is an estimate from news, distributor
+  # releases and MotorMetrics. Names follow the Sgcarmart price list so prices match as whole words; a
+  # model under another price list make carries that make (GEELY sells rebadged Proton e.MAS cars).
+  # Order least certain: Mercedes, Mini, Audi, Kia, Opel, Volkswagen, Cupra, Nissan, Honda, Lotus, Skoda, Jaguar.
+  # Line up unconfirmed: Opel, Nissan (Leaf), Honda (e:N1), Jaguar, Volkswagen (ID.3, ID.7), Mini, Cupra, Lotus.
+  ev_models_checked_on: "2026-10-02"
   ev_models:
-    BYD: Sealion 7
-    TESLA: Model Y
-    CHERY: Jaecoo J6
-    MG: S5
-    GAC: Aion V
-    XPENG: G6
-    ZEEKR: 7X
-    BMW: iX1
-    MAXUS: MIFA 7
-    DONGFENG: Vigo
-    AVATR: "07"
-    MERCEDES BENZ: CLA
-    VOLVO: EX30
-    DEEPAL: S07
-    LEAPMOTOR: C10
-    TOYOTA: bZ4X
-    PORSCHE: Macan
-    HYUNDAI: Ioniq 5
-    MINI: Cooper E
-    AUDI: Q4 e-tron
-    KIA: EV5
-    OPEL: Corsa Electric
-    GREAT WALL: Ora 5
-    MAZDA: 6e
-    POLESTAR: "2"
-    SMART: "#1"
-    SUBARU: Solterra
-    NIO: Firefly
-    HONGQI: E-HS9
-    VOLKSWAGEN: ID.4
-    CUPRA: Tavascan
-    CITROEN: e-C4 X
-    NISSAN: Ariya
-    SUZUKI: e Vitara
-    EVEASY: Elight
-    HONDA: e:N1
-    LOTUS: Eletre
-    SKODA: Enyaq
-    SKYWORTH: K
-    KGM: Torres EVX
-    JAGUAR: I-Pace
-    ROLLS ROYCE: Spectre
+    BYD: [Sealion 7, M6, Atto 3, Seal 6, Dolphin, Atto 2, Seal, Atto 1]
+    TESLA: [Model Y, Model 3]
+    CHERY: [Jaecoo J6, Omoda E5, Jaecoo J5, iCAUR V23]
+    MG: [S5, "4", Cyberster]
+    GAC: [Aion V, Aion UT, Hyptec HT]
+    XPENG: [G6, X9]
+    ZEEKR: [7X, X, "009"]
+    BMW: [iX1, i4, iX3, i5, iX2, iX, i7]
+    MAXUS: [MIFA 7, MIFA 9]
+    DONGFENG: [Vigo, Box, "007"]
+    AVATR: ["07", "11"]
+    MERCEDES BENZ: [CLA, EQA, EQB, EQE, GLC, EQS, EQV, Maybach EQS SUV]
+    VOLVO: [EX30, EX40, EC40, EX90, ES90]
+    DEEPAL: [S07, S05]
+    LEAPMOTOR: [C10, B10]
+    TOYOTA: [bZ4X]
+    GEELY: [Proton e.MAS 7, Proton e.MAS 5]
+    PORSCHE: [Macan, Taycan, Cayenne]
+    HYUNDAI: [Ioniq 5, Kona Electric, Ioniq 6, Ioniq 9]
+    MINI: [Cooper E, Aceman, Countryman E]
+    AUDI: [Q4 e-tron, Q6, A6, e-tron GT]
+    KIA: [EV5, EV4, EV6, EV9]
+    OPEL: [Corsa Electric, Mokka Electric]
+    GREAT WALL: [Ora 5, Good Cat, Ora 07]
+    MAZDA: [6e]
+    POLESTAR: ["2", "4", "3"]
+    SMART: ["#1", "#3", "#5"]
+    SUBARU: [Solterra]
+    NIO: [Firefly]
+    HONGQI: [E-HS9]
+    VOLKSWAGEN: [ID.4, ID.5 GTX, ID.3, ID.7, ID. Buzz]
+    CUPRA: [Tavascan, Born]
+    CITROEN: [e-C4 X]
+    NISSAN: [Ariya]
+    SUZUKI: [e Vitara]
+    EVEASY: [Elight]
+    HONDA: [Super-ONE, "e:N1"]
+    LOTUS: [Eletre, Emeya]
+    SKODA: [Enyaq, Elroq]
+    SKYWORTH: [K]
+    KGM: [Torres EVX]
+    JAGUAR: [I-Pace]
+    ROLLS ROYCE: [Spectre]
 
 new_ev:
   top_n: 20
