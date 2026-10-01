@@ -7,6 +7,13 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 
 
+@pytest.fixture(autouse=True)
+def no_real_env(monkeypatch):
+    """Never read the project's .env in tests. On the NAS it holds the real bot token, and a test
+    that removed TELEGRAM_BOT_TOKEN got it back from .env and posted to the live topic."""
+    monkeypatch.setattr("settings.load_dotenv", lambda *a, **k: None)
+
+
 @pytest.fixture
 def cfg():
     with open(ROOT / "config.yaml", encoding="utf-8") as fh:
