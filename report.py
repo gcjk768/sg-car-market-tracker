@@ -44,6 +44,7 @@ SECTION_TITLES = {
     "used_ev_value": "🔋 Used EV Car Best Value list",
     "used_ice_value": "🚙 Used Petrol Car Best Value list",
     "top_sellers": "🏆 Top sellers in SG",
+    "motorbikes": "🏍 Motorbikes",
     "fuel": "⛽ Pump prices",
     "costs": "💰 Cost of ownership, top 3",
     "considerations": "📝 Buying considerations",
@@ -172,7 +173,7 @@ BODY_PLURALS = {"Hatchback": "hatchbacks", "Sedan": "sedans", "SUV": "SUVs", "MP
 
 def brand_name(make: str) -> str:
     """LTA writes makes in capitals. Keep acronyms, title case the rest."""
-    return make if make in ("BMW", "BYD", "GAC", "MG", "DS", "GWM", "JAC") else make.title()
+    return make if make in ("BMW", "BYD", "GAC", "MG", "DS", "GWM", "JAC", "KTM", "SYM", "KGM", "TVS", "RAP") else make.title()
 
 
 def best_selling_ev_section(groups: Sequence[tuple[str, Sequence[dict[str, Any]]]], months: Sequence[str],
@@ -364,6 +365,65 @@ def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str],
     return ReportSection(key="top_sellers", title=title, html=build_section(title, parts, span.strip().replace("from ", "")))
 
 
+# Motorbikes
+
+BIKE_CLASSES = {"2B": "Class 2B · up to 200cc", "2A": "Class 2A · 201 to 400cc", "2": "Class 2 · above 400cc"}
+
+
+def motorbike_section(used: dict[str, Sequence[Any]], brands: tuple[dict[str, dict[str, int]], Sequence[str]] | None,
+                      cfg: dict[str, Any], today: date | None = None) -> ReportSection:
+    """used: {licence class: shortlisted scrapers.motorbikes.UsedBike}. brands: LTA table M04 (makes, months)."""
+    from costs import monthly_instalment
+
+    today = today or date.today()
+    m = cfg["motorbikes"]
+    fin = m["financing"]
+    parts = []
+    for cls, label in BIKE_CLASSES.items():
+        bikes = used.get(cls) or []
+        parts.append(f"{DIVIDER}\n<u>{escape(label)}</u>" + ("" if bikes else "\n<i>No bike passed the filters today.</i>"))
+        for n, b in enumerate(bikes, start=1):
+            left = b.coe_years_left(today)
+            deposit = int(round(b.price * fin["deposit_pct"]))
+            # The loan cannot outlive the COE.
+            years = min(int(fin["tenure_years"]), int(left or 0)) or 1
+            parts.append(card(n, b.title, b.url, [
+                "💰 " + dot(fmt_money(b.price, "$"), str(b.reg_date.year) if b.reg_date else None,
+                           f"{fmt_int(b.mileage_km)} km" if b.mileage_km is not None else None,
+                           f"{left:.1f}y COE left" if left is not None else None),
+                "🏦 " + dot(f"Deposit {fmt_money(deposit, '$')}",
+                           f"{fmt_money(monthly_instalment(b.price - deposit, fin['flat_rate'], years), '$')}/mth over {years}y"),
+                "📉 " + dot(f"Dep {fmt_money(b.depreciation(today), '$')}/yr", b.bike_type or None),
+            ], emoji="⚡" if b.electric else "🏍", desc=f"{b.cc}cc" if b.cc else ""))
+    span = ""
+    if brands:
+        makes, months = brands
+        pool = sum(v["total"] for v in makes.values()) or 1
+        top = sorted(makes.items(), key=lambda t: -t[1]["total"])[: m.get("top_n_brands", 15)]
+        if months:
+            first, last = (date.fromisoformat(f"{x}-01") for x in (months[0], months[-1]))
+            span = f"{first.strftime('%b')} to {last.strftime('%b %Y')}" if first != last else last.strftime("%b %Y")
+        rows = "\n".join(f"<b>{n}. {escape(brand_name(make))}</b> · {fmt_int(v['total'])} · {v['total'] * 100 / pool:.1f}%"
+                         + (f" · ⚡ {fmt_int(v['ev'])} electric" if v["ev"] else "")
+                         for n, (make, v) in enumerate(top, start=1))
+        parts.append(f"{DIVIDER}\n<u>Top selling bike brands</u> · {fmt_int(pool)} new bikes\n{rows}")
+    f = m["filters"]
+    parts.append(note(escape(
+        f"Used bikes from SGBikemart, live ads in each licence class, at most {fmt_money(f['price_ceiling_sgd'], '$')} with at least"
+        f" {f['min_coe_years_remaining']} years of COE left, lowest depreciation per year first. COE left is counted 10 years from"
+        " registration, so a renewed COE is not seen. ⚡ marks an electric bike."
+        f" Deposit is {fin['deposit_pct'] * 100:.0f} percent, SGBikemart's loan default; MAS loan limits do not cover"
+        f" motorcycles and some lenders take $0 down. Instalment assumes {fin['flat_rate'] * 100:.1f} percent flat over"
+        f" {fin['tenure_years']} years, or the COE left if shorter; no published bike loan rate was found, so treat it as indicative."
+        " New bike prices are not listed: dealer ads mix full"
+        " prices, deposits and instalments. Brands are ranked by new motorcycle registrations"
+        + (f" from {span}" if span else "") + ", LTA table M04. The Cat D COE is in the COE section.")))
+    parts.append(source_links(("SGBikemart", "https://sgbikemart.com.sg/listing/usedbikes/listing/"),
+                              ("LTA table M04", cfg["sources"].get("lta_mc_registrations_by_make"))))
+    title = SECTION_TITLES["motorbikes"]
+    return ReportSection(key="motorbikes", title=title, html=build_section(title, parts, "2B · 2A · 2"))
+
+
 # Pump prices
 
 
@@ -483,6 +543,18 @@ def render_console(sections: Sequence[ReportSection], console: Console | None = 
 # Hardcoded sample used to confirm Telegram delivery before any scraper exists
 
 
+def _sample_bikes() -> dict[str, list[Any]]:
+    from scrapers.motorbikes import UsedBike
+
+    def bike(cls, title, price, reg, cc, km, kind, electric=False):
+        return UsedBike(title, f"https://sgbikemart.com.sg/listing/usedbike/sample/{abs(hash(title)) % 10000}/", cls, price,
+                        reg, cc, kind, km, electric)
+    return {"2B": [bike("2B", "Yamaha Nmax 155", 9800, date(2024, 3, 1), 155, 12000, "Scooters"),
+                   bike("2B", "Gogoro SuperSport", 8800, date(2024, 6, 1), 0, 6000, "Scooters", True)],
+            "2A": [bike("2A", "Honda CB400X", 15800, date(2023, 5, 1), 399, 21000, "Sport Tourers")],
+            "2": [bike("2", "Yamaha MT-07", 19800, date(2022, 5, 26), 689, 18000, "Street Bikes")]}
+
+
 def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[ReportSection]:
     run_date = run_date or date.today()
     tender = run_date - timedelta(days=(run_date.weekday() - 2) % 7)
@@ -577,6 +649,10 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
         top_sellers_section(sample_makes, ["2026-01", "2026-08"], source_url=cfg["sources"]["lta_registrations_by_make"],
                             ev_models=cfg.get("top_sellers", {}).get("ev_models"),
                             models_checked_on=cfg.get("top_sellers", {}).get("ev_models_checked_on")),
+        motorbike_section(_sample_bikes(), ({"YAMAHA": {"total": 4271, "ev": 0, "petrol": 4271},
+                                             "HONDA": {"total": 1895, "ev": 0, "petrol": 1895},
+                                             "GOGORO": {"total": 8, "ev": 8, "petrol": 0}}, ["2026-01", "2026-08"]),
+                          cfg, run_date),
         fuel_section(FuelPrice(observed_on=run_date, ron95_per_litre=3.49, source="sample",
                                station_prices={"95": {"public": 2.54}},
                                grades={"SPC": {"92": 3.46, "95": 3.48, "98": 4.00, "Diesel": 3.97},

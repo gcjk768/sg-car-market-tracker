@@ -1,0 +1,66 @@
+Monthly Vehicle Statistics
+Make Fuel Type Jan Feb Mar Apr May Jun Jul Aug Total
+ADIVA Petrol 3 1 2 2 5 13
+AIDEA Electric 2 1 2 5
+ANDES Petrol 2 2
+APRILIA Petrol 1 2 2 1 1 7
+B.M.W. Petrol 21 11 13 23 18 12 18 20 136
+B.M.W. Electric 1 1
+BAJAJ Petrol 1 1 4 3 9
+BENDA Petrol 5 29 24 4 19 11 21 15 128
+BRIXTON Petrol 1 1 2
+CFMOTO Petrol 25 14 18 13 15 27 18 26 156
+CYCLONE Petrol 1 1 1 3
+DAYI MOTOR Electric 2 2
+DUCATI Petrol 5 8 4 9 10 11 10 12 69
+FANTIC MOTOR Petrol 1 2 3 1 2 9
+FELQ Electric 1 1 2
+GOGORO Electric 1 2 1 1 1 1 1 8
+GOLDEN LION Electric 2 2
+HARLEY DAVIDSON Petrol 7 5 10 18 9 12 10 5 76
+HONDA Petrol 266 193 239 213 229 273 274 208 1,895
+HUSQVARNA Petrol 2 3 1 3 2 6 1 18
+INDIAN Petrol 1 1 2
+ITALJET Petrol 2 1 6 1 1 11
+K.T.M. Petrol 16 13 36 25 37 33 25 12 197
+KAWASAKI Petrol 33 27 26 18 17 25 31 20 197
+KOVE Petrol 3 4 2 3 1 5 2 3 23
+KYMCO Petrol 9 7 4 7 4 1 4 1 37
+M.V. AGUSTA Petrol 4 4
+MORBIDELLI Petrol 1 1 1 3
+MOTO GUZZI Petrol 1 1
+MOTO MORINI Petrol 1 2 2 1 6
+MUTT Petrol 2 4 1 1 8
+PEUGEOT Petrol 1 4 1 4 3 13
+PIAGGIO Petrol 22 10 22 20 21 13 7 29 144
+QJMOTOR Petrol 16 13 12 13 16 21 25 11 127
+QJMOTOR Electric 1 1
+R.A.P. Electric 2 4 1 1 7 15
+ROYAL ENFIELD Petrol 15 7 10 11 2 9 4 8 66
+SCORPIO ELECTRIC Electric 1 1
+SHERCO Petrol 1 1 2
+SHINERAY Petrol 1 8 9
+SMARTUK Electric 1 1
+SUZUKI Petrol 8 5 11 8 11 3 6 2 54
+SYM Petrol 19 13 40 18 18 14 17 13 152
+TARO Petrol 2 2
+TRIUMPH Petrol 6 6 9 7 8 8 13 5 62
+TVS Petrol 1 1 2
+VECTRIX Electric 2 1 2 2 7
+VMOTO Electric 1 4 5
+VOGE Petrol 11 7 3 4 12 37
+VOGE Electric 2 1 1 2 1 7
+YAMAHA Petrol 546 490 688 521 534 518 529 445 4,271
+NEW REGISTRATION OF MOTORCYCLES BY MAKE ( 2026 ) 1
+Customer Services Division
+Web/M04-MC Regn by make
+Monthly Vehicle Statistics
+Make Fuel Type Jan Feb Mar Apr May Jun Jul Aug Total
+NEW REGISTRATION OF MOTORCYCLES BY MAKE ( 2026 ) 1
+ZF-KY Petrol 3 1 1 1 6
+ZONTES Petrol 75 37 68 34 60 65 66 48 453
+Total Total 1,112 924 1,262 997 1,046 1,084 1,122 922 8,469
+ 1  Figures are accurate as at time of registration which include tax exempted and VQS exempted motorcycles. 
+(M04)
+Customer Services Division
+Web/M04-MC Regn by make

@@ -22,6 +22,7 @@ from scrapers.coe import next_tender_date, scrape_coe
 from scrapers.fuel_cnergy import scrape_cnergy
 from scrapers.fuel_price import pick_price, scrape_fuel_price
 from scrapers.registrations import scrape_body_types, scrape_registrations
+from scrapers.motorbikes import scrape_motorbikes, shortlist as shortlist_bikes
 from scrapers.new_ev import best_selling_by_body_type, group_by_body_type, model_prices, rank_new_evs, scrape_new_evs, top_best_seller
 from scrapers.used_carro import CarroUsedScraper
 from scrapers.used_motorist import MotoristUsedScraper
@@ -41,7 +42,7 @@ SECTION_GROUPS = {
     "new": {"new_ev"},
     "used": {"used_ev", "used_ice"},
     "costs": {"costs", "new_ev", "used_ev", "used_ice", "coe"},
-    "all": {"summary", "coe", "new_ev", "used_ev", "used_ice", "top_sellers", "fuel", "costs", "considerations"},
+    "all": {"summary", "coe", "new_ev", "used_ev", "used_ice", "top_sellers", "motorbikes", "fuel", "costs", "considerations"},
 }
 
 
@@ -348,6 +349,14 @@ class Pipeline:
                                                                source_url=self.cfg["sources"]["lta_registrations_by_make"]))
                 else:
                     sections.append(report.unavailable_section("top_sellers", "LTA registrations table could not be read"))
+            elif key == "motorbikes":
+                bikes = scrape_motorbikes(self.cfg, self.ua, self.run_date, self.force)
+                if bikes["used"] or bikes["brands"]:
+                    sections.append(report.motorbike_section(
+                        {c: shortlist_bikes(b, self.cfg, self.run_date) for c, b in bikes["used"].items()},
+                        bikes["brands"], self.cfg))
+                else:
+                    sections.append(report.unavailable_section("motorbikes", "SGBikemart and LTA table M04 could not be read"))
             elif key == "fuel":
                 fuel = self.db.latest_fuel_price()
                 if fuel and (fuel.grades or fuel.station_prices):

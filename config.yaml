@@ -86,6 +86,7 @@ telegram:
     - used_ev
     - used_ice
     - top_sellers
+    - motorbikes
     - fuel
     - costs
 
@@ -131,6 +132,8 @@ sources:
   lta_parf: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/rebates/parf-coe-rebate.html"
   # LTA table M03, new car registrations by make, both halves of the current year. PDF.
   lta_registrations_by_make: "https://www.lta.gov.sg/content/dam/ltagov/who_we_are/statistics_and_publications/statistics/pdf/M03-Car_Regn_by_make.pdf"
+  # New motorcycle registrations by make and fuel, monthly, year to date. Feeds the Motorbikes brand list.
+  lta_mc_registrations_by_make: "https://www.lta.gov.sg/content/dam/ltagov/who_we_are/statistics_and_publications/statistics/pdf/M04-MC_Regn_by_make.pdf"
   # The same table as a spreadsheet on LTA DataMall. Every count keeps its body type column
   # (HB, SDN, MPV, STW, SUV, CPE/Conv), which the PDF text loses. Feeds Best Selling Top EV.
   lta_registrations_by_make_xlsx: "https://datamall.lta.gov.sg/content/dam/datamall/TempXLS/M03-Car_Regn_by_make.xlsx"
@@ -154,9 +157,32 @@ sources:
     - name: Singsaver car insurance
       url: "https://www.singsaver.com.sg/car-insurance"
 
+motorbikes:
+  verified_on: "2026-10-02"
+  # Used bikes per licence class (2B up to 200cc, 2A 201 to 400cc, 2 above 400cc) from SGBikemart's
+  # result cards, live ads only, registered recently enough to keep min_coe_years_remaining. robots.txt
+  # allows everything; the shared throttle and daily cache apply. New bike prices are not scraped:
+  # dealer ads mix full prices, deposits and instalments, with or without COE.
+  search_url: "https://sgbikemart.com.sg/listing/usedbikes/listing/?license_class={licence_class}&status=10&reg_year_from={year_min}&page={page}"
+  max_list_pages: 3
+  top_n_per_class: 8
+  top_n_brands: 15
+  filters:
+    # A bike COE runs 10 years from registration; a renewed COE is not shown on the card.
+    min_coe_years_remaining: 5
+    price_ceiling_sgd: 40000
+    max_km_per_year_of_age: 15000
+  financing:
+    # MAS loan limits cover cars, not motorcycles, so there is no legal minimum deposit (some lenders take $0).
+    # 20 percent is SGBikemart's loan calculator default (checked 2026-10-02). The rate is an assumption: no
+    # published bike loan rate was found. Edit both to match a real quote.
+    deposit_pct: 0.20
+    flat_rate: 0.05
+    tenure_years: 5
+
 coe:
-  # Categories shown in the report. Cat D is stored but hidden.
-  display_categories: [A, B, C, E]
+  # Categories shown in the report. Cat D (motorcycles) shown on request, 2026-10-02.
+  display_categories: [A, B, C, D, E]
   store_categories: [A, B, C, D, E]
   trend_window: 6
   # Bidding opens on the first and third Monday of each month and results are out on the Wednesday.
