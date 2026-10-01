@@ -262,8 +262,58 @@ new_ev:
   # rebates, which are applied to ARF at registration. The report says so on every price.
   prices_include_rebates: true
   # Sgcarmart's EV index lists about 85 models (2026-10-02); 40 left most line up models unpriced. Each page waits
-  # Sgcarmart's 30 second crawl delay, so 90 pages add about 25 minutes, cached for the day.
-  max_model_pages: 90
+  # Sgcarmart's 30 second crawl delay: about 130 pages (index plus extra_model_urls) take about an hour, once a day
+  # (cached), inside resilience.max_run_minutes 180.
+  max_model_pages: 140
+  # Sgcarmart model pages not linked from its EV index, opened first (found by search 2026-10-02). Tesla's own
+  # site blocks bots and is never fetched; Sgcarmart carries its price list.
+  extra_model_urls:
+    - https://www.sgcarmart.com/new-cars/info/21506/tesla-model-y-electric
+    - https://www.sgcarmart.com/new-cars/info/12847/tesla-model-3-electric
+    - https://www.sgcarmart.com/new-cars/info/21899/xpeng-g6-electric
+    - https://www.sgcarmart.com/new-cars/info/21970/xpeng-x9-electric
+    - https://www.sgcarmart.com/new-cars/info/22115/avatr-07-electric
+    - https://www.sgcarmart.com/new-cars/info/22026/avatr-11-electric
+    - https://www.sgcarmart.com/new-cars/info/22070/leapmotor-c10-electric
+    - https://www.sgcarmart.com/new-cars/info/21656/hyundai-ioniq-5-electric
+    - https://www.sgcarmart.com/new-cars/info/21722/hyundai-ioniq-6-electric
+    - https://www.sgcarmart.com/new-cars/info/21808/hyundai-kona-electric
+    - https://www.sgcarmart.com/new-cars/info/21888/mini-cooper-3-door-electric
+    - https://www.sgcarmart.com/new-cars/info/21939/mini-aceman-electric
+    - https://www.sgcarmart.com/new-cars/info/21889/mini-countryman-electric
+    - https://www.sgcarmart.com/new-cars/info/21797/audi-q4-e-tron-electric
+    - https://www.sgcarmart.com/new-cars/info/21501/audi-e-tron-gt-electric
+    - https://www.sgcarmart.com/new-cars/info/22104/kia-ev4-electric
+    - https://www.sgcarmart.com/new-cars/info/21505/kia-ev6-electric
+    - https://www.sgcarmart.com/new-cars/info/21810/kia-ev9-electric
+    - https://www.sgcarmart.com/new-cars/info/22064/mercedes-benz-cla-electric
+    - https://www.sgcarmart.com/new-cars/info/21458/mercedes-benz-eqa-electric
+    - https://www.sgcarmart.com/new-cars/info/21601/mercedes-benz-eqb-electric
+    - https://www.sgcarmart.com/new-cars/info/21584/mercedes-benz-eqs-electric
+    - https://www.sgcarmart.com/new-cars/info/22067/mercedes-benz-glc-electric
+    - https://www.sgcarmart.com/new-cars/info/21892/volvo-ec40-electric
+    - https://www.sgcarmart.com/new-cars/info/12969/polestar-2-electric
+    - https://www.sgcarmart.com/new-cars/info/22103/subaru-solterra-xt-electric
+    - https://www.sgcarmart.com/new-cars/info/22097/mazda-6e-electric
+    - https://www.sgcarmart.com/new-cars/info/21982/cupra-tavascan-electric
+    - https://www.sgcarmart.com/new-cars/info/21981/cupra-born-electric
+    - https://www.sgcarmart.com/new-cars/info/22091/opel-corsa-e-electric
+    - https://www.sgcarmart.com/new-cars/info/21510/opel-mokka-e-electric
+    - https://www.sgcarmart.com/new-cars/info/21720/lotus-eletre
+    - https://www.sgcarmart.com/new-cars/info/21855/lotus-emeya
+    - https://www.sgcarmart.com/new-cars/info/21870/skoda-enyaq-electric
+    - https://www.sgcarmart.com/new-cars/info/22041/skoda-elroq-electric
+    - https://www.sgcarmart.com/new-cars/info/21964/skyworth-k-electric
+    - https://www.sgcarmart.com/new-cars/info/12441/jaguar-i-pace-electric
+    - https://www.sgcarmart.com/new-cars/info/21631/rolls-royce-spectre-electric
+    - https://www.sgcarmart.com/new-cars/info/22125/suzuki-e-vitara-electric
+    - https://www.sgcarmart.com/new-cars/info/22022/jmev-elight-electric
+    - https://www.sgcarmart.com/new-cars/info/21963/ora-07-electric
+    - https://www.sgcarmart.com/new-cars/info/21840/volkswagen-id4-electric
+    - https://www.sgcarmart.com/new-cars/info/12879/volkswagen-id3-electric
+    - https://www.sgcarmart.com/new-cars/info/21893/volkswagen-id-buzz-electric
+    - https://www.sgcarmart.com/new-cars/info/21875/nissan-ariya-electric
+    - https://www.sgcarmart.com/new-cars/info/21919/smart-3-electric
   # VES rebates by band for cars registered this year. Single band A from 2026. Verified 2026-09-29.
   ves_rebates:
     A: 22500

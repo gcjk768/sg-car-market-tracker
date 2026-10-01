@@ -231,6 +231,10 @@ class SgcarmartNewEvScraper(BaseScraper):
         models = self.parse(self.fetch(self.index_url))
         if not models:
             raise ScraperUnavailable("no electric models found on the new cars index, layout may have changed")
+        # Model pages Sgcarmart has but does not link from its EV index (Tesla, Xpeng and others), first.
+        extra = [{"slug": u.rstrip("/").rsplit("/", 1)[-1], "url": u, "title": u} for u in self.cfg["new_ev"].get("extra_model_urls", [])]
+        seen = {m["url"] for m in extra}
+        models = extra + [m for m in models if m["url"] not in seen]
         out: list[NewEvVariant] = []
         for m in models[: self.max_models]:
             try:

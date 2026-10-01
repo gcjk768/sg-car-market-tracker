@@ -20,3 +20,22 @@ def test_goods_vehicles_are_caught_by_model_name():
     for title in ("Toyota Raize 1.2A X", "Honda FIT 1.3 BASIC CVT", "BYD e6 Electric", "BYD Dolphin Electric Dynamic",
                   "Toyota YARIS CROSS 1.5G CVT", "Mazda MX-30 EV RC"):
         assert not is_commercial_model(title, models), title
+
+
+def test_extra_model_urls_are_opened_first(monkeypatch):
+    from datetime import date
+    from scrapers.new_ev import SgcarmartNewEvScraper
+
+    cfg = load_config()
+    cfg["new_ev"]["extra_model_urls"] = ["https://www.sgcarmart.com/new-cars/info/21506/tesla-model-y-electric"]
+    s = SgcarmartNewEvScraper(cfg, "test", date(2026, 10, 2))
+    opened = []
+    monkeypatch.setattr(s, "fetch", lambda url: opened.append(url) or "")
+    monkeypatch.setattr(s, "parse", lambda html: [{"slug": "byd", "url": "https://www.sgcarmart.com/new-cars/info/1/byd-seal-electric", "title": "b"}])
+    monkeypatch.setattr(s, "parse_model", lambda html, url: [])
+    try:
+        s.run()
+    except Exception:
+        pass  # no variants parsed from the stub pages
+    assert opened[1:] == ["https://www.sgcarmart.com/new-cars/info/21506/tesla-model-y-electric",
+                          "https://www.sgcarmart.com/new-cars/info/1/byd-seal-electric"]
