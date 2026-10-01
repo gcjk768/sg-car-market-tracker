@@ -41,3 +41,14 @@ def test_ev_list_can_be_longer_than_petrol():
     ev, petrol = top_sellers_section(makes, [], top_n=20, top_n_ev=50).html.split("Top petrol brands")
     assert "50. " in ev and "51. " not in ev
     assert "20. " in petrol and "21. " not in petrol
+
+
+def test_ev_list_names_each_brands_best_seller():
+    makes = {"BYD": {"total": 900, "ev": 800, "petrol": 100}, "TESLA": {"total": 300, "ev": 300, "petrol": 0},
+             "OPEL": {"total": 10, "ev": 10, "petrol": 0}}
+    html = top_sellers_section(makes, [], ev_models={"BYD": "Atto 3", "TESLA": "Model Y"}, models_checked_on="2026-10-01").html
+    ev = html.split("Top petrol brands")[0]
+    assert "Top EV brands" not in html and "1,110 cars" not in html
+    assert "<b>BYD</b> Atto 3" in ev and "<b>Tesla</b> Model Y" in ev
+    assert "3. <b>Opel</b>  10" in ev  # no model known, brand alone
+    assert "checked 2026-10-01" in html

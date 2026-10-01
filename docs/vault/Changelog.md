@@ -1,8 +1,12 @@
 ---
 tags: [active]
-updated: 2026-09-30
+updated: 2026-10-01
 ---
 # Changelog
+
+## 2026-10-01
+
+* Top sellers in SG: the "Top EV brands, N cars" list is replaced on request by "Best selling EV of each brand", which names each brand's best selling model next to its LTA count (BYD Sealion 7, Tesla Model Y). LTA counts registrations by brand only, so the models are kept by hand in `config.yaml` `top_sellers.ev_models` with `ev_models_checked_on`, researched from news, distributor releases and the MotorMetrics body type split of LTA data. A brand without an entry (Geely, unknown) shows alone (`report.py` `top_sellers_section`, `pipeline.py`). Refresh the list every few months.
 
 ## 2026-09-30
 

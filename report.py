@@ -295,24 +295,32 @@ def used_section(key: str, listings: Sequence[tuple[UsedListing, str]], max_widt
 # Top sellers
 
 
-def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str], top_n: int = 20, max_width: int = 60, source_url: str | None = None, top_n_ev: int | None = None) -> ReportSection:
-    """makes: {make: {"total": n, "ev": n, "petrol": n}} of new registrations over `months` (YYYY-MM)."""
+def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str], top_n: int = 20, max_width: int = 60, source_url: str | None = None, top_n_ev: int | None = None,
+                       ev_models: dict[str, str] | None = None, models_checked_on: str | None = None) -> ReportSection:
+    """makes: {make: {"total": n, "ev": n, "petrol": n}} of new registrations over `months` (YYYY-MM).
+    ev_models: {make: best selling EV model}, kept by hand in config.yaml since LTA counts brands only."""
     grand = sum(m["total"] for m in makes.values()) or 1
 
     def ranked(kind: str, label: str) -> str:
         pool = sum(m.get(kind, 0) for m in makes.values()) or 1
         top = sorted(((k, m[kind]) for k, m in makes.items() if m.get(kind)), key=lambda t: -t[1])[: (top_n_ev or top_n) if kind == "ev" else top_n]
-        rows = [f"{n}. <b>{escape(make if make in ('BMW', 'BYD', 'GAC', 'MG', 'DS') else make.title())}</b>  "
+        models = (ev_models or {}) if kind == "ev" else {}
+        rows = [f"{n}. <b>{escape(make if make in ('BMW', 'BYD', 'GAC', 'MG', 'DS') else make.title())}</b>"
+                + (f" {escape(models[make])}" if models.get(make) else "") + "  "
                 + dot(fmt_int(count), f"{count * 100 / pool:.1f}%")
                 for n, (make, count) in enumerate(top, start=1)]
-        return f"<b>{label}</b>, {fmt_int(pool)} cars\n" + "\n".join(rows)
+        total = "" if kind == "ev" else f", {fmt_int(pool)} cars"
+        return f"<b>{label}</b>{total}\n" + "\n".join(rows)
     span = ""
     if months:
         first, last = (date.fromisoformat(f"{m}-01") for m in (months[0], months[-1]))
         span = f" from {first.strftime('%b')} to {last.strftime('%b %Y')}" if first != last else f" in {last.strftime('%b %Y')}"
     intro = (f"Brands ranked by new car registrations{span}, {fmt_int(grand)} cars in total. The share is of that"
              " fuel's cars. Petrol includes petrol hybrids. LTA publishes registrations by brand only, not by model.")
-    parts = [note(escape(intro)), ranked("ev", "Top EV brands"), ranked("petrol", "Top petrol brands")]
+    if ev_models:
+        intro += (" The EV model named is the brand's best seller in Singapore from news and dealer reports"
+                  + (f", checked {models_checked_on}." if models_checked_on else "."))
+    parts = [note(escape(intro)), ranked("ev", "Best selling EV of each brand"), ranked("petrol", "Top petrol brands")]
     if source_url:
         parts.append(f"Source: <a href=\"{html_lib.escape(source_url, quote=True)}\">LTA table M03</a>")
     title = SECTION_TITLES["top_sellers"]
@@ -538,7 +546,9 @@ def sample_report(cfg: dict[str, Any], run_date: date | None = None) -> list[Rep
                                 source_url=cfg["sources"].get("lta_registrations_by_make_xlsx")),
         used_section("used_ev", used_ev, cfg=cfg, brand_sales=ev_sales, months=["2026-01", "2026-08"]),
         used_section("used_ice", used_ice, cfg=cfg, brand_sales=ice_sales, months=["2026-01", "2026-08"]),
-        top_sellers_section(sample_makes, ["2026-01", "2026-08"], source_url=cfg["sources"]["lta_registrations_by_make"]),
+        top_sellers_section(sample_makes, ["2026-01", "2026-08"], source_url=cfg["sources"]["lta_registrations_by_make"],
+                            ev_models=cfg.get("top_sellers", {}).get("ev_models"),
+                            models_checked_on=cfg.get("top_sellers", {}).get("ev_models_checked_on")),
         fuel_section(FuelPrice(observed_on=run_date, ron95_per_litre=3.49, source="sample",
                                station_prices={"95": {"public": 2.54}},
                                grades={"SPC": {"92": 3.46, "95": 3.48, "98": 4.00, "Diesel": 3.97},

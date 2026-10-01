@@ -177,6 +177,53 @@ top_sellers:
   # Longer list for EV brands, on request. Petrol keeps top_n.
   top_n_ev: 50
   verified_on: "2026-09-30"
+  # Best selling EV model per LTA make, kept by hand: LTA counts brands only. From news, distributor
+  # releases and the MotorMetrics body type split of LTA data. Brands left out show without a model.
+  # Least certain: MG, Maxus, Mercedes, Hyundai, Mini, Audi, Kia, Opel, Polestar, Smart, VW, Cupra, Nissan, Skoda.
+  ev_models_checked_on: "2026-10-01"
+  ev_models:
+    BYD: Sealion 7
+    TESLA: Model Y
+    CHERY: Jaecoo J6
+    MG: MGS5
+    GAC: Aion V
+    XPENG: G6
+    ZEEKR: 7X
+    BMW: iX1
+    MAXUS: MIFA 7
+    DONGFENG: Vigo
+    AVATR: "07"
+    MERCEDES BENZ: CLA
+    VOLVO: EX30
+    DEEPAL: S07
+    LEAPMOTOR: C10
+    TOYOTA: bZ4X
+    PORSCHE: Macan Electric
+    HYUNDAI: Ioniq 5
+    MINI: Cooper E
+    AUDI: Q4 e-tron
+    KIA: EV5
+    OPEL: Corsa Electric
+    GREAT WALL: Ora 5
+    MAZDA: 6e
+    POLESTAR: Polestar 2
+    SMART: "#1"
+    SUBARU: Solterra
+    NIO: Firefly
+    HONGQI: E-HS9
+    VOLKSWAGEN: ID.4
+    CUPRA: Tavascan
+    CITROEN: e-C4 X
+    NISSAN: Ariya
+    SUZUKI: e Vitara
+    EVEASY: Elight
+    HONDA: e:N1
+    LOTUS: Eletre
+    SKODA: Enyaq
+    SKYWORTH: K
+    KGM: Torres EVX
+    JAGUAR: I-Pace
+    ROLLS ROYCE: Spectre
 
 new_ev:
   top_n: 20
