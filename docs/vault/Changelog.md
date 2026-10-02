@@ -4,6 +4,9 @@ updated: 2026-10-02
 ---
 # Changelog
 
+## 2026-10-03
+- chore: `ai.model: haiku` in config.yaml (was the CLI default) to save tokens; covers /ask, heal.py and summary notes.
+
 ## 2026-10-02
 
 * EV prices for Top sellers: the new EV scraper opened only 40 of the 85 models on Sgcarmart's EV index (`new_ev.max_model_pages`, now 140), and Sgcarmart has price pages it does not link from that index, Tesla Model Y and 3 and Xpeng G6 and X9 among them. 46 such pages, found by Exa search through Agent Reach, are listed in `new_ev.extra_model_urls` and opened first (`scrapers/new_ev.py` `run`). Tesla's own site blocks bots and is still never fetched. Cost: about an hour of Sgcarmart's 30 second crawl delay once a day.

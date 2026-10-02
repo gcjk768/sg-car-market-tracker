@@ -98,8 +98,8 @@ ai:
   # parsers start missing fields, or if you want a short analyst note on the summary.
   enabled: true
   command: claude
-  # Model alias or id passed to the CLI. Leave null for the CLI default.
-  model: null
+  # Model alias or id passed to the CLI (haiku since 2026-10-03 to save tokens; null = CLI default).
+  model: haiku
   timeout_seconds: 120
   max_input_chars: 12000
   # Hard cap on CLI calls per run so a broken parser cannot run up a bill.
