@@ -1,6 +1,6 @@
 httpx>=0.27
 playwright==1.63.0
-selectolax>=0.3.21
+selectolax>=0.3.21,<1  # 1.0 dropped the Modest backend (selectolax.parser); migrate to selectolax.lexbor before lifting
 pydantic>=2.7
 pyyaml>=6.0
 python-dotenv>=1.0
