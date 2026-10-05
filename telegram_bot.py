@@ -9,6 +9,7 @@ from __future__ import annotations
 import html
 import logging
 import re
+import threading
 import time
 from typing import Iterable, Sequence
 
@@ -240,6 +241,33 @@ class TelegramError(Exception):
     pass
 
 
+class _Typing:
+    """Context manager behind TelegramClient.typing(). Best effort: a failed refresh is ignored."""
+
+    def __init__(self, client: "TelegramClient", every: float = 4.0):
+        self.client, self.every = client, every
+        self._stop = threading.Event()
+
+    def _loop(self) -> None:
+        payload = {"chat_id": self.client.chat_id, "action": "typing"}
+        if self.client.thread_id:
+            payload["message_thread_id"] = self.client.thread_id
+        while not self._stop.is_set():
+            try:
+                self.client.http.post(f"{self.client.base}/sendChatAction", json=payload, timeout=5)
+            except Exception:  # noqa: BLE001
+                pass
+            self._stop.wait(self.every)
+
+    def __enter__(self):
+        threading.Thread(target=self._loop, name="typing", daemon=True).start()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self._stop.set()
+
+
+
 class TelegramClient:
     """Thin Bot API client. Only sendMessage is needed for the report."""
 
@@ -253,6 +281,10 @@ class TelegramClient:
         self.parse_mode = parse_mode
         self.disable_preview = disable_preview
         self.http = httpx.Client(timeout=timeout)
+
+    def typing(self, every: float = 4.0):
+        """`with client.typing():` keeps "typing..." showing in the chat while a slow reply is prepared."""
+        return _Typing(self, every)
 
     @retry(
         stop=stop_after_attempt(4),

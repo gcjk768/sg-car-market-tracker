@@ -62,7 +62,9 @@ def ask_text(question: str, cfg: dict) -> str:
 
 def handle(command: str, cfg: dict, client: TelegramClient, arg: str = "") -> None:
     if command == "/ask":
-        client.send_message(ask_text(arg, cfg))
+        with client.typing():
+            answer = ask_text(arg, cfg)
+        client.send_message(answer)
         return
     if command == "/filters":
         client.send_message(filters_text(cfg))

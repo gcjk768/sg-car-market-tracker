@@ -22,6 +22,7 @@ def cfg():
         data = yaml.safe_load(fh)
     # Tests never call the real Claude CLI. Tests that exercise the AI path enable it and mock it.
     data.setdefault("ai", {})["enabled"] = False
+    data["ai"]["command"] = "claude"   # the deployed command may be a wrapper (Ollama stand-in); tests assert the plain CLI
     return data
 
 
