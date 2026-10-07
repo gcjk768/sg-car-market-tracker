@@ -201,6 +201,9 @@ class Database:
                 n += 1
         return n
 
+    def coe_keys(self) -> set[tuple[str, str]]:
+        return {(r["tender_date"], r["category"]) for r in self.conn.execute("SELECT tender_date, category FROM coe_results")}
+
     def coe_history(self, category: str, limit: int = 6) -> list[CoeResult]:
         rows = self.conn.execute(
             "SELECT * FROM coe_results WHERE category = ? ORDER BY tender_date DESC LIMIT ?",

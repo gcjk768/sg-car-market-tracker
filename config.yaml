@@ -125,6 +125,10 @@ sources:
   motorist_used: "https://www.motorist.sg/used-cars"
   motorist_used_ev: "https://www.motorist.sg/used-cars/electric-car"
   motorist_coe: "https://www.motorist.sg/coe-results"
+  # Official LTA COE bidding history on data.gov.sg (open API, no key): every exercise since 2010.
+  datagov_coe: "https://data.gov.sg/api/action/datastore_search"
+  datagov_coe_page: "https://data.gov.sg/datasets/d_69b3380ad7e51aff3a7dcc84eba52b8a/view"
+  datagov_coe_resource: "d_69b3380ad7e51aff3a7dcc84eba52b8a"
   fuel_price: "https://www.motorist.sg/petrol-prices"
   fuel_price_fallback: "https://petrolprice.sg/"
   # Cnergy (Union Gas) publishes its own board. Scraped separately because comparison pages
@@ -190,6 +194,12 @@ coe:
   # Bidding opens on the first and third Monday of each month and results are out on the Wednesday.
   tender_weeks_of_month: [1, 3]
   results_weekday: 2   # Monday is 0
+  # Result day watcher: poll from start, post once when the new tender appears, stop at stop (SGT).
+  push:
+    enabled: true
+    start: "16:00"
+    stop: "16:30"
+    poll_seconds: 120
   # Cat A power ceiling for electric cars in kW. Above this is Cat B. Verify against LTA.
   cat_a_max_power_kw: 110
   cat_a_max_engine_cc: 1600
@@ -197,7 +207,22 @@ coe:
   verified_on: "2026-09-29"
   # Scrapers are tried in this order until one returns results.
   # Motorist first: it shows the change since the previous tender. LTA is the fallback.
-  source_order: [motorist, onemotoring, sgcarmart]
+  source_order: [motorist, datagov, onemotoring, sgcarmart]
+  # Forecast for the next tender, shown in the COE section and on new EV prices (2026-10-07).
+  # Backtested on the last 100 exercises of the official history: the premium is close to a random walk, so the
+  # point is the last premium nudged a quarter of a typical move toward where momentum and demand (bids over
+  # quota above demand_ratio) point, which cut the average miss 1 to 4 percent in every category. The band is
+  # the typical move (median absolute change over `window` exercises). Treat it as a range, not a call.
+  forecast:
+    enabled: true
+    window: 24
+    lean: 0.25
+    demand_ratio: 1.2
+    history_exercises: 30
+    verified_on: "2026-10-07"
+  # Bidding opens Monday 12:00 and closes Wednesday 16:00 (3 working days, so a public holiday in the week
+  # pushes the close later). Source: LTA OneMotoring COE page, checked 2026-10-07.
+  bidding: {opens: "12:00", closes: "16:00"}
 
 top_sellers:
   # Brands shown, ranked by new registrations this year. LTA does not publish models.
@@ -270,6 +295,8 @@ new_ev:
   extra_model_urls:
     - https://www.sgcarmart.com/new-cars/info/21506/tesla-model-y-electric
     - https://www.sgcarmart.com/new-cars/info/12847/tesla-model-3-electric
+    - https://www.sgcarmart.com/new-cars/info/22040/zeekr-7x-electric
+    - https://www.sgcarmart.com/new-cars/info/21900/zeekr-x-electric
     - https://www.sgcarmart.com/new-cars/info/21899/xpeng-g6-electric
     - https://www.sgcarmart.com/new-cars/info/21970/xpeng-x9-electric
     - https://www.sgcarmart.com/new-cars/info/22115/avatr-07-electric

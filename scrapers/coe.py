@@ -6,6 +6,7 @@ across the columns, because every site lays the results out differently.
 from __future__ import annotations
 
 import calendar
+import json
 import logging
 import re
 from datetime import date, datetime, timedelta
@@ -93,12 +94,18 @@ def find_tender_date(html: str, today: date | None = None) -> Optional[date]:
     today = today or date.today()
     text = clean(HTMLParser(html).body.text(separator=" ")) if HTMLParser(html).body else clean(html)
     candidates: list[date] = []
-    for m in re.finditer(r"(?:tender|bidding|exercise|results?)[^.]{0,80}?(\d{1,2}[ -/]\w{3,9}[ -/]\d{4}|\d{4}-\d{2}-\d{2})", text, re.I):
+    # Motorist heads its results table "COE Prices 23/09/2026"; trust that over stray dates elsewhere.
+    heading = re.search(r"COE Prices\s*(\d{1,2}/\d{1,2}/\d{4})", text)
+    if heading:
+        d = parse_date(heading.group(1))
+        if d and d <= today:
+            return last_tender_on_or_before(d)
+    for m in re.finditer(r"(?:tender|bidding|exercise|results?)[^.]{0,80}?(\d{1,2}/\d{1,2}/\d{4}|\d{1,2}[ -/]\w{3,9}[ -/]\d{4}|\d{4}-\d{2}-\d{2})", text, re.I):
         d = parse_date(m.group(1))
         if d and d <= today:
             candidates.append(d)
     if not candidates:
-        for m in re.finditer(r"\d{1,2}[ -/]\w{3,9}[ -/]\d{4}|\d{4}-\d{2}-\d{2}", text):
+        for m in re.finditer(r"\d{1,2}/\d{1,2}/\d{4}|\d{1,2}[ -/]\w{3,9}[ -/]\d{4}|\d{4}-\d{2}-\d{2}", text):
             d = parse_date(m.group(0))
             if d and d <= today:
                 candidates.append(d)
@@ -236,7 +243,48 @@ class MotoristCoeScraper(CoeScraperBase):
         return latest + previous
 
 
+class DataGovCoeScraper(CoeScraperBase):
+    """LTA's own bidding history on data.gov.sg: JSON, one row per category per exercise, with quota
+    and bids. `run` gives the latest exercise, `history` the last few dozen for the forecast."""
+
+    name = "datagov"
+
+    def url(self) -> str:
+        return self.cfg["sources"]["datagov_coe"]
+
+    def rows(self, exercises: int) -> list[CoeResult]:
+        res = self.cfg["sources"]["datagov_coe_resource"]
+        weeks, wd = tuple(self.cfg["coe"]["tender_weeks_of_month"]), self.cfg["coe"]["results_weekday"]
+        n = exercises * 5
+        data = json.loads(self.fetch(self.url(), {"resource_id": res, "limit": n, "sort": "_id desc"}))
+        out = []
+        for r in data["result"]["records"]:
+            cat = r["vehicle_class"][-1].upper()
+            premium = parse_int(r["premium"])
+            if cat not in self.cfg["coe"]["store_categories"] or not premium:
+                continue  # a month with no tender for that category, or a category we do not track
+            year, month = (int(x) for x in r["month"].split("-"))
+            day = tender_result_dates(year, month, weeks, wd)[int(r["bidding_no"]) - 1]
+            out.append(CoeResult(
+                tender_date=day, exercise=exercise_label(day), category=CoeCategory(cat), quota_premium=premium,
+                quota=parse_int(r["quota"]), bids_received=parse_int(r["bids_received"]),
+                bids_successful=parse_int(r["bids_success"]), source=self.name, scraped_at=datetime.now(),
+            ))
+        if not out:
+            raise ScraperUnavailable("datagov: no COE rows")
+        return out
+
+    def history(self, exercises: int = 30) -> list[CoeResult]:
+        return self.rows(exercises)
+
+    def run(self) -> list[CoeResult]:
+        rows = self.rows(2)
+        latest = max(r.tender_date for r in rows)
+        return [r for r in rows if r.tender_date == latest]
+
+
 SCRAPERS = {
+    "datagov": DataGovCoeScraper,
     "onemotoring": OneMotoringCoeScraper,
     "sgcarmart": SgcarmartCoeScraper,
     "motorist": MotoristCoeScraper,

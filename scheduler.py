@@ -95,6 +95,8 @@ class Supervisor:
         self.child: Optional[Child] = None
         self.listener: Optional[Child] = None
         self.listener_backoff = 30
+        self.coe_watcher: Optional[Child] = None
+        self.coe_watch_day: Optional[date] = None
         self.listener_next: Optional[datetime] = now
         self.retry_at: Optional[datetime] = None
         self.day: Optional[date] = None
@@ -121,6 +123,7 @@ class Supervisor:
         self._new_day(now)
         self._heartbeat(now)
         self._supervise_listener(now)
+        self._coe_watch(now)
         if self.child is not None:
             self._check_child(now)
             return
@@ -130,6 +133,34 @@ class Supervisor:
         elif self.retry_at is not None and now >= self.retry_at:
             self.retry_at = None
             self.start_report("retry")
+
+    # Result day COE push
+
+    def _coe_watch(self, now: datetime) -> None:
+        push = self.cfg.get("coe", {}).get("push", {})
+        if not push.get("enabled"):
+            return
+        if self.coe_watcher is not None:
+            if self.coe_watcher.proc.poll() is None:
+                if now >= self.coe_watcher.deadline:
+                    kill_tree(self.coe_watcher.proc)
+                return
+            self.coe_watcher = None
+        from scrapers.coe import tender_result_dates
+
+        coe = self.cfg["coe"]
+        today = now.date()
+        if today not in tender_result_dates(today.year, today.month, tuple(coe["tender_weeks_of_month"]), coe["results_weekday"]):
+            return
+        h, m = (int(x) for x in str(push.get("start", "16:00")).split(":"))
+        eh, em = (int(x) for x in str(push.get("stop", "16:30")).split(":"))
+        start = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        end = now.replace(hour=eh, minute=em, second=0, microsecond=0)
+        if self.coe_watch_day == today or not (start <= now < end):
+            return
+        self.coe_watch_day = today
+        log.info("starting COE watcher")
+        self.coe_watcher = Child("coe", self.spawn("coe_watch.py", []), now, end + timedelta(minutes=5))
 
     # Reports and repairs
 
@@ -340,7 +371,7 @@ class Supervisor:
         threading.Thread(target=watch, name="watchdog", daemon=True).start()
 
     def stop_children(self) -> None:
-        for child in (self.child, self.listener):
+        for child in (self.child, self.listener, self.coe_watcher):
             if child is not None and child.proc.poll() is None:
                 kill_tree(child.proc)
 

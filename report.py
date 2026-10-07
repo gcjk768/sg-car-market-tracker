@@ -115,8 +115,12 @@ def coe_section(
     rows: Iterable[dict[str, Any]],
     next_tender: date | None,
     source_url: str | None = None,
+    forecasts: dict[str, Any] | None = None,
+    window: tuple[Any, Any] | None = None,
 ) -> ReportSection:
-    """rows: dicts with category, premium, delta, delta_pct, history (oldest first), bids, quota."""
+    """rows: dicts with category, premium, delta, delta_pct, history (oldest first), bids, quota.
+    forecasts: {category: coe_forecast.Forecast}; window: (bidding opens, closes) of the next tender."""
+    rows = list(rows)
     blocks = [
         f"{coe_dot(r.get('delta'))} <b>Cat {escape(r['category'])}</b> · {fmt_money(r['premium'], '$')}  {fmt_delta(r.get('delta'), r.get('delta_pct'))}\n"
         f"🧾 {fmt_int(r.get('bids'))} bids for {fmt_int(r.get('quota'))} quota"
@@ -126,10 +130,25 @@ def coe_section(
     exercise = escape(exercise.replace(f" {tender_date.year}", ""))
     footer = [f"📅 Next results expected {next_tender.strftime('%a %d %b %Y')}" if next_tender else "",
               source_links(("COE results", source_url))]
+    parts = [f"<i>{exercise}</i>"] + blocks
+    if forecasts and next_tender:
+        lines = [f"{DIVIDER}\n🔮 <b>Forecast</b> · {next_tender.day} {next_tender.strftime('%b')} tender"]
+        if window:
+            lines.append(f"⏰ Bidding opens {window[0]:%a %d %b %H:%M}, closes {window[1]:%a %d %b %H:%M}, results soon after")
+        parts.append("\n".join(lines))
+        parts += [
+            f"{coe_dot(f.point - f.last)} <b>Cat {escape(r['category'])}</b> · ~{fmt_money(f.point, '$')}\n"
+            f"📊 Range {fmt_money(f.low, '$')} to {fmt_money(f.high, '$')}"
+            for r in rows for f in [forecasts.get(r["category"])] if f
+        ]
+        parts.append(note(escape("COE premiums move almost like a random walk. The estimate is the last premium nudged a quarter"
+                                 " of a typical move toward recent momentum and demand, and the range is one typical move."
+                                 " Backtested on LTA history it misses by 1 to 4 percent less than no change at all. A range, not a call.")))
+    parts.append("\n".join(f for f in footer if f))
     return ReportSection(
         key="coe",
         title=SECTION_TITLES["coe"],
-        html=build_section(SECTION_TITLES["coe"], [f"<i>{exercise}</i>"] + blocks + ["\n".join(f for f in footer if f)], subtitle),
+        html=build_section(SECTION_TITLES["coe"], parts, subtitle),
     )
 
 
@@ -235,6 +254,7 @@ def _new_ev_card(n: int, v: NewEvVariant, cfg: dict[str, Any] | None = None, sho
                    f"{fmt_int(v.range_km)} km" if v.range_km else None,
                    f"Cat {v.coe_category.value}" if v.coe_category else None,
                    f"${v.score:.0f}/km" if v.score and show_score else None),
+        ("🔮 " + dot(f"~{fmt_money(v.price_forecast[1], '$')} next COE", f"{fmt_money(v.price_forecast[0], '$')} to {fmt_money(v.price_forecast[2], '$')}")) if v.price_forecast else "",
         fin_line(fin),
         f"📉 {dep_line}" if dep_line else "",
     ], emoji="⚡", desc=desc)

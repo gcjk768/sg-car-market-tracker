@@ -85,3 +85,24 @@ def test_motorist_live_page_date_and_previous_tender():
     by = {(r.tender_date, r.category.value): r for r in rows}
     assert by[(date(2026, 9, 23), "A")].quota_premium == 131890
     assert by[(date(2026, 9, 9), "A")].quota_premium == 133009
+
+
+def test_find_tender_date_prefers_motorist_heading():
+    from datetime import date
+    from scrapers.coe import find_tender_date
+    html = "<body>COE Prices 23/09/2026 Quota Premium $1 <p>Updated 7 Oct 2026 bidding news</p></body>"
+    assert find_tender_date(html, date(2026, 10, 7)) == date(2026, 9, 23)
+
+
+def test_datagov_history_maps_exercises_to_result_days(cfg, tmp_path, monkeypatch):
+    from scrapers.coe import DataGovCoeScraper
+
+    cfg["general"]["cache_dir"] = str(tmp_path)
+    s = DataGovCoeScraper(cfg, "test", date(2026, 10, 8))
+    monkeypatch.setattr(s, "fetch", lambda url, params=None: (FIX / "datagov_coe.json").read_text())
+    rows = s.history(2)
+    assert {r.tender_date for r in rows} == {date(2026, 10, 7), date(2026, 9, 23)}   # 2026-10 round 1, 2026-09 round 2
+    a = next(r for r in rows if r.category == CoeCategory.A and r.tender_date == date(2026, 10, 7))
+    assert (a.quota_premium, a.quota, a.bids_received) == (130001, 1232, 1560)
+    assert {r.tender_date for r in s.run()} == {date(2026, 10, 7)}
+    s.close()

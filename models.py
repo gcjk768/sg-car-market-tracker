@@ -59,6 +59,7 @@ class NewEvVariant(BaseModel):
     price_source_url: str
     source: str
     scraped_at: datetime = Field(default_factory=datetime.now)
+    price_forecast: Optional[tuple[int, int, int]] = Field(default=None, description="Low, expected and high price at the next COE tender; set per run, not stored")
 
     @property
     def score(self) -> Optional[float]:

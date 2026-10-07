@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Optional
 
 import costs
@@ -18,7 +18,8 @@ from db import Database
 from filters import shortlist, tagged
 from models import CoeResult, CostBreakdown, Drivetrain, NewEvVariant, ReportSection, UsedListing
 from scrapers.base import ScraperUnavailable
-from scrapers.coe import next_tender_date, scrape_coe
+from coe_forecast import bidding_window, forecast, price_forecast
+from scrapers.coe import DataGovCoeScraper, next_tender_date, scrape_coe
 from scrapers.fuel_cnergy import scrape_cnergy
 from scrapers.fuel_price import pick_price, scrape_fuel_price
 from scrapers.registrations import scrape_body_types, scrape_registrations
@@ -58,6 +59,7 @@ class Pipeline:
         self.stats = {"new": 0, "drops": 0, "gone": 0}
         self.petrol_price: Optional[float] = None
         self.coe_latest: list[CoeResult] = []
+        self.coe_forecasts: dict = {}
         self.new_evs: list[NewEvVariant] = []
         self.brand_notes: dict[str, str] = {}
         self.used_ev: list[tuple[UsedListing, str]] = []
@@ -110,11 +112,47 @@ class Pipeline:
         except Exception as exc:
             log.error("COE scrape failed: %s", exc)
             self.unavailable["coe"] = str(exc)
+        self.backfill_coe_history()
         self.coe_latest = self.db.latest_coe()
+        self.make_coe_forecasts()
         if vault.enabled():
             for r in self.coe_latest:
                 hist = self.db.coe_history(r.category.value, 2)
                 vault.coe_result(r, r.quota_premium - hist[1].quota_premium if len(hist) == 2 else None)
+
+    def backfill_coe_history(self) -> None:
+        """Official history from data.gov.sg for tenders not stored yet, so the forecast has a window to work on."""
+        fc = self.cfg["coe"].get("forecast", {})
+        if not fc.get("enabled"):
+            return
+        scraper = DataGovCoeScraper(self.cfg, self.ua, self.run_date, self.force)
+        try:
+            have = self.db.coe_keys()
+            self.db.upsert_coe_results(r for r in scraper.history(fc["history_exercises"]) if (r.tender_date.isoformat(), r.category.value) not in have)
+        except Exception as exc:
+            log.warning("COE history backfill failed: %s", exc)
+        finally:
+            scraper.close()
+
+    def make_coe_forecasts(self) -> None:
+        fc = self.cfg["coe"].get("forecast", {})
+        self.coe_forecasts = {}
+        if not fc.get("enabled"):
+            return
+        for r in self.coe_latest:
+            f = forecast(self.db.coe_history(r.category.value, fc["window"] + 1), fc)
+            if f:
+                self.coe_forecasts[f.category] = f
+        if self.coe_forecasts:
+            vault.event("🔮", "coe forecast", ", ".join(f"Cat {c} {f.point:,} ({f.low:,} to {f.high:,})" for c, f in sorted(self.coe_forecasts.items())))
+
+    def next_tender(self) -> date:
+        coe = self.cfg["coe"]
+        weeks = tuple(coe["tender_weeks_of_month"])
+        nxt = next_tender_date(self.coe_latest[0].tender_date, weeks, coe["results_weekday"])
+        if nxt < self.run_date:  # stored tender is stale; results due today still count as next
+            nxt = next_tender_date(self.run_date - timedelta(days=1), weeks, coe["results_weekday"])
+        return nxt
 
     def run_used(self) -> None:
         for name, cls in USED_SCRAPERS.items():
@@ -179,6 +217,8 @@ class Pipeline:
             log.error("new EV scrape failed: %s", exc)
             self.unavailable["new_ev"] = str(exc)
         stored = self.db.new_ev_on(self.run_date)
+        for v in stored:
+            v.price_forecast = price_forecast(v, self.coe_forecasts)
         self.new_evs = rank_new_evs(stored, self.cfg)
         self.new_ev_groups = group_by_body_type(stored, self.cfg) if self.cfg["new_ev"].get("group_by_body_type") else None
         self.best_selling = None
@@ -217,11 +257,12 @@ class Pipeline:
                 "history": [h.quota_premium for h in history], "bids": r.bids_received, "quota": r.quota,
             })
         latest = self.coe_latest[0]
-        weeks = tuple(self.cfg["coe"]["tender_weeks_of_month"])
-        nxt = next_tender_date(max(self.run_date, latest.tender_date), weeks, self.cfg["coe"]["results_weekday"])
+        nxt = self.next_tender()
         # Link to the site the figures came from, not always LTA.
-        src_key = {"onemotoring": "onemotoring_coe", "sgcarmart": "sgcarmart_coe_results", "motorist": "motorist_coe"}.get(latest.source, "onemotoring_coe")
-        section = report.coe_section(latest.tender_date, latest.exercise, rows, nxt, self.cfg["sources"][src_key])
+        src_key = {"onemotoring": "onemotoring_coe", "sgcarmart": "sgcarmart_coe_results", "motorist": "motorist_coe", "datagov": "datagov_coe_page"}.get(latest.source, "onemotoring_coe")
+        bids = bidding_window(nxt, self.cfg) if self.coe_forecasts else None
+        section = report.coe_section(latest.tender_date, latest.exercise, rows, nxt, self.cfg["sources"][src_key],
+                                     forecasts=self.coe_forecasts, window=bids)
         if "coe" in self.unavailable:
             section.html += "\n\nLive fetch failed today, showing the last stored tender."
         return section
@@ -263,7 +304,7 @@ class Pipeline:
         wanted = SECTION_GROUPS[section]
         if wanted & {"costs", "used_ev", "used_ice", "fuel"}:
             self.run_fuel()
-        if "coe" in wanted or "summary" in wanted:
+        if wanted & {"coe", "summary", "new_ev"}:
             self.run_coe()
         if wanted & {"used_ev", "used_ice"}:
             self.run_used()
