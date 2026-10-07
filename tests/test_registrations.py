@@ -51,8 +51,8 @@ def test_ev_list_names_each_brands_best_seller():
                                models_checked_on="2026-10-01").html
     ev = html.split("Top petrol brands")[0]
     assert "Top EV brands" not in html and "1,110 cars" not in html
-    assert "<b>1. BYD</b> · 800 registered · 72.1%\n🚗 Sealion 7\n🚗 Atto 3\n\n" in ev  # line up in config order
-    assert "<b>2. Tesla</b> · 300 registered · 27.0%\n🚗 Model Y\n\n" in ev  # one model as a plain string
+    assert "<b>1. BYD</b> · 800 registered · 72.1%\n🚗 Sealion 7 · Atto 3 <i>(no price today)</i>\n\n" in ev  # line up in config order
+    assert "<b>2. Tesla</b> · 300 registered · 27.0%\n🚗 Model Y <i>(no price today)</i>\n\n" in ev  # one model as a plain string
     assert "<b>3. Opel</b> · 10 registered · 0.9%\n\n" in ev  # no model known, brand alone
     assert "checked 2026-10-01" in html
 
@@ -71,7 +71,7 @@ def test_ev_price_line_adds_deposit_and_instalment():
     makes = {"BYD": {"total": 900, "ev": 800, "petrol": 0}}
     html = top_sellers_section(makes, [], ev_models={"BYD": ["Atto 3", "Seal"]}, ev_prices={"BYD": {"Atto 3": 150000}},
                                cfg=load_config()).html
-    assert re.search(r"🚗 Atto 3 · \$150,000 · \$60,000 down · \$[\d,]+/mth\n🚗 Seal\n", html)
+    assert re.search(r"🚗 Atto 3 · \$150,000 · \$60,000 down · \$[\d,]+/mth\n🚗 Seal <i>\(no price today\)</i>\n", html)
 
 
 def test_model_prices_takes_cheapest_whole_word_match():

@@ -204,6 +204,20 @@ class Database:
     def coe_keys(self) -> set[tuple[str, str]]:
         return {(r["tender_date"], r["category"]) for r in self.conn.execute("SELECT tender_date, category FROM coe_results")}
 
+    def fill_coe_details(self, results: Iterable[CoeResult]) -> None:
+        """Quota and bid counts from a fuller source into rows that lack them; premiums are never touched."""
+        with self.tx() as c:
+            for r in results:
+                c.execute(
+                    "UPDATE coe_results SET quota = COALESCE(quota, ?), bids_received = COALESCE(bids_received, ?),"
+                    " bids_successful = COALESCE(bids_successful, ?) WHERE tender_date = ? AND category = ?",
+                    (r.quota, r.bids_received, r.bids_successful, r.tender_date.isoformat(), r.category.value),
+                )
+
+    def drop_coe_source(self, source: str) -> None:
+        with self.tx() as c:
+            c.execute("DELETE FROM coe_results WHERE source = ?", (source,))
+
     def coe_history(self, category: str, limit: int = 6) -> list[CoeResult]:
         rows = self.conn.execute(
             "SELECT * FROM coe_results WHERE category = ? ORDER BY tender_date DESC LIMIT ?",

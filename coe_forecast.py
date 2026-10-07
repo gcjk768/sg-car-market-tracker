@@ -8,6 +8,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Sequence
 
 from models import CoeResult, NewEvVariant
+from scrapers.coe import SCHEDULE
 
 
 @dataclass(frozen=True)
@@ -24,8 +25,11 @@ class Forecast:
 
 
 def bidding_window(result_day: date, cfg: dict) -> tuple[datetime, datetime]:
-    """Bidding opens on the Monday before the results Wednesday and closes on that Wednesday.
-    ponytail: a public holiday in the week closes a day later, add a holiday calendar if it matters."""
+    """(opens, closes) of the exercise whose results come out on `result_day`.
+    LTA's own schedule wins when it is loaded; the rule is only the fallback (a holiday closes a day later)."""
+    for opens, closes in (w for ws in SCHEDULE.values() for w in ws):
+        if closes.date() == result_day:
+            return opens, closes
     b = cfg["coe"]["bidding"]
     at = lambda day, hhmm: datetime.combine(day, time(*map(int, hhmm.split(":"))))
     return at(result_day - timedelta(days=2), b["opens"]), at(result_day, b["closes"])

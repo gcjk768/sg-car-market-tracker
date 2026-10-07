@@ -33,7 +33,7 @@ def _category_of(text: str) -> Optional[str]:
 
 def _column_role(header: str) -> Optional[str]:
     h = header.lower()
-    if "premium" in h or h in ("qp", "price") or "quota premium" in h:
+    if "premium" in h or h.split("(")[0].strip() in ("qp", "price") or "quota premium" in h:
         return "premium"
     if "success" in h:
         return "successful"
@@ -62,9 +62,12 @@ def parse_coe_tables(html: str) -> dict[str, dict[str, Any]]:
                 if not cat:
                     continue
                 entry: dict[str, Any] = {}
+                # LTA's table has an unlabelled description column between Category and Quota, so a row can be
+                # longer than its header: measure columns from the right.
+                shift = max(len(row) - len(roles), 0)
                 for idx, role in enumerate(roles):
-                    if role and role != "category" and idx < len(row):
-                        entry[role] = parse_money(row[idx]) if role == "premium" else parse_int(row[idx])
+                    if role and role != "category" and idx + shift < len(row):
+                        entry[role] = parse_money(row[idx + shift]) if role == "premium" else parse_int(row[idx + shift])
                 if entry.get("premium"):
                     result[cat] = entry
             if result:
@@ -125,8 +128,52 @@ def _nth_monday(year: int, month: int, n: int) -> date:
     return first + timedelta(days=offset + 7 * (n - 1))
 
 
+# LTA's published schedule, {(year, month): [(opens, closes)]}, filled by `ensure_schedule`. A public holiday
+# moves an exercise (Feb and Jun 2026), which the first and third Monday rule cannot know.
+SCHEDULE: dict[tuple[int, int], list[tuple[datetime, datetime]]] = {}
+_TRIED: set[int] = set()
+_SCHEDULE_ROW = re.compile(
+    r"([A-Z][a-z]+) (\d{4}) \((\d)\)\s+(\d{1,2} [A-Z][a-z]{2} \d{4}) \([A-Za-z]{3}\), (12 noon|\d{1,2} ?[ap]m)\s+"
+    r"(\d{1,2} [A-Z][a-z]{2} \d{4}) \([A-Za-z]{3}\), (\d{1,2} ?[ap]m)")
+
+
+def _clock(text: str) -> tuple[int, int]:
+    if text == "12 noon":
+        return 12, 0
+    hour, ampm = int(text[:-2]), text[-2:]
+    return hour % 12 + (12 if ampm == "pm" else 0), 0
+
+
+def parse_schedule(text: str) -> dict[tuple[int, int], list[tuple[datetime, datetime]]]:
+    out: dict[tuple[int, int], list[tuple[datetime, datetime]]] = {}
+    for mon, year, n, start, st, end, et in _SCHEDULE_ROW.findall(text):
+        month = datetime.strptime(mon[:3], "%b").month
+        opens = datetime.strptime(start, "%d %b %Y").replace(hour=_clock(st)[0])
+        closes = datetime.strptime(end, "%d %b %Y").replace(hour=_clock(et.replace(" ", ""))[0])
+        out.setdefault((int(year), month), []).append((opens, closes))
+    return {k: sorted(v) for k, v in out.items()}
+
+
+def ensure_schedule(cfg: dict[str, Any], user_agent: str, today: date) -> None:
+    """Load this year's schedule from LTA's PDF once per process. Any failure keeps the rule based dates."""
+    from scrapers.registrations import RegistrationsScraper
+
+    if today.year in _TRIED:  # one attempt per process, a missing PDF is not retried on every scheduler tick
+        return
+    _TRIED.add(today.year)
+    scraper = RegistrationsScraper(cfg, user_agent, today)
+    try:
+        SCHEDULE.update(parse_schedule(scraper.pdf_text(cfg["sources"]["coe_schedule_pdf"].format(year=today.year))))
+    except Exception as exc:
+        log.warning("COE schedule PDF unavailable (%s), using the first and third Monday rule", exc)
+    finally:
+        scraper.close()
+
+
 def tender_result_dates(year: int, month: int, weeks: tuple[int, ...] = (1, 3), results_weekday: int = 2) -> list[date]:
-    """Result days (Wednesdays by default) for the tender weeks of a month."""
+    """Result days for the tenders of a month: LTA's schedule when loaded, else the Wednesdays of the tender weeks."""
+    if (year, month) in SCHEDULE:
+        return [closes.date() for _, closes in SCHEDULE[(year, month)]]
     out = []
     for n in weeks:
         monday = _nth_monday(year, month, n)

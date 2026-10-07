@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 import vault
 from db import Database
 from pipeline import Pipeline
-from scrapers.coe import scrape_coe
+from scrapers.coe import ensure_schedule, scrape_coe
 from settings import load_config, load_secrets, user_agent
 from telegram_bot import TelegramClient
 
@@ -38,6 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     push = cfg["coe"].get("push", {})
     tz = ZoneInfo(cfg["general"].get("timezone", "Asia/Singapore"))
     today = datetime.now(tz).date()
+    ensure_schedule(cfg, user_agent(cfg), today)
     if "--dry-run" in argv:
         print("published:", published(cfg, today))
         return 0

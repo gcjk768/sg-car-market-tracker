@@ -97,6 +97,7 @@ class Supervisor:
         self.listener_backoff = 30
         self.coe_watcher: Optional[Child] = None
         self.coe_watch_day: Optional[date] = None
+        self.jobs: dict[str, dict] = {}  # periodic one shot scripts: {name: {"proc", "started", "next"}}
         self.listener_next: Optional[datetime] = now
         self.retry_at: Optional[datetime] = None
         self.day: Optional[date] = None
@@ -124,6 +125,8 @@ class Supervisor:
         self._heartbeat(now)
         self._supervise_listener(now)
         self._coe_watch(now)
+        self._periodic("news_watch.py", now, self._news_due(now), 10)
+        self._periodic("bid_capture.py", now, self._capture_due(now), 10)
         if self.child is not None:
             self._check_child(now)
             return
@@ -146,10 +149,12 @@ class Supervisor:
                     kill_tree(self.coe_watcher.proc)
                 return
             self.coe_watcher = None
-        from scrapers.coe import tender_result_dates
+        from scrapers.coe import ensure_schedule, tender_result_dates
+        from settings import user_agent
 
         coe = self.cfg["coe"]
         today = now.date()
+        ensure_schedule(self.cfg, user_agent(self.cfg), today)
         if today not in tender_result_dates(today.year, today.month, tuple(coe["tender_weeks_of_month"]), coe["results_weekday"]):
             return
         h, m = (int(x) for x in str(push.get("start", "16:00")).split(":"))
@@ -161,6 +166,43 @@ class Supervisor:
         self.coe_watch_day = today
         log.info("starting COE watcher")
         self.coe_watcher = Child("coe", self.spawn("coe_watch.py", []), now, end + timedelta(minutes=5))
+
+    # Periodic one shot jobs: LTA news a few times a day, the live bidding page while bidding is open
+
+    def _periodic(self, script: str, now: datetime, due_every: Optional[int], limit_minutes: int) -> None:
+        job = self.jobs.setdefault(script, {"proc": None, "started": now, "next": now})
+        if job["proc"] is not None:
+            if job["proc"].poll() is None:
+                if now - job["started"] > timedelta(minutes=limit_minutes):
+                    kill_tree(job["proc"])
+                return
+            job["proc"] = None
+        if due_every is None or now < job["next"]:
+            return
+        job["next"], job["started"] = now + timedelta(minutes=due_every), now
+        job["proc"] = self.spawn(script, [])
+
+    def _news_due(self, now: datetime) -> Optional[int]:
+        news = self.cfg.get("news")
+        if not news:
+            return None
+        (h1, m1), (h2, m2) = ([int(x) for x in t.split(":")] for t in news.get("window", ["08:00", "22:00"]))
+        return int(news.get("interval_minutes", 180)) if (h1, m1) <= (now.hour, now.minute) < (h2, m2) else None
+
+    def _capture_due(self, now: datetime) -> Optional[int]:
+        cap = self.cfg.get("coe", {}).get("live_capture", {})
+        if not cap.get("enabled"):
+            return None
+        from coe_forecast import bidding_window
+        from scrapers.coe import ensure_schedule, next_tender_date
+        from settings import user_agent
+
+        ensure_schedule(self.cfg, user_agent(self.cfg), now.date())
+        coe = self.cfg["coe"]
+        result_day = next_tender_date(now.date() - timedelta(days=3), tuple(coe["tender_weeks_of_month"]), coe["results_weekday"])
+        opens, closes = bidding_window(result_day, self.cfg)
+        now_naive = now.replace(tzinfo=None)
+        return int(cap.get("poll_minutes", 30)) if opens <= now_naive < closes + timedelta(minutes=45) else None
 
     # Reports and repairs
 

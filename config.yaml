@@ -113,6 +113,17 @@ ai:
   # Extra CLI flags, for example ["--permission-mode", "plan"].
   extra_args: []
 
+# New LTA releases posted to Telegram by news_watch.py (LTA's RSS feed). A release is sent when its title or summary
+# contains one of the keywords as a whole word.
+news:
+  interval_minutes: 180
+  window: ["08:00", "22:00"]
+  keywords: [coe, quota, certificate of entitlement, parf, arf, additional registration fee, ves, eeai, vehicular emissions,
+             electric vehicle, electric vehicles, road tax, erp, electronic road pricing, vehicle quota system]
+  # court and enforcement stories mention ARF and duty but are not rule changes
+  exclude: [jail, prison, sentenced, convicted, fined, enforcement blitz]
+  verified_on: "2026-10-07"
+
 sources:
   # Verify each URL before first use. Note any moves in the README.
   # Since the 2026 redesign the electric car page lists every new EV model.
@@ -127,6 +138,9 @@ sources:
   motorist_coe: "https://www.motorist.sg/coe-results"
   # Official LTA COE bidding history on data.gov.sg (open API, no key): every exercise since 2010.
   datagov_coe: "https://data.gov.sg/api/action/datastore_search"
+  # LTA's schedule of every bidding exercise in the year (holidays included). The 2027 file is not published yet.
+  coe_schedule_pdf: "https://onemotoring.lta.gov.sg/content/dam/onemotoring/Buying/PDF/COE/COE_Bidding_Schedule_for_Year_{year}.pdf"
+  lta_news_feed: "https://www.lta.gov.sg/content/ltagov/en/feed.html?category=2&count=60"
   datagov_coe_page: "https://data.gov.sg/datasets/d_69b3380ad7e51aff3a7dcc84eba52b8a/view"
   datagov_coe_resource: "d_69b3380ad7e51aff3a7dcc84eba52b8a"
   fuel_price: "https://www.motorist.sg/petrol-prices"
@@ -220,9 +234,21 @@ coe:
     demand_ratio: 1.2
     history_exercises: 30
     verified_on: "2026-10-07"
-  # Bidding opens Monday 12:00 and closes Wednesday 16:00 (3 working days, so a public holiday in the week
-  # pushes the close later). Source: LTA OneMotoring COE page, checked 2026-10-07.
+  # Fallback when LTA's schedule PDF cannot be read: bidding opens Monday 12:00 and closes Wednesday 16:00
+  # (3 working days, so a public holiday in the week pushes the close later). Checked 2026-10-07.
   bidding: {opens: "12:00", closes: "16:00"}
+  # Dated events that move COE demand, shown under the forecast while they are within `horizon_days`.
+  # Sources: LTA release 2025-09-08 (EEAI), LTA quota releases 2026-01-22, 04-24, 07-24 (about the 22nd to 24th
+  # of Jan, Apr, Jul and Oct). Checked 2026-10-07.
+  watch:
+    horizon_days: 75
+    events:
+      - {date: "2026-10-22", text: "Nov to Jan quota due, about 22 to 24 Oct"}
+      - {date: "2026-10-22", text: "The Car Expo to 24 Oct, dealers stock COEs"}
+      - {date: "2026-12-31", text: "EEAI rebate (up to $7,500) ends, so Nov and Dec buying tends to rise"}
+  # Live bidding capture: from the opening time to the close, save the LTA page every poll_minutes so the
+  # live layout can be studied. Nothing from it is stored as a result.
+  live_capture: {enabled: true, poll_minutes: 30}
 
 top_sellers:
   # Brands shown, ranked by new registrations this year. LTA does not publish models.

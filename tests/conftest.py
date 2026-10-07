@@ -14,6 +14,9 @@ def no_real_env(monkeypatch):
     monkeypatch.setattr("settings.load_dotenv", lambda *a, **k: None)
     # The container sets VAULT_DIR to the live Obsidian vault; tests (run by heal.py there) must not write to it.
     monkeypatch.delenv("VAULT_DIR", raising=False)
+    # The schedule PDF is fetched once per process in production; tests use the rule unless they load a schedule themselves.
+    monkeypatch.setattr("scrapers.coe.ensure_schedule", lambda *a, **k: None)
+    monkeypatch.setattr("pipeline.ensure_schedule", lambda *a, **k: None, raising=False)
 
 
 @pytest.fixture

@@ -19,7 +19,7 @@ from filters import shortlist, tagged
 from models import CoeResult, CostBreakdown, Drivetrain, NewEvVariant, ReportSection, UsedListing
 from scrapers.base import ScraperUnavailable
 from coe_forecast import bidding_window, forecast, price_forecast
-from scrapers.coe import DataGovCoeScraper, next_tender_date, scrape_coe
+from scrapers.coe import DataGovCoeScraper, ensure_schedule, next_tender_date, scrape_coe
 from scrapers.fuel_cnergy import scrape_cnergy
 from scrapers.fuel_price import pick_price, scrape_fuel_price
 from scrapers.registrations import scrape_body_types, scrape_registrations
@@ -106,6 +106,7 @@ class Pipeline:
         return self._registrations
 
     def run_coe(self) -> None:
+        ensure_schedule(self.cfg, self.ua, self.run_date)
         try:
             results = scrape_coe(self.cfg, self.ua, self.run_date, self.force)
             self.db.upsert_coe_results(results)
@@ -127,8 +128,11 @@ class Pipeline:
             return
         scraper = DataGovCoeScraper(self.cfg, self.ua, self.run_date, self.force)
         try:
+            self.db.drop_coe_source(scraper.name)  # rebuilt from the official history, so a date fixed by the schedule never doubles
             have = self.db.coe_keys()
-            self.db.upsert_coe_results(r for r in scraper.history(fc["history_exercises"]) if (r.tender_date.isoformat(), r.category.value) not in have)
+            rows = scraper.history(fc["history_exercises"])
+            self.db.upsert_coe_results(r for r in rows if (r.tender_date.isoformat(), r.category.value) not in have)
+            self.db.fill_coe_details(r for r in rows if (r.tender_date.isoformat(), r.category.value) in have)
         except Exception as exc:
             log.warning("COE history backfill failed: %s", exc)
         finally:
@@ -153,6 +157,13 @@ class Pipeline:
         if nxt < self.run_date:  # stored tender is stale; results due today still count as next
             nxt = next_tender_date(self.run_date - timedelta(days=1), weeks, coe["results_weekday"])
         return nxt
+
+    def coe_events(self) -> list[tuple[date, str]]:
+        """Dated events from config.yaml `coe.watch` that fall within the horizon, soonest first."""
+        watch = self.cfg["coe"].get("watch", {})
+        horizon = self.run_date + timedelta(days=int(watch.get("horizon_days", 60)))
+        found = [(date.fromisoformat(str(e["date"])), e["text"]) for e in watch.get("events", [])]
+        return sorted(e for e in found if self.run_date <= e[0] <= horizon)
 
     def run_used(self) -> None:
         for name, cls in USED_SCRAPERS.items():
@@ -254,7 +265,7 @@ class Pipeline:
                 pct = delta / prev * 100 if prev else None
             rows.append({
                 "category": r.category.value, "premium": r.quota_premium, "delta": delta, "delta_pct": pct,
-                "history": [h.quota_premium for h in history], "bids": r.bids_received, "quota": r.quota,
+                "history": [h.quota_premium for h in history], "bids": r.bids_received, "quota": r.quota, "successful": r.bids_successful,
             })
         latest = self.coe_latest[0]
         nxt = self.next_tender()
@@ -262,7 +273,7 @@ class Pipeline:
         src_key = {"onemotoring": "onemotoring_coe", "sgcarmart": "sgcarmart_coe_results", "motorist": "motorist_coe", "datagov": "datagov_coe_page"}.get(latest.source, "onemotoring_coe")
         bids = bidding_window(nxt, self.cfg) if self.coe_forecasts else None
         section = report.coe_section(latest.tender_date, latest.exercise, rows, nxt, self.cfg["sources"][src_key],
-                                     forecasts=self.coe_forecasts, window=bids)
+                                     forecasts=self.coe_forecasts, window=bids, events=self.coe_events())
         if "coe" in self.unavailable:
             section.html += "\n\nLive fetch failed today, showing the last stored tender."
         return section

@@ -33,6 +33,8 @@ class Harness:
         cfg["general"]["db_path"] = "data/cars.db"
         cfg["general"]["cache_dir"] = "data/cache"
         cfg["self_heal"]["enabled"] = True
+        cfg.pop("news", None)                            # these tests count the report and repair spawns only
+        cfg["coe"]["live_capture"]["enabled"] = False
         self.now = datetime(2026, 9, 30, 7, 0, tzinfo=SG)
         self.spawned: list[tuple[str, FakeProc]] = []
         self.alerts: list[str] = []
@@ -314,3 +316,31 @@ def test_real_child_process_tree_is_killed(tmp_path):
     kill_tree(proc)
     proc.wait(timeout=10)
     assert proc.returncode is not None
+
+
+def test_periodic_jobs_run_news_in_its_window_and_capture_only_while_bidding(cfg, tmp_path):
+    from scrapers.coe import SCHEDULE, parse_schedule
+
+    SCHEDULE.update(parse_schedule((Path(__file__).resolve().parent.parent / "fixtures" / "coe_schedule_2026.txt").read_text()))
+    try:
+        h = Harness(cfg, tmp_path)
+        cfg["news"] = {"interval_minutes": 180, "window": ["08:00", "22:00"], "keywords": ["coe"]}
+        cfg["coe"]["live_capture"] = {"enabled": True, "poll_minutes": 30}
+        h.sup.cfg = cfg
+        scripts = lambda: [s for s, _ in h.spawned if s in ("news_watch.py", "bid_capture.py")]
+        h.at(7, 0, day=30)
+        assert scripts() == []                                   # before the news window, no bidding that day
+        h.at(8, 0, day=30)
+        assert scripts() == ["news_watch.py"]
+        for _, p in h.spawned:
+            p.code = 0
+        h.at(9, 0, day=30)
+        assert scripts() == ["news_watch.py"]                    # not due again for 3 hours
+        h.now = datetime(2026, 10, 19, 11, 59, tzinfo=SG)        # a minute before the October 2nd exercise opens
+        h.sup.tick()
+        assert "bid_capture.py" not in scripts()
+        h.now = datetime(2026, 10, 19, 12, 0, tzinfo=SG)
+        h.sup.tick()
+        assert "bid_capture.py" in scripts()
+    finally:
+        SCHEDULE.clear()

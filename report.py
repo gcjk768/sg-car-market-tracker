@@ -35,6 +35,7 @@ from telegram_bot import (
 SECTION_TITLES = {
     "summary": "🚗 SG car market daily",
     "coe": "🎫 COE position",
+    "news": "📰 LTA news",
     "new_ev": "⚡ Best Selling Top EV",
     # Used when LTA's registrations cannot be read and the list falls back to value order.
     "new_ev_value": "⚡ New EV Car Best Value list",
@@ -117,39 +118,56 @@ def coe_section(
     source_url: str | None = None,
     forecasts: dict[str, Any] | None = None,
     window: tuple[Any, Any] | None = None,
+    events: Sequence[tuple[date, str]] = (),
 ) -> ReportSection:
-    """rows: dicts with category, premium, delta, delta_pct, history (oldest first), bids, quota.
-    forecasts: {category: coe_forecast.Forecast}; window: (bidding opens, closes) of the next tender."""
-    rows = list(rows)
-    blocks = [
-        f"{coe_dot(r.get('delta'))} <b>Cat {escape(r['category'])}</b> · {fmt_money(r['premium'], '$')}  {fmt_delta(r.get('delta'), r.get('delta_pct'))}\n"
-        f"🧾 {fmt_int(r.get('bids'))} bids for {fmt_int(r.get('quota'))} quota"
-        for r in rows
-    ]
-    subtitle = f"{tender_date.day} {tender_date.strftime('%b %Y')} tender"
-    exercise = escape(exercise.replace(f" {tender_date.year}", ""))
-    footer = [f"📅 Next results expected {next_tender.strftime('%a %d %b %Y')}" if next_tender else "",
-              source_links(("COE results", source_url))]
-    parts = [f"<i>{exercise}</i>"] + blocks
-    if forecasts and next_tender:
-        lines = [f"{DIVIDER}\n🔮 <b>Forecast</b> · {next_tender.day} {next_tender.strftime('%b')} tender"]
-        if window:
-            lines.append(f"⏰ Bidding opens {window[0]:%a %d %b %H:%M}, closes {window[1]:%a %d %b %H:%M}, results soon after")
-        parts.append("\n".join(lines))
-        parts += [
-            f"{coe_dot(f.point - f.last)} <b>Cat {escape(r['category'])}</b> · ~{fmt_money(f.point, '$')}\n"
-            f"📊 Range {fmt_money(f.low, '$')} to {fmt_money(f.high, '$')}"
-            for r in rows for f in [forecasts.get(r["category"])] if f
-        ]
-        parts.append(note(escape("COE premiums move almost like a random walk. The estimate is the last premium nudged a quarter"
-                                 " of a typical move toward recent momentum and demand, and the range is one typical move."
-                                 " Backtested on LTA history it misses by 1 to 4 percent less than no change at all. A range, not a call.")))
-    parts.append("\n".join(f for f in footer if f))
+    """One block per category: result, bids, and the forecast for the next tender when there is one.
+    rows: dicts with category, premium, delta, delta_pct, bids, successful, quota.
+    forecasts: {category: coe_forecast.Forecast}; window: (bidding opens, closes) of the next tender;
+    events: dated things that move demand, soonest first."""
+    forecasts = forecasts or {}
+
+    def block(r: dict[str, Any]) -> str:
+        lines = [f"{coe_dot(r.get('delta'))} <b>Cat {escape(r['category'])}</b> · {fmt_money(r['premium'], '$')}  {fmt_delta(r.get('delta'), r.get('delta_pct'))}"]
+        bids = dot(f"{fmt_int(r.get('bids'))} bids", f"{fmt_int(r.get('quota'))} quota",
+                   f"{fmt_int(r['bids'] - r['successful'])} failed" if r.get("bids") and r.get("successful") is not None else None)
+        lines.append(f"🧾 {bids}")
+        f = forecasts.get(r["category"])
+        if f:
+            lines.append("🔮 " + dot(f"Next ~{fmt_money(round(f.point, -2), '$')}", f"{fmt_money(round(f.low, -2), '$')} to {fmt_money(round(f.high, -2), '$')}"))
+        return "\n".join(lines)
+
+    parts = [f"<i>{escape(exercise.replace(f' {tender_date.year}', ''))}</i>"] + [block(r) for r in rows]
+    when = []
+    if next_tender:
+        when.append(f"📅 Next results {next_tender.strftime('%a %d %b')}"
+                    + (f", bidding {window[0]:%a %d %b %H:%M} to {window[1]:%a %H:%M}" if window else ""))
+    when += [f"• {d.day} {d.strftime('%b')} · {escape(text)}" for d, text in events]
+    if when:
+        parts.append(f"{DIVIDER}\n" + "\n".join(when))
+    if forecasts:
+        parts.append(note(escape("The forecast is the last premium nudged a quarter of a typical move toward momentum and demand,"
+                                 " with a range of one typical move. COE moves almost like a random walk, and backtested on LTA"
+                                 " history this misses 1 to 4 percent less than no change. A range, not a call.")))
+    parts.append(source_links(("COE results", source_url)))
     return ReportSection(
         key="coe",
         title=SECTION_TITLES["coe"],
-        html=build_section(SECTION_TITLES["coe"], parts, subtitle),
+        html=build_section(SECTION_TITLES["coe"], parts, f"{tender_date.day} {tender_date.strftime('%b %Y')} tender"),
     )
+
+
+NEWS_EMOJI = (("coe|quota|certificate of entitlement", "🎫"), ("parf|arf|ves|eeai|road tax|erp|rebate|loan", "💸"))
+
+
+def news_section(items: Sequence[Any]) -> ReportSection:
+    """New LTA releases: one block each, with a one line summary and a link."""
+    blocks = []
+    for i in items:
+        emoji = next((e for rx, e in NEWS_EMOJI if re.search(rf"\b({rx})", i.title.lower())), "📰")
+        summary = i.summary if len(i.summary) <= 200 else i.summary[:197].rsplit(" ", 1)[0] + "..."
+        blocks.append(f"{emoji} <b>{escape(i.title)}</b>\n📅 {escape(i.published)}\n{escape(summary)}\n🌐 <a href=\"{html_lib.escape(i.link, quote=True)}\">Read the release</a>")
+    title = SECTION_TITLES["news"]
+    return ReportSection(key="news", title=title, html=build_section(title, blocks, f"{len(items)} new"))
 
 
 # Section 3: new EVs
@@ -352,12 +370,18 @@ def top_sellers_section(makes: dict[str, dict[str, int]], months: Sequence[str],
     ev_blocks = []
     for n, make, count, share in ranked("ev"):
         lines = [f"🔌 <b>{n}. {escape(brand_name(make))}</b> · {fmt_int(count)} registered · {share:.1f}%"]
+        unpriced = []
         for model in lineup(models.get(make)):
             price = prices.get(make, {}).get(model)
             fin = _fin(cfg, price, None, True)
-            lines.append("🚗 " + dot(model, fmt_money(price, "$") if price else None,
+            if not price:
+                unpriced.append(escape(model))
+                continue
+            lines.append("🚗 " + dot(model, fmt_money(price, "$"),
                                     f"{fmt_money(fin.deposit, '$')} down" if fin else None,
                                     f"{fmt_money(fin.monthly, '$')}/mth" if fin else None))
+        if unpriced:
+            lines.append("🚗 " + " · ".join(unpriced) + " <i>(no price today)</i>")
         ev_blocks.append("\n".join(lines))
     petrol = ranked("petrol")
     petrol_pool = sum(m.get("petrol", 0) for m in makes.values())
