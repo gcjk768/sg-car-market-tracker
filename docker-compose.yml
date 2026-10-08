@@ -1,5 +1,6 @@
 services:
   sg-car-scraper:
+    networks: [default, scrape-net]   # shared Playwright server ws://playwright:3000/
     build:
       context: .
       args:
@@ -49,3 +50,7 @@ services:
     # Chromium plus a self repair (the Claude CLI, the tests and a dry run). Caps a runaway page
     # so the NAS keeps its RAM.
     mem_limit: 2g
+
+networks:
+  scrape-net:
+    external: true
