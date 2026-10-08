@@ -25,6 +25,7 @@ services:
     stop_grace_period: 30s
     env_file: .env
     environment:
+      PLAYWRIGHT_WS_URL: ws://playwright:3000/
       TZ: Asia/Singapore
       # The Claude CLI keeps its login here. It is a host volume below, so signing in once
       # from the container terminal survives restarts and rebuilds.
