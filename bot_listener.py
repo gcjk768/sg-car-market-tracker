@@ -107,6 +107,7 @@ def parse_update(u: dict, chat_id: str, thread_id: int | None) -> tuple[str, str
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # its request lines carry the bot token in the URL
     cfg = load_config()
     secrets = load_secrets()
     client = TelegramClient(
