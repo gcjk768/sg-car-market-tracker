@@ -453,6 +453,9 @@ def main(argv: list[str] | None = None) -> int:
     res = cfg.get("resilience", {})
     setup_logging(PROJECT_ROOT / cfg["general"]["log_dir"], res.get("log_max_mb", 5), res.get("log_backups", 5),
                   filename="scheduler.log")
+    import vault
+
+    vault.event("🟢", "scheduler started")  # also moves any flat Activity notes into YYYY/MM/
     sup = Supervisor(cfg, PROJECT_ROOT, listener=os.getenv("RUN_LISTENER") == "1")
 
     def stop(signum, frame):  # docker stop sends SIGTERM

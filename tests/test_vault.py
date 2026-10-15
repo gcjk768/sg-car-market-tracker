@@ -38,13 +38,31 @@ def test_event_appends_to_todays_note(vdir):
     when = datetime(2026, 10, 2, 8, 0, tzinfo=vault.SGT)
     vault.event("▶️", "run started", "section all", when=when)
     vault.event("✅", "report sent", "9 messages", when=when)
-    note = vdir / "Activity" / "2026-10-02.md"
+    note = vdir / "Activity" / "2026" / "10" / "2026-10-02.md"
     text = note.read_text(encoding="utf-8")
     assert text.startswith("---\ntags: [active]\nupdated: 2026-10-02\n---\n# Activity 2026-10-02")
     lines = [ln for ln in text.splitlines() if ln.startswith("- ")]
     assert lines == ["- 08:00 ▶️ **run started** · section all", "- 08:00 ✅ **report sent** · 9 messages"]
     assert all(LINE.match(ln) for ln in lines)
     assert (vdir / "Home.md").exists() and (vdir / "Cars").is_dir() and (vdir / "COE").is_dir()
+
+
+def test_flat_activity_notes_are_moved_into_year_month_folders(vdir):
+    flat = vdir / "Activity"
+    flat.mkdir(parents=True)
+    (flat / "2026-10-02.md").write_text("old note\n", encoding="utf-8")
+    (flat / "2026-09-30 extra.md").write_text("extra\n", encoding="utf-8")
+    kept = vdir / "Activity" / "2026" / "10" / "2026-10-03.md"
+    kept.parent.mkdir(parents=True)
+    kept.write_text("already there\n", encoding="utf-8")
+    (flat / "2026-10-03.md").write_text("clash\n", encoding="utf-8")
+    vault.event("▶️", "run started", when=datetime(2026, 10, 15, 8, 0, tzinfo=vault.SGT))
+    assert (flat / "2026" / "10" / "2026-10-02.md").read_text(encoding="utf-8") == "old note\n"
+    assert (flat / "2026" / "09" / "2026-09-30 extra.md").read_text(encoding="utf-8") == "extra\n"
+    assert kept.read_text(encoding="utf-8") == "already there\n" and (flat / "2026-10-03.md").exists()  # never overwritten
+    assert sorted(p.name for p in flat.glob("*.md")) == ["2026-10-03.md"]
+    assert (flat / "2026" / "10" / "2026-10-15.md").exists()
+    assert (flat / "2026" / "09").stat().st_mode & 0o777 == 0o775  # folder the migration made
 
 
 def test_disabled_without_vault_dir(tmp_path, monkeypatch):
@@ -67,7 +85,7 @@ def test_car_note_price_history_is_append_only(vdir):
     vault.track_car(car(price=116800), date(2026, 10, 5))
     assert history(note) == ["- 2026-10-02 🆕 listed at $118,800", "- 2026-10-04 🟢 price $115,800 (-$3,000)",
                              "- 2026-10-05 🔴 price $116,800 (+$1,000)"]
-    activity = (vdir / "Activity").glob("*.md")
+    activity = (vdir / "Activity").rglob("*.md")
     lines = [ln for f in activity for ln in f.read_text(encoding="utf-8").splitlines() if ln.startswith("- ")]
     assert any("**new listing**" in ln and "[[BYD Atto 3 2023 — sgcarmart 1234567]]" in ln for ln in lines)
     assert any("**price drop** · BYD Atto 3 $118,800 to $115,800" in ln for ln in lines)
@@ -77,7 +95,7 @@ def test_listing_seen_before_the_vault_is_tracked_without_a_new_alert(vdir):
     vault.track_car(car(first_seen=date(2026, 9, 20)), TODAY)
     note = next((vdir / "Cars").glob("*.md"))
     assert history(note) == ["- 2026-10-02 📌 tracking at $118,800, first seen 2026-09-20"]
-    assert not list((vdir / "Activity").glob("*.md"))
+    assert not list((vdir / "Activity").rglob("*.md"))
 
 
 def test_reported_once_unless_price_changes(vdir):
@@ -118,7 +136,7 @@ def test_coe_history_written_once_per_tender(vdir):
 
 def test_memory_is_capped_newest_first_and_has_the_car(vdir):
     for i in range(400):
-        vault.event("🔎", "scraped sgcarmart ev", f"run {i:03d}", when=datetime(2026, 10, 2, 8, 0, tzinfo=vault.SGT))
+        vault.event("🔎", "scraped sgcarmart ev", f"run {i:03d}")  # today: memory() reads the last 7 days
     vault.track_car(car(), TODAY)
     vault.track_car(car(price=115800), TODAY)
     mem = vault.memory(cars=[car()], chars=vault.MEMORY_CHARS)
@@ -152,8 +170,8 @@ def test_memory_reaches_the_prompts(vdir, cfg, monkeypatch, tmp_path):
     assert ask_text("Is the BYD Atto 3 a good buy?", cfg) == "Fine."
     assert "listed at $118,800" in calls[1]["args"][2]
     assert calls[1]["input"] == "Used EV"  # the report is still the whole standard input
-    assert "**/ask** · Is the BYD Atto 3 a good buy? · answered" in (vdir / "Activity").joinpath(
-        f"{vault.now_sgt():%Y-%m-%d}.md").read_text(encoding="utf-8")
+    assert "**/ask** · Is the BYD Atto 3 a good buy? · answered" in vault._activity_path(
+        vdir, vault.now_sgt().date()).read_text(encoding="utf-8")
 
 
 def test_vault_errors_never_raise(tmp_path, monkeypatch):

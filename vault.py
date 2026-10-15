@@ -1,6 +1,6 @@
 """Obsidian vault on the NAS: the tracker's movement log and memory.
 
-WRITE: one line per event in Activity/YYYY-MM-DD.md (`- HH:MM emoji **what** · detail · [[note]]`,
+WRITE: one line per event in Activity/YYYY/MM/YYYY-MM-DD.md (`- HH:MM emoji **what** · detail · [[note]]`,
 SGT), one note per tracked used listing in Cars/ and one per COE category in COE/, each with an
 append only `## History`.
 
@@ -42,7 +42,7 @@ Movement log and memory of the SG car tracker (Telegram topic "SG EV Car Tracker
 here and reads it back before each AI note and /ask answer. Edit freely; History sections are
 append only.
 
-* `Activity/`: one note per day, one line per event (runs, new and gone listings, price moves,
+* `Activity/YYYY/MM/`: one note per day, one line per event (runs, new and gone listings, price moves,
   COE results, reports, commands, self repairs).
 * `Cars/`: one note per tracked used listing, `Make Model year — source id`, with its price History.
 * `COE/`: one note per category with the bidding History.
@@ -91,13 +91,28 @@ def _perms(path: Path, top: Path) -> None:
         pass
 
 
+def _mkdir(path: Path, top: Path) -> None:
+    """mkdir -p below the vault, 775 on each new folder."""
+    if not path.exists():
+        _mkdir(path.parent, top)
+        path.mkdir()
+        _perms(path, top)
+
+
+def _activity_path(top: Path, day: date) -> Path:
+    return top / "Activity" / f"{day:%Y}" / f"{day:%m}" / f"{day:%Y-%m-%d}.md"
+
+
 def _ensure(top: Path) -> None:
     top.mkdir(parents=True, exist_ok=True)
     for d in ("Activity", "Cars", "COE"):
-        p = top / d
-        if not p.exists():
-            p.mkdir()
-            _perms(p, top)
+        _mkdir(top / d, top)
+    for f in (top / "Activity").glob("????-??-??*.md"):  # flat notes from before 2026-10-15: move, never delete
+        dest = top / "Activity" / f.name[:4] / f.name[5:7] / f.name
+        _mkdir(dest.parent, top)
+        if not dest.exists():
+            f.rename(dest)
+            log.info("vault: moved Activity/%s to Activity/%s/%s/", f.name, f.name[:4], f.name[5:7])
     home = top / "Home.md"
     if not home.exists():
         _write(home, HOME.format(today=now_sgt().date().isoformat()), top)
@@ -147,7 +162,8 @@ def event(emoji: str, what: str, detail: str = "", link: str | None = None, when
         return
     when = when or now_sgt()
     _ensure(top)
-    path = top / "Activity" / f"{when:%Y-%m-%d}.md"
+    path = _activity_path(top, when)
+    _mkdir(path.parent, top)
     new = not path.exists()
     with path.open("a", encoding="utf-8") as fh:
         if new:
@@ -351,9 +367,8 @@ def memory(cars: Iterable = (), query: str = "", chars: int = MEMORY_CHARS, days
         on_market = f", first seen {first}" if first else ""
         out.append(f"{p.stem}{on_market}:")
         out += list(reversed(_history(p)))
-    act = top / "Activity"
     for i in range(days):
-        f = act / f"{today - timedelta(days=i)}.md"
+        f = _activity_path(top, today - timedelta(days=i))
         if f.exists():
             lines = [ln for ln in f.read_text(encoding="utf-8").splitlines() if ln.startswith("- ")]
             out.append(f"Activity {f.stem}:")
