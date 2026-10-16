@@ -39,11 +39,13 @@ def _db(tmp_path):
     db.upsert_used_listings([good, van], TODAY)
     db.upsert_new_cars([
         NewCarVariant(make="Toyota", model="Corolla Altis", variant="1.6 Elegance", fuel="petrol", price_with_coe=168888, power_kw=90,
-                      engine_cc=1600, listing_url="https://x/altis", source="t"),
+                      engine_cc=1600, popularity=40, listing_url="https://x/altis", source="t"),
         NewCarVariant(make="BMW", model="X5", variant="xDrive40i 3.0", fuel="petrol", price_with_coe=420000, power_kw=250,
                       engine_cc=3000, listing_url="https://x/x5", source="t"),
         NewCarVariant(make="BYD", model="Atto 3 Electric", variant="Evo", fuel="ev", price_with_coe=184888, power_kw=150,
-                      listing_url="https://x/a3", source="t"),     # already on the EV price list: left out
+                      popularity=10, listing_url="https://x/a3", source="t"),
+        NewCarVariant(make="BYD", model="Dolphin Electric", variant="Dynamic", fuel="ev", price_with_coe=170000, power_kw=70,
+                      popularity=25, listing_url="https://x/dolphin", source="t"),     # already on the EV price list: left out
     ], TODAY)
     db.upsert_fuel_price(FuelPrice(observed_on=TODAY, ron95_per_litre=3.57, by_brand={"SPC": 3.53, "Shell": 3.57},
                                    grades={"SPC": {"95": 3.53}}, source="https://x"))
@@ -72,7 +74,7 @@ def test_build_has_every_car_with_costs_and_flags(cfg, tmp_path, offline):
     db = _db(tmp_path)
     data = site.build(cfg, db, TODAY, "ua")
     json.dumps(data)   # plain types only
-    assert data["stats"] == {"new_ev_variants": 3, "new_ev_brands": 3, "new_car_variants": 2, "new_car_models": 2, "used_active": 2, "used_passing": 1,
+    assert data["stats"] == {"new_ev_variants": 3, "new_ev_brands": 3, "new_car_variants": 3, "new_car_models": 3, "used_active": 2, "used_passing": 1,
                              "new_today": 0, "drops": 1, "gone": 0}   # first seen yesterday
     atto = next(c for c in data["new_evs"] if c["model"] == "Atto 3")
     assert atto["body"] == "SUV" and atto["cat"] == "A" and atto["finance"]["deposit"] == 73955
@@ -89,9 +91,15 @@ def test_build_has_every_car_with_costs_and_flags(cfg, tmp_path, offline):
     assert data["coe"]["rows"][0]["forecast"]["low"] < data["coe"]["rows"][0]["forecast"]["point"]
     assert data["coe"]["next_results"] > TODAY.isoformat() and data["coe"]["bidding_opens"] < data["coe"]["bidding_closes"]
     assert data["fuel"]["ron95"] == 3.57
-    x5, altis = data["new_cars"]   # sorted by make
+    by_model = {c["model"]: c for c in data["new_cars"]}
+    x5, altis = by_model["X5"], by_model["Corolla Altis"]
+    assert by_model["Dolphin Electric"]["fuel"] == "ev"   # not on the EV price list, so the full list supplies it
     assert altis["cat"] == "A" and altis["fuel"] == "petrol" and altis["body"] == "Sedan" and altis["annual"]["energy"] > 3000
     move = {r["cat"]: r["forecast"]["point"] - r["premium"] for r in data["coe"]["rows"]}
+    # Sgcarmart's popularity rank reaches every card: the full list's own, the EV list's by model name, used cars by model
+    assert altis["popularity"] == 40 and x5["popularity"] is None
+    assert atto["popularity"] == 10 and zeekr["popularity"] is None
+    assert dolphin["popularity"] == 25 and van["popularity"] is None
     assert x5["cat"] == "B" and x5["price_next"][1] == 420000 + move["B"] and altis["price_next"][1] == 168888 + move["A"]
     assert [p["label"] for p in data["costs"]["picks"]] == ["New EV", "Used EV"]   # the van never reaches the ICE pick
     assert data["brands"] == {} and data["bikes"]["classes"] == {}
@@ -106,3 +114,18 @@ def test_write_is_atomic_and_publish_never_raises(cfg, tmp_path, offline, monkey
     assert site.publish(cfg, _db(tmp_path), TODAY, "ua") == out
     monkeypatch.setattr(site, "build", lambda *a, **k: 1 / 0)
     assert site.publish(cfg, _db(tmp_path), TODAY, "ua") is None   # logged, the report goes on
+
+
+def test_popularity_lookup_matches_spellings_and_whole_words():
+    pop = site.Popularity([
+        NewCarVariant(make="BYD", model="Seal Electric", fuel="ev", price_with_coe=1, popularity=30, listing_url="u", source="t"),
+        NewCarVariant(make="BYD", model="Seal 6 Electric", fuel="ev", price_with_coe=1, popularity=17, listing_url="u", source="t"),
+        NewCarVariant(make="Mercedes-Benz", model="GLB Mild Hybrid", fuel="hybrid", price_with_coe=1, popularity=30, listing_url="u", source="t"),
+        NewCarVariant(make="Mercedes-Benz", model="GLB Electric", fuel="ev", price_with_coe=1, popularity=39, listing_url="u", source="t"),
+    ])
+    assert pop.of("BYD", "Seal 6") == 17 and pop.of("BYD", "SEAL") == 30 and pop.of("byd", "Seal 6 Premium") == 17
+    assert pop.of("BYD", "Sealion 7") is None          # "Seal" is not a word prefix of "Sealion"
+    # fuel words go, so GLB Electric and GLB Mild Hybrid are one family and share its best rank
+    assert pop.of("Mercedes BENZ", "GLB") == 30 and pop.of("Mercedes-Benz", "GLB Mild Hybrid 200") == 30
+    assert pop.of("MG", "S6 EV") is None and pop.of("BYD", "Seal 6 Electric") == 17
+    assert pop.of("Mercedes-Benz", "") is None          # a bare make never takes a rank

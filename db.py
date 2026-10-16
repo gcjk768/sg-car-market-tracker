@@ -123,10 +123,13 @@ CREATE TABLE IF NOT EXISTS new_car_prices (
     price_change INTEGER,
     price_change_on TEXT,
     launch_date TEXT,
-    model_id INTEGER,
+    model_id INTEGER NOT NULL DEFAULT 0,
+    popularity INTEGER,
+    best_list TEXT,
+    best_pos INTEGER,
     listing_url TEXT NOT NULL,
     scraped_at TEXT NOT NULL,
-    PRIMARY KEY (scraped_on, source, make, model, variant)
+    PRIMARY KEY (scraped_on, source, model_id, make, model, variant)
 );
 """
 
@@ -151,6 +154,22 @@ class Database:
             self.conn.execute("ALTER TABLE fuel_prices ADD COLUMN grades TEXT NOT NULL DEFAULT '{}'")
         except sqlite3.OperationalError:
             pass  # already there
+        self._migrate_new_car_prices()
+
+    def _migrate_new_car_prices(self) -> None:
+        """Rebuild new_car_prices from the first schema, whose key had no model_id: Sgcarmart lists two Toyota
+        "Noah Hybrid" models with a "1.8 Elegance" each, and the second overwrote the first. Rows keep."""
+        pk = [r["name"] for r in self.conn.execute("PRAGMA table_info(new_car_prices)") if r["pk"]]
+        if "model_id" in pk:
+            return
+        cols = [r["name"] for r in self.conn.execute("PRAGMA table_info(new_car_prices)")]
+        keep = [c for c in cols if c not in ("popularity", "best_list", "best_pos")]
+        with self.tx() as c:
+            c.execute("ALTER TABLE new_car_prices RENAME TO new_car_prices_old")
+            c.executescript(SCHEMA[SCHEMA.index("CREATE TABLE IF NOT EXISTS new_car_prices"):])
+            select = ", ".join("COALESCE(model_id, 0)" if k == "model_id" else k for k in keep)
+            c.execute(f"INSERT OR IGNORE INTO new_car_prices ({', '.join(keep)}) SELECT {select} FROM new_car_prices_old")
+            c.execute("DROP TABLE new_car_prices_old")
 
     def close(self) -> None:
         self.conn.close()
@@ -295,18 +314,21 @@ class Database:
     # New cars, the full Sgcarmart listing (website only)
 
     def upsert_new_cars(self, variants: Iterable[NewCarVariant], scraped_on: date) -> int:
+        """Replace the day's list: a re-run's ranks never mix with an earlier run's."""
         n = 0
         with self.tx() as c:
+            c.execute("DELETE FROM new_car_prices WHERE scraped_on = ?", (scraped_on.isoformat(),))
             for v in variants:
                 c.execute(
                     """INSERT OR REPLACE INTO new_car_prices
                        (scraped_on, source, make, model, variant, fuel, price_with_coe, price_includes_coe, power_kw,
                         engine_cc, fuel_economy, transmission, price_change, price_change_on, launch_date, model_id,
-                        listing_url, scraped_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        popularity, best_list, best_pos, listing_url, scraped_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (scraped_on.isoformat(), v.source, v.make, v.model, v.variant, v.fuel, v.price_with_coe,
                      int(v.price_includes_coe), v.power_kw, v.engine_cc, v.fuel_economy, v.transmission, v.price_change,
-                     v.price_change_on, v.launch_date, v.model_id, v.listing_url, v.scraped_at.isoformat(timespec="seconds")),
+                     v.price_change_on, v.launch_date, v.model_id or 0, v.popularity, v.best_list, v.best_pos, v.listing_url,
+                     v.scraped_at.isoformat(timespec="seconds")),
                 )
                 n += 1
         return n
@@ -318,6 +340,7 @@ class Database:
             d = dict(r)
             d.pop("scraped_on")
             d["price_includes_coe"] = bool(d["price_includes_coe"])
+            d["model_id"] = d["model_id"] or None
             out.append(NewCarVariant(**d))
         return out
 

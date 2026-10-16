@@ -6,6 +6,14 @@ transmission. `?page=N` on the search URL pages server side (checked 2026-10-17)
 about 38 pages at the site's 30 second crawl delay, once a day, cached. No model page is opened. The
 electric models are here too, but the EV scraper's model pages carry range and battery, so the site
 prefers those.
+
+The listing's default order is Sgcarmart's popularity order: its Cat A and Cat B best seller lists appear
+in the same order, the parallel import list nearly so (checked 2026-10-17). Each model's position, counting
+every model once and skipping paid spotlight slots, is stored as `popularity` (1 is the most popular).
+
+Sgcarmart also publishes three short best seller lists (`sources.sgcarmart_best_sellers`: Cat A, Cat B and
+parallel imports, 8 models each). One more page a day; each model on them gets `best_list` and `best_pos`,
+and the website puts them first.
 """
 from __future__ import annotations
 
@@ -43,6 +51,45 @@ def parse_search_list(html: str) -> list[dict[str, Any]]:
     if k < 0:
         return []
     k += len(key)
+    depth = 0
+    for j in range(k, len(text)):
+        if text[j] == "[":
+            depth += 1
+        elif text[j] == "]":
+            depth -= 1
+            if depth == 0:
+                return json.loads(text[k:j + 1])
+    return []
+
+
+BEST_LISTS = (("catACoeCarList", "Cat A"), ("catBCoeCarList", "Cat B"), ("piCarList", "Parallel import"))
+
+
+def parse_best_sellers(html: str) -> dict[Any, tuple[str, int]]:
+    """{model id: (list name, position from 1)} from the best seller page's payload. A model on two lists
+    keeps the better position."""
+    text = _payload_text_with(html, "catACoeCarList")
+    out: dict[Any, tuple[str, int]] = {}
+    for key, name in BEST_LISTS:
+        k = text.find(f'"{key}":')
+        if k < 0:
+            continue
+        for pos, m in enumerate(_json_array(text, k + len(key) + 3), start=1):
+            mid = m.get("id") or (m.get("make"), m.get("model"))
+            if mid not in out or pos < out[mid][1]:
+                out[mid] = (name, pos)
+    return out
+
+
+def _payload_text_with(html: str, marker: str) -> str:
+    for m in CHUNK.finditer(html):
+        if marker in m.group(1):
+            return json.loads('"' + m.group(1) + '"')
+    return ""
+
+
+def _json_array(text: str, k: int) -> list[dict[str, Any]]:
+    """The JSON array that starts at text[k]."""
     depth = 0
     for j in range(k, len(text)):
         if text[j] == "[":
@@ -92,8 +139,33 @@ class SgcarmartNewCarScraper(BaseScraper):
         self.exclude_models = cfg["used"]["filters"].get("exclude_models", []) + self.ncfg.get("exclude_models", [])
 
     def parse(self, html: str) -> list[NewCarVariant]:
+        """One page on its own, ranked from 1. run() ranks the whole listing."""
+        return self.variants(parse_search_list(html))
+
+    def variants(self, models: list[dict[str, Any]], best: dict[Any, tuple[str, int]] | None = None) -> list[NewCarVariant]:
+        """Variants of every model in listing order. A model that shows up twice (a spotlight slot, an
+        advert) keeps its first ordinary position; spotlight slots are paid and never set the rank. A
+        {"gap": n} entry stands for a page that failed and holds its n places, so later ranks do not move."""
+        ranks: dict[Any, int] = {}
+        place = 0
+        for m in models:
+            if "gap" in m:
+                place += m["gap"]
+                continue
+            key = m.get("id") or (m.get("make"), m.get("model"))
+            if not (m.get("additionalProperties") or {}).get("isSpotlight") and key not in ranks:
+                place += 1
+                ranks[key] = place
+        best = best or {}
         out: list[NewCarVariant] = []
-        for m in parse_search_list(html):
+        seen: set = set()
+        for m in models:
+            if "gap" in m:
+                continue
+            key = m.get("id") or (m.get("make"), m.get("model"))
+            if key in seen:
+                continue
+            seen.add(key)
             make, model = str(m.get("make") or "").strip(), str(m.get("model") or "").strip()
             if not make or not model or make.lower() in self.exclude_makes:
                 continue
@@ -119,21 +191,32 @@ class SgcarmartNewCarScraper(BaseScraper):
                     price_change=int(flux["amount"]) if flux.get("amount") else None,
                     price_change_on=flux.get("date") or None,
                     launch_date=m.get("launchDate") or None, model_id=int(m.get("id") or 0) or None,
+                    popularity=ranks.get(key),
+                    best_list=best[key][0] if key in best else None, best_pos=best[key][1] if key in best else None,
                     listing_url=url, source=self.name, scraped_at=datetime.now(),
                 ))
         return out
 
     def run(self) -> list[NewCarVariant]:
         first = self.fetch(self.url.format(page=1))
-        out = self.parse(first)
-        pages = min(parse_total_pages(first), int(self.ncfg.get("max_pages", 45)))
-        if not parse_search_list(first):
+        models = parse_search_list(first)
+        if not models:
             raise ScraperUnavailable("sgcarmart new car listing: no search list in the page, layout may have changed")
+        per_page = len(models)
+        pages = min(parse_total_pages(first), int(self.ncfg.get("max_pages", 45)))
         for page in range(2, pages + 1):
             try:
-                out.extend(self.parse(self.fetch(self.url.format(page=page))))
-            except Exception as exc:  # one bad page never loses the rest
+                models.extend(parse_search_list(self.fetch(self.url.format(page=page))))
+            except Exception as exc:  # one bad page never loses the rest, and holds its places in the ranking
                 log.warning("new car listing page %d failed: %s", page, exc)
+                models.append({"gap": per_page})
+        best: dict[Any, tuple[str, int]] = {}
+        if self.cfg["sources"].get("sgcarmart_best_sellers"):
+            try:
+                best = parse_best_sellers(self.fetch(self.cfg["sources"]["sgcarmart_best_sellers"]))
+            except Exception as exc:
+                log.warning("best seller lists unavailable: %s", exc)
+        out = self.variants(models, best)
         if not out:
             raise ScraperUnavailable("sgcarmart new car listing: no variants parsed")
         return out

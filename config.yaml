@@ -142,6 +142,8 @@ sources:
   # Every new car (petrol, hybrid, electric) with variant prices in the page payload, 15 models a page. The search
   # path pages server side; /new-cars/listing?page=N does not (checked 2026-10-17).
   sgcarmart_new_listing: "https://www.sgcarmart.com/new-cars/listing/search?page={page}"
+  # Sgcarmart's published best sellers: Cat A, Cat B and parallel imports, 8 models each, in its own order.
+  sgcarmart_best_sellers: "https://www.sgcarmart.com/new-cars/best-selling-car-models"
   sgcarmart_coe_results: "https://www.sgcarmart.com/news/coe_results.php"
   onemotoring_coe: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/coe-open-bidding.html"
   # carro.sg redirects to carro.co. Verified base URL, the buy path still needs a check.
@@ -846,7 +848,7 @@ used:
     # in the title. Checked 2026-10-02 against vans and lorries in the live used lists (Town Ace, Dyna,
     # N-Van, Every), plus the common goods vehicles sold in Singapore.
     exclude_models: [Town Ace, Townace, Lite Ace, Liteace, Dyna, Hiace, N-Van, Every, Carry, NV200, NV350,
-                     Urvan, Kangoo, Vito, eVito, Sprinter, eSprinter, Transit, Transit Custom, Canter, Porter,
+                     Urvan, Kangoo, Vito, eVito, Sprinter, eSprinter, Transit, Transit Custom, Canter, Cabstar, Single Cab, Porter,
                      Atlas, Elf, Hilux, Ranger, Navara, Triton, D-Max, Proace, Berlingo, Partner, Caddy,
                      Transporter, Crafter, Vivaro, Combo, Deliver 9, eDeliver, T60, Dolphin Van, e6 Van]
     exclude_keywords:

@@ -83,7 +83,7 @@ def _rank_in(make: str, counts: dict[str, int] | None, cfg: dict[str, Any]) -> t
 
 
 def new_ev_cards(variants: list[NewEvVariant], cfg: dict[str, Any], today: date, ev_sales: dict[str, int] | None,
-                 body_counts: dict[str, dict[str, int]] | None) -> list[dict[str, Any]]:
+                 body_counts: dict[str, dict[str, int]] | None, pop: "Popularity | None" = None) -> list[dict[str, Any]]:
     out = []
     goods = cfg["used"]["filters"].get("exclude_models", []) + cfg.get("new_cars", {}).get("exclude_models", [])
     for i, v in enumerate(variants):
@@ -101,6 +101,8 @@ def new_ev_cards(variants: list[NewEvVariant], cfg: dict[str, Any], today: date,
             "battery_warranty": v.battery_warranty, "promotion": v.promotion, "url": v.listing_url,
             "score": round(v.score, 1) if v.score else None,
             "brand_rank": rank, "brand_regs": regs, "body_rank": body_rank, "body_regs": body_regs,
+            "popularity": pop.of(v.make, v.model, ev=True) if pop else None,
+            "best_seller": pop.best(v.make, v.model, ev=True) if pop else None,
             "finance": _fin(v.price_with_coe, None, cfg, True),
         }
         if v.price_with_coe:
@@ -112,9 +114,84 @@ def new_ev_cards(variants: list[NewEvVariant], cfg: dict[str, Any], today: date,
     return out
 
 
+FUEL_WORDS = re.compile(r"\b(?:plug in hybrid|mild hybrid|m hybrid|hybrid|electric|ev|e tron)\b")
+# Body spellings the used sites abbreviate ("Mazda 3 4DR" is the Mazda 3 Sedan).
+BODY_SPELLINGS = {"4dr": "sedan", "5dr": "hatchback", "hb": "hatchback", "saloon": "sedan", "hatch": "hatchback"}
+# Words that only name a body style. "Audi Q4" may take the rank of "Audi Q4 Sportback"; "Yaris" never takes
+# "Yaris Cross", "EQS" never takes "EQS SUV" and "Honda N" never takes "N-Box", because those words make
+# another model.
+BODY_WORDS = {"sedan", "sportback", "hatchback", "coupe", "gran", "touring", "avant", "cabriolet", "convertible",
+              "wagon", "estate", "limousine", "lwb"}
+# Make prefixes the used sites put in front of the brand Sgcarmart lists ("GREAT WALL ORA Good Cat").
+MAKE_PREFIXES = ("great wall ",)
+
+
 def _model_key(make: str, model: str) -> str:
-    """"BYD Sealion 7 Electric" and "BYD Sealion 7" are the same model."""
-    return _norm(f"{make} {model}").replace(" electric", "").strip()
+    """One key per model family however a site spells it: "BYD Sealion 7 Electric" and "BYD SEALION 7",
+    "MG S6 EV" and "MG S6", "Mazda 3 4DR" and "Mazda 3 Sedan". Fuel words go, the model's own name stays
+    ("Kia EV5" keeps "ev5")."""
+    words = [BODY_SPELLINGS.get(w, w) for w in FUEL_WORDS.sub(" ", _norm(f"{make} {model}")).split()]
+    key = " ".join(words)
+    for prefix in MAKE_PREFIXES:
+        if key.startswith(prefix):
+            key = key[len(prefix):]
+    return key
+
+
+class Popularity:
+    """Sgcarmart's popularity rank, and its published best seller position, by model, looked up however
+    each site spells the name.
+
+    Ranks are kept apart by fuel, because Sgcarmart lists "CLA Electric" (92) and "CLA Hybrid" (78) as two
+    cars: an EV card looks among the electric listings first and a petrol card among the rest, and only
+    falls back to the other fuel when its own has no such model (the Kona EV has only "Kona Hybrid").
+
+    For each pool: the exact model; else the longest ranked name the card's name starts with, on whole words
+    ("Atto 3 Electric Sunroof" is "Atto 3", "Seal 6" never takes "Seal"); else, for a shorter name, the best
+    body style of it ("Audi A6" is "A6 Sportback e-tron"), only when the extra words name a body."""
+
+    def __init__(self, cars: list[NewCarVariant]):
+        self.pools: dict[str, dict[str, dict[str, Any]]] = {"ev": {}, "other": {}}
+        for v in cars:
+            if not v.popularity and not v.best_list:
+                continue
+            k = _model_key(v.make, v.model)
+            e = self.pools["ev" if v.fuel == "ev" else "other"].setdefault(k, {"rank": None, "best": None})
+            if v.popularity:
+                e["rank"] = min(e["rank"] or v.popularity, v.popularity)
+            if v.best_list and (e["best"] is None or v.best_pos < e["best"][1]):
+                e["best"] = (v.best_list, v.best_pos)
+        self._keys = {p: sorted(d, key=len, reverse=True) for p, d in self.pools.items()}
+
+    def _find(self, pool: str, k: str, make: str) -> Optional[dict[str, Any]]:
+        d, keys = self.pools[pool], self._keys[pool]
+        if k in d:
+            return d[k]
+        hit = next((key for key in keys if k.startswith(key + " ")), None)
+        if hit:
+            return d[hit]
+        if len(k.split()) > len(_norm(make).split()):   # a bare make never takes a rank
+            bodies = [d[key] for key in keys if key.startswith(k + " ") and set(key[len(k) + 1:].split()) <= BODY_WORDS]
+            if bodies:
+                return min(bodies, key=lambda e: e["rank"] or 10**6)
+        return None
+
+    def entry(self, make: str, model: str, ev: Optional[bool] = None) -> Optional[dict[str, Any]]:
+        k = _model_key(make, model)
+        order = ["ev", "other"] if ev else ["other", "ev"] if ev is False else ["ev", "other"]
+        found = [e for e in (self._find(p, k, make) for p in order) if e]
+        if ev is None and len(found) == 2:   # fuel unknown: the better of the two
+            return min(found, key=lambda e: e["rank"] or 10**6)
+        return found[0] if found else None
+
+    def of(self, make: str, model: str, ev: Optional[bool] = None) -> Optional[int]:
+        e = self.entry(make, model, ev)
+        return e["rank"] if e else None
+
+    def best(self, make: str, model: str, ev: Optional[bool] = None) -> Optional[dict[str, Any]]:
+        """Sgcarmart's published best seller slot, {"list": "Cat A", "pos": 3}, or None."""
+        e = self.entry(make, model, ev)
+        return {"list": e["best"][0], "pos": e["best"][1]} if e and e["best"] else None
 
 
 def coe_cat_for(v: NewCarVariant, cfg: dict[str, Any]) -> Optional[str]:
@@ -127,13 +204,28 @@ def coe_cat_for(v: NewCarVariant, cfg: dict[str, Any]) -> Optional[str]:
     return "A" if v.engine_cc <= c["cat_a_max_engine_cc"] and (v.power_kw or 0) <= c["cat_a_max_engine_power_kw"] else "B"
 
 
-def new_car_cards(variants: list[NewCarVariant], skip_models: set[str], cfg: dict[str, Any], today: date,
+def same_car(listed: NewCarVariant, ev_list: list[NewEvVariant]) -> bool:
+    """True when a listing EV is already on the EV price list. The two name a car differently ("Audi Q4" and
+    "Audi Q4 Sportback e-tron Electric"), so it is the same make, one name a whole word prefix of the other,
+    and a variant at the same price. "Ioniq 5 N" stays: no EV list variant has its price."""
+    k = _model_key(listed.make, listed.model)
+    for v in ev_list:
+        e = _model_key(v.make, v.model)
+        if _norm(v.make) != _norm(listed.make) or v.price_with_coe != listed.price_with_coe:
+            continue
+        if e == k or k.startswith(e + " ") or e.startswith(k + " "):
+            return True
+    return False
+
+
+def new_car_cards(variants: list[NewCarVariant], ev_list: list[NewEvVariant], cfg: dict[str, Any], today: date,
                   petrol_price: Optional[float], sales: dict[str, dict[str, int] | None],
-                  deltas: dict[str, tuple[int, int, int]]) -> list[dict[str, Any]]:
+                  deltas: dict[str, tuple[int, int, int]], pop: "Popularity | None" = None) -> list[dict[str, Any]]:
     """Petrol, hybrid and diesel cars from the full listing, plus EVs the EV price list does not carry."""
     out = []
+    ev_models = {_model_key(v.make, v.model) for v in ev_list}
     for i, v in enumerate(variants):
-        if v.fuel == "ev" and _model_key(v.make, v.model) in skip_models:
+        if v.fuel == "ev" and (_model_key(v.make, v.model) in ev_models or same_car(v, ev_list)):
             continue
         kind = "ev" if v.fuel == "ev" else "ice"
         dt = Drivetrain.ev if v.fuel == "ev" else Drivetrain.hybrid if v.fuel == "hybrid" else Drivetrain.ice
@@ -146,7 +238,15 @@ def new_car_cards(variants: list[NewCarVariant], skip_models: set[str], cfg: dic
             "price_next": [v.price_with_coe + x for x in d] if d else None,
             "power_kw": v.power_kw, "engine_cc": v.engine_cc, "economy": v.fuel_economy, "transmission": v.transmission,
             "price_change": v.price_change, "price_change_on": v.price_change_on, "url": v.listing_url,
-            "brand_rank": rank, "brand_regs": regs, "finance": _fin(v.price_with_coe, None, cfg, True),
+            # A dealer special edition sits only in a paid spotlight slot, so it has no rank of its own; it
+            # takes its model's ("WR-V Vin's Auto Edition" is a WR-V).
+            "brand_rank": rank, "brand_regs": regs,
+            "popularity": v.popularity or (pop.of(v.make, v.model, ev=v.fuel == "ev") if pop else None),
+            # only a car with no rank of its own borrows its model's best seller slot, so "GLB Hybrid" (550) never
+            # wears the "GLB Mild Hybrid" Cat A badge
+            "best_seller": ({"list": v.best_list, "pos": v.best_pos} if v.best_list
+                            else None if v.popularity else (pop.best(v.make, v.model, ev=v.fuel == "ev") if pop else None)),
+            "finance": _fin(v.price_with_coe, None, cfg, True),
         }
         try:
             b = costs.breakdown(v.display_name, dt, v.price_with_coe, v.engine_cc, v.power_kw,
@@ -177,8 +277,18 @@ def _changes(l: UsedListing) -> list[dict[str, Any]]:
     return out
 
 
+def _used_rank(pop: "Popularity | None", l: UsedListing) -> Optional[int]:
+    """The used car's model on Sgcarmart's new car list. The model alone first ("Mazda 3" is the best of its
+    bodies), then with the variant, which carries the rest of the name when a site splits it oddly
+    ("GREAT" "WALL" "ORA GOOD CAT", "Mazda" "3 4DR" "1.5 AT")."""
+    if not pop:
+        return None
+    ev = l.drivetrain == Drivetrain.ev
+    return pop.of(l.make, l.model, ev=ev) or pop.of(l.make, f"{l.model} {l.variant}", ev=ev)
+
+
 def used_cards(listings: list[UsedListing], cfg: dict[str, Any], today: date, petrol_price: Optional[float],
-               sales: dict[str, dict[str, int] | None]) -> list[dict[str, Any]]:
+               sales: dict[str, dict[str, int] | None], pop: "Popularity | None" = None) -> list[dict[str, Any]]:
     out = []
     for l in listings:
         if l.depreciation_per_year is None:
@@ -201,7 +311,7 @@ def used_cards(listings: list[UsedListing], cfg: dict[str, Any], today: date, pe
             "prev_price": prev, "prev_price_on": prev_on,
             "history": _changes(l),
             "passes": reason is None, "reject_reason": reason,
-            "brand_rank": rank, "brand_regs": regs,
+            "brand_rank": rank, "brand_regs": regs, "popularity": _used_rank(pop, l),
             "finance": _fin(l.price, l.omv, cfg, False),
         }
         try:
@@ -257,7 +367,7 @@ def coe_block(db: Database, cfg: dict[str, Any], today: date, tenders: int) -> d
 
 
 def brands_block(reg, ev_models: dict[str, Any], prices: dict[str, dict[str, int]], cfg: dict[str, Any],
-                 top_n: int) -> dict[str, Any]:
+                 top_n: int, pop: "Popularity | None" = None) -> dict[str, Any]:
     if not reg:
         return {}
     makes, months = reg
@@ -274,8 +384,13 @@ def brands_block(reg, ev_models: dict[str, Any], prices: dict[str, dict[str, int
         models = []
         for model in lineup(ev_models.get(row["make"])):
             price = prices.get(row["make"], {}).get(model)
-            models.append({"name": model, "price": price, "finance": _fin(price, None, cfg, True)})
-        row["models"] = models
+            rank = pop.of(row["make"], model, ev=True) if pop else None
+            if rank is None and pop:   # the line up names the LTA make; the price list may use a sub brand
+                rank = next((r for alias, lta in cfg.get("site", {}).get("make_aliases", {}).items()
+                             if lta.lower() == row["make"].lower() for r in [pop.of(alias, model, ev=True)] if r), None)
+            models.append({"name": model, "price": price, "finance": _fin(price, None, cfg, True), "popularity": rank})
+        # Sgcarmart's live popularity order; models it does not rank keep the hand kept order after them.
+        row["models"] = sorted(models, key=lambda m: m["popularity"] or 10**6)
     return {"months": months, "total": sum(m["total"] for m in makes.values()),
             "ev_total": sum(m.get("ev", 0) for m in makes.values()),
             "petrol_total": sum(m.get("petrol", 0) for m in makes.values()),
@@ -343,17 +458,18 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
         v.body_type = body_type(v.make, v.model, v.variant, cfg)
     new_evs = sorted(stored, key=lambda v: (v.make.lower(), v.model.lower(), v.price_with_coe or 0))
 
+    ndate = db.latest_new_cars_date()
+    cars = sorted(db.new_cars_on(ndate) if ndate else [], key=lambda v: (v.make.lower(), v.model.lower(), v.price_with_coe))
+    pop = Popularity(cars)
     listings = db.active_listings()
-    used = used_cards(listings, cfg, today, petrol_price, sales)
+    used = used_cards(listings, cfg, today, petrol_price, sales, pop)
 
     # The full new car list: petrol and hybrid cars, and any EV the EV price list missed. The deltas move a
     # price with the forecast COE premium, like the EV cards.
     deltas = {r["cat"]: tuple(r["forecast"][k] - r["premium"] for k in ("low", "point", "high"))
               for r in coe.get("rows", []) if r.get("forecast")}
-    ndate = db.latest_new_cars_date()
-    cars = sorted(db.new_cars_on(ndate) if ndate else [], key=lambda v: (v.make.lower(), v.model.lower(), v.price_with_coe))
-    ev_cards = new_ev_cards(new_evs, cfg, today, sales["ev"], body_counts)
-    new_cars = new_car_cards(cars, {_model_key(v.make, v.model) for v in stored}, cfg, today, petrol_price, sales, deltas)
+    ev_cards = new_ev_cards(new_evs, cfg, today, sales["ev"], body_counts, pop)
+    new_cars = new_car_cards(cars, stored, cfg, today, petrol_price, sales, deltas, pop)
 
     # The report's three cost picks, with the same choices: best selling new EV, then the first car of
     # each used shortlist.
@@ -401,7 +517,8 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
         "new_evs": ev_cards,
         "new_cars": new_cars, "new_cars_on": ndate.isoformat() if ndate else None,
         "used": used,
-        "brands": brands_block(reg, ts.get("ev_models") or {}, model_prices(new_evs, ts.get("ev_models") or {}), cfg, int(ts.get("top_n", 20))),
+        "brands": brands_block(reg, ts.get("ev_models") or {}, model_prices(new_evs, ts.get("ev_models") or {}), cfg,
+                               int(ts.get("top_n", 20)), pop),
         "body_months": list(body_months),
         "bikes": bikes_block(bikes, cfg, today),
         "costs": {"picks": picks, "assumptions": cfg["costs"]["insurance"]["assumptions"].strip(), "annual_km": cfg["costs"]["annual_km"],

@@ -89,6 +89,9 @@ class NewCarVariant(BaseModel):
     price_change_on: Optional[str] = None
     launch_date: Optional[str] = None
     model_id: Optional[int] = None
+    popularity: Optional[int] = Field(default=None, description="Position in Sgcarmart's popularity order, 1 is the most popular")
+    best_list: Optional[str] = Field(default=None, description="Sgcarmart best seller list it is on: Cat A, Cat B or Parallel import")
+    best_pos: Optional[int] = Field(default=None, description="Its position on that list, 1 first")
     listing_url: str
     source: str
     scraped_at: datetime = Field(default_factory=datetime.now)

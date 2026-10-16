@@ -36,3 +36,21 @@ def test_fuel_and_engine_helpers():
     assert fuel_of("isuzu-d-max-diesel", None) == "diesel" and fuel_of("honda-civic", "16km/L") == "petrol"
     assert engine_cc_estimate("1.5 Turbo Sport") == 1500 and engine_cc_estimate("Elegance", "Corolla 1.8") == 1800
     assert engine_cc_estimate("Model 3 RWD") is None and engine_cc_estimate("v12.5 trim") is None
+
+
+def test_popularity_is_listing_order_without_spotlight_or_repeats(cfg):
+    scraper = SgcarmartNewCarScraper(cfg, "ua")
+    v = scraper.parse(PAGE)
+    rank = {x.model: x.popularity for x in v}
+    # The live page opens with a paid spotlight slot (Toyota Noah MYCAR Edition): it never sets a rank.
+    assert rank["Noah Hybrid MYCAR Edition"] is None
+    assert rank["Sealion 7 Electric"] == 1 and rank["Sealion 8 Plug-in Hybrid"] == 2 and rank["Model Y Electric"] == 3
+
+    def model(i, name, spotlight=False):
+        return {"id": i, "make": "X", "model": name, "slug": name.lower(), "additionalProperties": {"isSpotlight": spotlight},
+                "subModels": [{"name": "base", "price": 100000 + i}]}
+    # page 1 carries an advert for C, which is ranked where it really sits on page 3; every model counts once
+    listing = [model(3, "C", spotlight=True), model(1, "A"), model(2, "B"), model(1, "A"), model(3, "C"), model(4, "D")]
+    got = {x.model: x.popularity for x in scraper.variants(listing)}
+    assert got == {"A": 1, "B": 2, "C": 3, "D": 4}
+    assert len(scraper.variants(listing)) == 4

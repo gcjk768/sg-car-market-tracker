@@ -9,14 +9,14 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2315171a'/%3E%3Cpath d='M14 40l6-14h24l6 14v10h-6v-4H20v4h-6zM21 38h22l-3-8H24z' fill='%23f2f1ec'/%3E%3Ccircle cx='22' cy='44' r='3' fill='%232a5bea'/%3E%3Ccircle cx='42' cy='44' r='3' fill='%232a5bea'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#f2f1ec; --bg-2:#e9e8e1; --card:#fbfaf7; --ink:#15171a; --ink-2:#3b4047; --mute:#6c727a; --line:rgba(21,23,26,.11); --line-2:rgba(21,23,26,.2);
   --accent:#2a5bea; --accent-ink:#ffffff; --accent-soft:rgba(42,91,234,.1);
   --good:#15804a; --good-soft:rgba(21,128,74,.12); --bad:#c23b2b; --bad-soft:rgba(194,59,43,.12); --warn:#9a6b00; --warn-soft:rgba(154,107,0,.12);
   --shadow:0 1px 0 rgba(21,23,26,.05),0 14px 32px -20px rgba(21,23,26,.45);
-  --display:"Syne",system-ui,sans-serif; --body:"Manrope",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  --display:"Outfit",system-ui,sans-serif; --body:"Manrope",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
   --r:14px; --r-s:8px;
 }
 [data-theme="dark"]{
@@ -38,10 +38,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font:400 15.5px/1.5 var(--bo
 a{color:inherit}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
 button,select,input{font:inherit;color:inherit}
-.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .wrap{max-width:1280px;margin:0 auto;padding:0 20px}
-h1,h2,h3{font-family:var(--display);letter-spacing:-.02em;margin:0;line-height:1.1}
-h2{font-size:26px;font-weight:800}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.01em;margin:0;line-height:1.15}
+h2{font-size:26px;font-weight:700}
 h3{font-size:17px;font-weight:700}
 p{margin:0}
 .mute{color:var(--mute)}
@@ -52,7 +52,7 @@ p{margin:0}
 /* top bar */
 .top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
 .top .wrap{display:flex;align-items:center;gap:18px;height:64px}
-.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:-.02em;white-space:nowrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:0;white-space:nowrap}
 .brand svg{width:28px;height:28px}
 .brand small{display:block;font:600 11px/1 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-top:4px}
 nav{display:flex;gap:2px;margin-left:auto;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
@@ -84,13 +84,13 @@ section+section{margin-top:34px}
 [data-theme="dark"] .hero-coe{background:var(--card);color:var(--ink);border:1px solid var(--line)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hero-coe{background:var(--card);color:var(--ink);border:1px solid var(--line)}}
 .hero-coe .label{font:600 12px/1 var(--body);letter-spacing:.1em;text-transform:uppercase;opacity:.7}
-.hero-coe .big{font-family:var(--display);font-weight:800;font-size:clamp(40px,6vw,64px);line-height:.95;letter-spacing:-.03em}
+.hero-coe .big{font-family:var(--display);font-weight:700;font-size:clamp(40px,6vw,64px);line-height:1;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .hero-coe .row{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-end}
 .hero-coe svg{width:100%;height:64px;display:block}
 .hero-coe .foot{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;opacity:.85}
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:flex;flex-direction:column;justify-content:space-between;min-height:118px;box-shadow:var(--shadow)}
-.tile .v{font-family:var(--display);font-weight:800;font-size:34px;letter-spacing:-.03em;line-height:1}
+.tile .v{font-family:var(--display);font-weight:700;font-size:34px;letter-spacing:0;line-height:1;font-variant-numeric:tabular-nums}
 .tile .k{font-size:13px;color:var(--mute);margin-top:8px}
 .tile a{color:var(--accent);font-weight:600;text-decoration:none;font-size:13px}
 @media (max-width:860px){.hero{grid-template-columns:1fr}}
@@ -103,9 +103,9 @@ section+section{margin-top:34px}
 .coe .cat{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
 .coe .cat .small{text-align:right}
 .coe .cat b{font-family:var(--display);font-size:15px}
-.coe .prem{font-family:var(--mono);font-weight:600;font-size:22px;letter-spacing:-.02em}
+.coe .prem{font-family:var(--mono);font-weight:600;font-size:21px}
 .coe svg{width:100%;height:44px;display:block}
-.coe .fc{font-size:12.5px;color:var(--ink-2)}
+.coe .fc{font-size:12.5px;color:var(--ink-2);font-family:var(--body);line-height:1.45}
 .coe .fc b{font-family:var(--mono);font-weight:600}
 .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font:600 12px/1.6 var(--body);white-space:nowrap}
 .chip.good{background:var(--good-soft);color:var(--good)}
@@ -126,7 +126,7 @@ details.note summary{cursor:pointer;color:var(--ink-2);font-weight:600}
 .pick .lab{font:600 12px/1 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
 .pick .nm{font-weight:700;margin:6px 0 10px;font-size:15px}
 .pick .nm a{text-decoration:none}
-.pick .v{font-family:var(--mono);font-weight:600;font-size:22px;letter-spacing:-.02em}
+.pick .v{font-family:var(--mono);font-weight:600;font-size:21px}
 .pick .v small{font:500 12px var(--body);color:var(--mute)}
 .pick dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:10px 0 0;font-size:13px}
 .pick dt{color:var(--mute)} .pick dd{margin:0;font-family:var(--mono);text-align:right}
@@ -166,14 +166,14 @@ table.t td.min{color:var(--good);font-weight:600}
 /* car cards */
 .car{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;position:relative}
 .car.off{opacity:.78}
-.car .top-row{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.car .top-row{display:flex;flex-direction:column;gap:8px}
 .car h3{font-size:17px;line-height:1.2}
 .car h3 a{text-decoration:none}
 .car h3 a:hover{text-decoration:underline}
 .car .sub{font-size:13px;color:var(--mute);margin-top:3px}
-.car .badges{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;flex:none;max-width:48%}
+.car .badges{display:flex;gap:5px;flex-wrap:wrap}
 .car .price{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.car .price .p{font-family:var(--mono);font-weight:600;font-size:24px;letter-spacing:-.02em}
+.car .price .p{font-family:var(--mono);font-weight:600;font-size:22px}
 .car .price .p small{font:500 12px var(--body);color:var(--mute);margin-left:4px}
 .specs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 10px;font-size:12.5px}
 .specs div{display:flex;flex-direction:column;gap:1px}
@@ -280,8 +280,8 @@ const BUDGETS = [["", "Any budget"], ["0-100000", "Under $100k"], ["100000-15000
 const DT = {ev: "Electric", hybrid: "Hybrid", ice: "Petrol"};
 let D = null;
 const state = {
-  new: {fuel: "", body: "", budget: "", cat: "", make: "", q: "", sort: "price", layout: "cards"},
-  used: {dt: "ev", body: "", budget: "", make: "", km: "", coe: "", owners: "", shortlist: true, q: "", sort: "dep", src: "", layout: "cards"},
+  new: {fuel: "", body: "", budget: "", cat: "", make: "", q: "", sort: "popular", layout: "cards"},
+  used: {dt: "ev", body: "", budget: "", make: "", km: "", coe: "", owners: "", shortlist: true, q: "", sort: "best", src: "", layout: "cards"},
   bikes: {cls: "2B"},
 };
 
@@ -360,11 +360,11 @@ function today() {
         <div class="prem num">${money(r.premium)}</div>
         <div>${delta(r.delta, r.delta_pct)}</div>
         ${spark(r.history.map(h => ({v: h.premium})), {stroke: "var(--accent)"})}
-        <div class="fc num small mute">${r.bids ? `${int(r.bids)} bids · ${int(r.quota)} quota · ${int(r.bids - r.successful)} missed` : ""}</div>
+        <div class="fc small mute">${r.bids ? `${int(r.bids)} bids · ${int(r.quota)} quota · ${int(r.bids - r.successful)} missed` : ""}</div>
         ${r.forecast ? `<div class="fc">Next <b>${money(r.forecast.point)}</b> · ${k(r.forecast.low)} to ${k(r.forecast.high)}</div>` : ""}
       </article>`).join("")}</div>
     <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
-      ${(c.events || []).map(e => `<div class="small"><b class="num">${dmy(e.on)}</b> · ${esc(e.text)}</div>`).join("")}
+      ${(c.events || []).map(e => `<div class="small"><b>${dmy(e.on)}</b> · ${esc(e.text)}</div>`).join("")}
       <div class="links"><a href="${esc(D.sources.motorist_coe)}" target="_blank" rel="noopener">COE results</a><a href="${esc(D.sources.datagov_coe_page)}" target="_blank" rel="noopener">LTA history on data.gov.sg</a></div>
       ${c.forecast_note ? `<details class="note"><summary>How the forecast works</summary>The forecast is the last premium nudged a quarter of a typical move toward momentum and demand, with a range of one typical move. COE moves almost like a random walk, and backtested on LTA history this misses 1 to 4 percent less than no change. A range, not a call.</details>` : ""}
     </div>
@@ -410,10 +410,10 @@ function newView() {
   const makes = [...new Set(byFuel.map(v => v.make))].sort((x, y) => x.localeCompare(y));
   let rows = byFuel.filter(v => (!st.body || v.body === st.body) && inBudget(v.price, st.budget) && (!st.cat || v.cat === st.cat) && (!st.make || v.make === st.make)
     && (!st.q || v.name.toLowerCase().includes(st.q)));
-  const sorters = {price: (x, y) => (x.price ?? 9e9) - (y.price ?? 9e9), price_desc: (x, y) => (y.price ?? 0) - (x.price ?? 0),
+  const sorters = {popular: byPopular, price: (x, y) => (x.price ?? 9e9) - (y.price ?? 9e9), price_desc: (x, y) => (y.price ?? 0) - (x.price ?? 0),
     power: (x, y) => (y.power_kw ?? 0) - (x.power_kw ?? 0), brand: (x, y) => (x.brand_rank ?? 999) - (y.brand_rank ?? 999) || (x.price ?? 9e9) - (y.price ?? 9e9),
     annual: (x, y) => (x.annual?.total_low ?? 9e9) - (y.annual?.total_low ?? 9e9), cut: (x, y) => (x.price_change ?? 0) - (y.price_change ?? 0)};
-  rows.sort(sorters[st.sort] || sorters.price);
+  rows.sort(sorters[st.sort] || byPopular);
   const groups = new Map();
   rows.forEach(v => { const key = v.make + "|" + v.model; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(v); });
   const models = [...groups.values()];
@@ -428,7 +428,7 @@ function newView() {
       <select data-f="budget" aria-label="Budget">${BUDGETS.map(([v, l]) => `<option value="${v}" ${v === st.budget ? "selected" : ""}>${l}</option>`).join("")}</select>
       <select data-f="cat" aria-label="COE category"><option value="">Any COE cat</option><option value="A" ${st.cat === "A" ? "selected" : ""}>Cat A only</option><option value="B" ${st.cat === "B" ? "selected" : ""}>Cat B only</option></select>
       <select data-f="make" aria-label="Brand">${opt(makes, st.make, "All brands")}</select>
-      <select data-f="sort" aria-label="Sort">${[["price", "Price, low to high"], ["price_desc", "Price, high to low"], ["annual", "Cheapest to own"], ["cut", "Latest price cut"], ["power", "Most power"], ["brand", "Best selling brand"]].map(([v, l]) => `<option value="${v}" ${v === st.sort ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <select data-f="sort" aria-label="Sort">${[["popular", "Most popular"], ["brand", "Best selling brand"], ["price", "Price, low to high"], ["price_desc", "Price, high to low"], ["annual", "Cheapest to own"], ["cut", "Latest price cut"], ["power", "Most power"]].map(([v, l]) => `<option value="${v}" ${v === st.sort ? "selected" : ""}>${l}</option>`).join("")}</select>
       ${viewToggle(st)}
     </div>
   </div>
@@ -436,11 +436,18 @@ function newView() {
   ${!models.length ? `<div class="empty">Nothing matches. Loosen a filter.</div>`
     : st.layout === "table" ? newTable(models) : `<div class="grid">${models.map(vs => newCard(vs)).join("")}</div>`}`;
 }
+// Sgcarmart's popularity order first, then the brand's LTA sales, then price. Unranked models go last.
+// Sgcarmart's published best sellers first (each list's #1, then each #2, ...), then its popularity order,
+// then the brand's LTA sales, then price. Unranked models go last.
+const bestKey = c => c.best_seller ? c.best_seller.pos : 1e6;
+const byPopular = (x, y) => bestKey(x) - bestKey(y) || (x.popularity ?? 1e6) - (y.popularity ?? 1e6) || (x.brand_rank ?? 999) - (y.brand_rank ?? 999) || (x.price ?? 9e9) - (y.price ?? 9e9);
 const cheapestOf = vs => vs.reduce((m, x) => (x.price ?? 9e9) < (m.price ?? 9e9) ? x : m, vs[0]);
 const fuelBadge = f => badge(FUEL[f] || f, f === "ev" ? "acc" : f === "hybrid" ? "good" : "flat");
 function newCard(vs) {
   const v = vs[0], c = cheapestOf(vs), multi = vs.length > 1;
   const rank = v.body_rank ? `#${v.body_rank} EV ${v.body.toLowerCase()} brand` : v.brand_rank ? `#${v.brand_rank} ${v.fuel === "ev" ? "EV" : "petrol"} brand` : "";
+  const pop = vs.reduce((m, x) => x.popularity && (!m || x.popularity < m) ? x.popularity : m, null);
+  const best = vs.find(x => x.best_seller)?.best_seller;
   const ev = c.fuel === "ev";
   const specs = ev
     ? [c.range_km && [`Range${c.range_standard && c.range_standard !== "estimated" ? " " + esc(c.range_standard) : ", est."}`, `${int(c.range_km)} km`], c.battery_kwh && ["Battery", `${c.battery_kwh} kWh`], c.power_kw && ["Power", `${Math.round(c.power_kw)} kW`]]
@@ -448,7 +455,7 @@ function newCard(vs) {
   const cut = c.price_change && c.price_change < 0, rise = c.price_change && c.price_change > 0;
   return `<article class="car">
     <div class="top-row"><div><h3><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(v.make)} ${esc(v.model)}</a></h3><div class="sub">${multi ? `${vs.length} variants` : esc(v.variant)}${rank ? ` · ${rank}` : ""}</div></div>
-      <div class="badges">${fuelBadge(c.fuel)}${badge(v.body)}${c.cat ? badge("Cat " + c.cat) : ""}</div></div>
+      <div class="badges">${best ? badge(`${best.list} best seller #${best.pos}`, "ink") : pop ? badge("#" + pop + " popular", pop <= 20 ? "ink" : "flat") : ""}${fuelBadge(c.fuel)}${badge(v.body)}${c.cat ? badge("Cat " + c.cat) : ""}</div></div>
     <div class="price"><span class="p">${multi ? `<small style="margin:0 4px 0 0">from</small>` : ""}${money(c.price)}</span>${cut ? `<span class="chip good">▼ ${money(-c.price_change)} on ${dmy(c.price_change_on)}</span>` : rise ? `<span class="chip bad">▲ ${money(c.price_change)} on ${dmy(c.price_change_on)}</span>` : ""}</div>
     ${c.price_next ? `<div class="small mute num">Next COE ~${k(c.price_next[1])}, ${k(c.price_next[0])} to ${k(c.price_next[2])}</div>` : ""}
     <div class="specs">
@@ -462,9 +469,9 @@ function newCard(vs) {
   </article>`;
 }
 function newTable(models) {
-  return `<div class="tbl"><table class="t list"><thead><tr><th>Model</th><th>Fuel</th><th>Body</th><th>Cat</th><th>From</th><th>Power</th><th>Range or economy</th><th>Deposit</th><th>Monthly</th><th>Cost a year</th></tr></thead><tbody>
-    ${models.map(vs => { const v = vs[0], c = cheapestOf(vs); return `<tr>
-      <td><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(v.make)} ${esc(v.model)}</a><div class="small mute">${vs.length > 1 ? vs.length + " variants" : esc(c.variant)}</div></td>
+  return `<div class="tbl"><table class="t list"><thead><tr><th>Popular</th><th>Model</th><th>Fuel</th><th>Body</th><th>Cat</th><th>From</th><th>Power</th><th>Range or economy</th><th>Deposit</th><th>Monthly</th><th>Cost a year</th></tr></thead><tbody>
+    ${models.map(vs => { const v = vs[0], c = cheapestOf(vs), pop = vs.reduce((m, x) => x.popularity && (!m || x.popularity < m) ? x.popularity : m, null); return `<tr>
+      <td>${pop ? "#" + pop : ""}</td><td><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(v.make)} ${esc(v.model)}</a><div class="small mute">${vs.length > 1 ? vs.length + " variants" : esc(c.variant)}</div></td>
       <td>${esc(FUEL[c.fuel])}</td><td>${esc(v.body)}</td><td>${c.cat || ""}</td><td>${money(c.price)}${c.price_change < 0 ? ` <span class="good">▼</span>` : ""}</td>
       <td>${c.power_kw ? Math.round(c.power_kw) + " kW" : ""}</td><td>${c.range_km ? int(c.range_km) + " km" : esc(c.economy || "")}</td>
       <td>${c.finance?.deposit ? k(c.finance.deposit) : ""}</td><td>${c.finance?.monthly ? money(c.finance.monthly) : ""}</td><td>${c.annual ? k(c.annual.total_low) : ""}</td></tr>`; }).join("")}
@@ -490,11 +497,13 @@ function usedView() {
     && (!st.km || (u.mileage_km != null && u.mileage_km <= Number(st.km))) && (!st.coe || (u.coe_left != null && u.coe_left >= Number(st.coe)))
     && (!st.owners || (u.owners != null && u.owners <= Number(st.owners))) && (!st.shortlist || u.passes) && (!st.src || u.source === st.src)
     && (!st.q || (u.name + " " + (u.year || "")).toLowerCase().includes(st.q)));
-  const sorters = {dep: (x, y) => (x.dep_year ?? 9e9) - (y.dep_year ?? 9e9), price: (x, y) => x.price - y.price, price_desc: (x, y) => y.price - x.price,
+  const sorters = {// Same as the Telegram report: shortlisted cars, best selling brand, then lowest depreciation, then mileage.
+    best: (x, y) => (y.passes - x.passes) || (x.brand_rank ?? 999) - (y.brand_rank ?? 999) || (x.dep_year ?? 9e9) - (y.dep_year ?? 9e9) || (x.mileage_km ?? 9e9) - (y.mileage_km ?? 9e9),
+    dep: (x, y) => (x.dep_year ?? 9e9) - (y.dep_year ?? 9e9), price: (x, y) => x.price - y.price, price_desc: (x, y) => y.price - x.price,
     km: (x, y) => (x.mileage_km ?? 9e9) - (y.mileage_km ?? 9e9), coe: (x, y) => (y.coe_left ?? 0) - (x.coe_left ?? 0),
     newest: (x, y) => (x.days_listed ?? 999) - (y.days_listed ?? 999), drop: (x, y) => ((y.prev_price || y.price) - y.price) - ((x.prev_price || x.price) - x.price),
     annual: (x, y) => (x.annual?.total_low ?? 9e9) - (y.annual?.total_low ?? 9e9), brand: (x, y) => (x.brand_rank ?? 999) - (y.brand_rank ?? 999) || (x.dep_year ?? 9e9) - (y.dep_year ?? 9e9)};
-  rows.sort((x, y) => (sorters[st.sort] || sorters.dep)(x, y) || (y.passes - x.passes));
+  rows.sort((x, y) => (sorters[st.sort] || sorters.best)(x, y) || (y.passes - x.passes));
   if (st.sort === "dep") rows.sort((x, y) => (y.passes - x.passes) || (x.dep_year ?? 9e9) - (y.dep_year ?? 9e9));
   const f = D.filters;
   return `
@@ -510,7 +519,7 @@ function usedView() {
       <select data-f="coe" aria-label="COE left"><option value="">Any COE left</option>${[5, 6, 7, 8].map(v => `<option value="${v}" ${String(v) === st.coe ? "selected" : ""}>${v}+ years COE</option>`).join("")}</select>
       <select data-f="owners" aria-label="Owners"><option value="">Any owners</option><option value="1" ${st.owners === "1" ? "selected" : ""}>1 owner</option><option value="2" ${st.owners === "2" ? "selected" : ""}>Up to 2 owners</option></select>
       <select data-f="src" aria-label="Source"><option value="">Both sites</option><option value="sgcarmart" ${st.src === "sgcarmart" ? "selected" : ""}>Sgcarmart</option><option value="motorist" ${st.src === "motorist" ? "selected" : ""}>Motorist</option></select>
-      <select data-f="sort" aria-label="Sort">${[["dep", "Lowest depreciation a year"], ["annual", "Cheapest to own"], ["price", "Price, low to high"], ["price_desc", "Price, high to low"], ["drop", "Biggest price cut"], ["km", "Lowest mileage"], ["coe", "Most COE left"], ["newest", "Newest listing"], ["brand", "Best selling brand"]].map(([v, l]) => `<option value="${v}" ${v === st.sort ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <select data-f="sort" aria-label="Sort">${[["best", "Best selling"], ["dep", "Lowest depreciation a year"], ["annual", "Cheapest to own"], ["price", "Price, low to high"], ["price_desc", "Price, high to low"], ["drop", "Biggest price cut"], ["km", "Lowest mileage"], ["coe", "Most COE left"], ["newest", "Newest listing"]].map(([v, l]) => `<option value="${v}" ${v === st.sort ? "selected" : ""}>${l}</option>`).join("")}</select>
       <label class="toggle"><input type="checkbox" data-f="shortlist" ${st.shortlist ? "checked" : ""}> Shortlist only</label>
       ${viewToggle(st)}
     </div>
@@ -523,7 +532,7 @@ function usedCard(u) {
   const isNew = u.days_listed != null && u.days_listed <= 2;
   const hist = u.history && u.history.length > 2 ? spark(u.history.map(h => ({v: h.price})), {w: 300, h: 36, stroke: cut ? "var(--good)" : "var(--accent)"}) : "";
   return `<article class="car ${u.passes ? "" : "off"}">
-    <div class="top-row"><div><h3><a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.name)}</a></h3><div class="sub">${u.year || ""}${u.reg_date ? ` · registered ${dmyy(u.reg_date)}` : ""}${u.brand_rank ? ` · #${u.brand_rank} ${u.drivetrain === "ev" ? "EV" : "petrol"} brand` : ""}</div></div>
+    <div class="top-row"><div><h3><a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.name)}</a></h3><div class="sub">${u.year || ""}${u.reg_date ? ` · registered ${dmyy(u.reg_date)}` : ""}${u.brand_rank ? ` · #${u.brand_rank} ${u.drivetrain === "ev" ? "EV" : "petrol"} brand` : ""}${u.popularity ? ` · #${u.popularity} new model` : ""}</div></div>
       <div class="badges">${isNew ? badge("New", "acc") : ""}${u.passes ? badge("Shortlist", "good") : ""}${badge(u.body)}</div></div>
     <div class="price"><span class="p">${money(u.price)}</span>${cut ? `<span class="chip good">▼ ${money(u.prev_price - u.price)} since ${dmy(u.prev_price_on)}</span>` : rise ? `<span class="chip bad">▲ ${money(u.price - u.prev_price)} since ${dmy(u.prev_price_on)}</span>` : ""}</div>
     ${hist ? `<div class="spark">${hist}</div>` : ""}
@@ -553,7 +562,7 @@ function brandsView() {
   const span = b.months?.length ? `${dmyy(b.months[0] + "-01").slice(2)} to ${dmyy(b.months[b.months.length - 1] + "-01").slice(2)}` : "";
   const maxEv = b.ev[0]?.regs || 1, maxP = b.petrol[0]?.regs || 1;
   return `
-  <div class="head"><div><h2>Top selling brands</h2><p>New car registrations ${span}, LTA table M03, ${int(b.total)} cars. LTA counts brands, not models: each EV brand's line up is kept by hand, best seller first, with its cheapest variant on today's price list.</p></div></div>
+  <div class="head"><div><h2>Top selling brands</h2><p>New car registrations ${span}, LTA table M03, ${int(b.total)} cars. LTA counts brands, not models, so each EV brand's models are ordered by Sgcarmart's popularity ranking, with the cheapest variant on today's price list.</p></div></div>
   <div class="two">
     <div>
       <h3 style="margin-bottom:10px">Electric · ${int(b.ev_total)} cars</h3>
