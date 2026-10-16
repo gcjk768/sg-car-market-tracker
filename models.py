@@ -72,6 +72,32 @@ class NewEvVariant(BaseModel):
         return " ".join(p for p in (self.make, self.model, self.variant) if p)
 
 
+class NewCarVariant(BaseModel):
+    """One variant from Sgcarmart's full new car listing (petrol, hybrid, diesel and electric), website only."""
+
+    make: str
+    model: str
+    variant: str = ""
+    fuel: str = Field(description="ev, hybrid, diesel or petrol")
+    price_with_coe: int
+    price_includes_coe: bool = True
+    power_kw: Optional[float] = None
+    engine_cc: Optional[int] = Field(default=None, description="Estimated from the litre figure in the name")
+    fuel_economy: Optional[str] = Field(default=None, description="As listed, km/L or km/kWh")
+    transmission: Optional[str] = None
+    price_change: Optional[int] = Field(default=None, description="Sgcarmart's last price move, negative for a cut")
+    price_change_on: Optional[str] = None
+    launch_date: Optional[str] = None
+    model_id: Optional[int] = None
+    listing_url: str
+    source: str
+    scraped_at: datetime = Field(default_factory=datetime.now)
+
+    @property
+    def display_name(self) -> str:
+        return " ".join(p for p in (self.make, self.model, self.variant) if p)
+
+
 class UsedListing(BaseModel):
     source: str
     listing_id: str

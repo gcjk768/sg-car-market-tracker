@@ -52,6 +52,24 @@ services:
     # so the NAS keeps its RAM.
     mem_limit: 2g
 
+  # Website: site/index.html plus data/site/data.json, which main.py rewrites after every daily run
+  # (website.py). Open http://<nas>:8786 on the home network or over Tailscale.
+  car-site:
+    image: nginx:1.27-alpine
+    container_name: car-site
+    ports:
+      - "8786:80"
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+      - ./data/site:/usr/share/nginx/html/live:ro
+      - ./site/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
 networks:
   scrape-net:
     external: true

@@ -35,6 +35,7 @@ def tmp_config(tmp_path, cfg):
     cfg["general"]["db_path"] = str(tmp_path / "cars.db")
     cfg["general"]["cache_dir"] = str(tmp_path / "cache")
     cfg["general"]["log_dir"] = str(tmp_path / "logs")
+    cfg["site"]["output"] = str(tmp_path / "site" / "data.json")
     path = tmp_path / "config.yaml"
     path.write_text(yaml.safe_dump(cfg), encoding="utf-8")
     return path

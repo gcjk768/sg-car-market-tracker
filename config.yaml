@@ -92,6 +92,16 @@ telegram:
     - fuel
     - costs
 
+# Website (site/index.html served by the car-site nginx container on port 8786). main.py rewrites the
+# data file after every full report; `python website.py` rebuilds it from the database and the day's cache.
+site:
+  output: data/site/data.json
+  # Tenders of history behind each COE category's sparkline.
+  coe_history_tenders: 12
+  # Price list makes that LTA counts under another make, so brand ranks reach them (see top_sellers.ev_models).
+  make_aliases: {Aion: GAC, Proton: GEELY, Omoda: CHERY, Jaecoo: CHERY, iCAUR: CHERY, Ora: GREAT WALL}
+  verified_on: "2026-10-16"
+
 ai:
   # Optional help from the Claude Code CLI in print mode (claude -p). Off by default because
   # the pipeline does not need it. Turn it on when a site changes layout and the label based
@@ -129,6 +139,9 @@ sources:
   # Since the 2026 redesign the electric car page lists every new EV model.
   sgcarmart_new_cars: "https://www.sgcarmart.com/electric-vehicle"
   sgcarmart_used_listing: "https://www.sgcarmart.com/used_cars/listing.php"
+  # Every new car (petrol, hybrid, electric) with variant prices in the page payload, 15 models a page. The search
+  # path pages server side; /new-cars/listing?page=N does not (checked 2026-10-17).
+  sgcarmart_new_listing: "https://www.sgcarmart.com/new-cars/listing/search?page={page}"
   sgcarmart_coe_results: "https://www.sgcarmart.com/news/coe_results.php"
   onemotoring_coe: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/coe-open-bidding.html"
   # carro.sg redirects to carro.co. Verified base URL, the buy path still needs a check.
@@ -141,6 +154,9 @@ sources:
   # LTA's schedule of every bidding exercise in the year (holidays included). The 2027 file is not published yet.
   coe_schedule_pdf: "https://onemotoring.lta.gov.sg/content/dam/onemotoring/Buying/PDF/COE/COE_Bidding_Schedule_for_Year_{year}.pdf"
   lta_news_feed: "https://www.lta.gov.sg/content/ltagov/en/feed.html?category=2&count=60"
+  # Press RSS, filtered by the same news.keywords. robots.txt allows it (Crawl-delay 10 is covered by the throttle). CNA is left out: its RSS path is disallowed.
+  media_news_feeds:
+    - "https://www.straitstimes.com/news/singapore/rss.xml"
   datagov_coe_page: "https://data.gov.sg/datasets/d_69b3380ad7e51aff3a7dcc84eba52b8a/view"
   datagov_coe_resource: "d_69b3380ad7e51aff3a7dcc84eba52b8a"
   fuel_price: "https://www.motorist.sg/petrol-prices"
@@ -394,32 +410,391 @@ new_ev:
   body_type_order: [Hatchback, Sedan, SUV, MPV, Coupe, Wagon, Other]
   body_type_titles:
     SUV: SUV and crossover
-  # Body type by "make model" when the page does not say. Matching is case insensitive.
+  # Body type by "make model" when the page does not say. Matching is case insensitive, hyphens and
+  # dots count as spaces, and the longest key that opens the name wins, so "Mazda 3 HB" beats "Mazda 3".
+  # Covers every new EV on the Sgcarmart price list and the used cars seen so far (checked 2026-10-16),
+  # so the website can group by body type. A van or lorry is Other; the used filters reject it anyway.
   body_type_overrides:
-    Tesla Model 3: Sedan
-    Tesla Model Y: SUV
-    BYD Seal 6: Sedan
-    BYD Seal: Coupe
-    BYD Atto 1: Hatchback
-    BYD Atto 2: SUV
-    BYD Atto 3: SUV
-    BYD Dolphin: Hatchback
-    BYD Sealion 7: SUV
-    BYD M6: MPV
+    AVATR 07: SUV
+    AVATR 11: SUV
+    Aion Hyptec HT: SUV
+    Aion UT: Hatchback
+    Aion V: SUV
+    Aion Y Plus: SUV
+    Aion ES: Sedan
     GAC Aion UT: Hatchback
     GAC Aion Y Plus: SUV
     GAC Aion ES: Sedan
-    MG 4: Hatchback
-    MG MGS5 EV: SUV
-    Xpeng G6: SUV
-    Zeekr X: SUV
-    Leapmotor C10: SUV
-    Kia EV5: SUV
-    Kia EV3: SUV
+    Alfa Romeo Giulia: Sedan
+    Audi A3: Hatchback
+    Audi A5: Coupe
+    Audi A6: Sedan
+    Audi S6: Sedan
+    Audi S4: Sedan
+    Audi Q3: SUV
+    Audi Q4: SUV
+    Audi Q6: SUV
+    Audi e tron GT: Sedan
+    Audi S e tron GT: Sedan
+    Austin Mini: Hatchback
+    BMW 1: Hatchback
+    BMW 2: Coupe
+    BMW 216D: MPV
+    BMW 216I: MPV
+    BMW 216I GC: Coupe
+    BMW 3: Sedan
+    BMW 320I: Sedan
+    BMW 4: Coupe
+    BMW 5: Sedan
+    BMW 518I: Sedan
+    BMW 6: Sedan
+    BMW i4: Coupe
+    BMW i5: Sedan
+    BMW i5 Touring: Wagon
+    BMW i7: Sedan
+    BMW iX: SUV
+    BMW iX1: SUV
+    BMW iX2: SUV
+    BMW iX3: SUV
+    BMW X1: SUV
+    BMW X3: SUV
+    BMW X4: SUV
+    BMW Z4: Coupe
+    BYD Atto 1: Hatchback
+    BYD Atto 2: SUV
+    BYD Atto 3: SUV
+    BYD Denza D9: MPV
+    BYD Dolphin: Hatchback
+    BYD e6: MPV
+    BYD eT3: Other
+    BYD M3e: MPV
+    BYD M6: MPV
+    BYD Seal: Coupe
+    BYD Seal 6: Sedan
+    BYD Sealion 7: SUV
+    Chery Jaecoo6 EV: SUV
+    Chery Omoda E5: SUV
+    Citroen C3: Hatchback
+    Citroen C4: Hatchback
+    Citroen C5: SUV
+    Citroen e C4: Hatchback
+    Citroen e C4 X: Sedan
+    Citroen e C4X: Sedan
+    Citroen e Berlingo: MPV
+    Citroen e Dispatch: Other
+    Cupra Born: Hatchback
+    Cupra Tavascan: SUV
+    Deepal S05: SUV
+    Deepal S07: SUV
+    Dongfeng 007: Sedan
+    Dongfeng Box: Hatchback
+    Dongfeng Vigo: Hatchback
+    Ferrari 348: Coupe
+    Fiat Bravo: Hatchback
+    Great Wall: Hatchback
+    Honda Civic: Sedan
+    Honda E: Hatchback
+    Honda Fit: Hatchback
+    Honda Freed: MPV
+    Honda N: Other
+    Honda Shuttle: Wagon
+    Honda Stepwagon: MPV
+    Honda Super ONE: Hatchback
+    Honda Vezel: SUV
     Hyundai Ioniq 5: SUV
     Hyundai Ioniq 6: Sedan
-    Deepal S07: SUV
+    Hyundai Ioniq 9: SUV
+    Hyundai Kona: SUV
+    Hyundai NE: SUV
+    Hyundai OS: SUV
+    Hyundai Santa Fe: SUV
+    Hyundai TL: SUV
+    IM 5: Sedan
+    IM 6: SUV
+    iCAUR V23: SUV
+    Jaecoo 5: SUV
+    Jaecoo 6: SUV
+    Jaguar I PACE: SUV
+    Jeep Grand: SUV
+    Kia Cerato: Sedan
+    Kia EV3: SUV
+    Kia EV4: Sedan
+    Kia EV5: SUV
+    Kia EV6: SUV
+    Kia EV9: SUV
+    Kia Stonic: SUV
+    Lamborghini Urus: SUV
+    Land Rover: SUV
+    Leapmotor B10: SUV
+    Leapmotor C10: SUV
+    Lexus GS450h: Sedan
+    Lotus Eletre: SUV
+    Lotus Emeya: Sedan
+    Maserati GranCabrio: Coupe
+    Maxus MIFA 7: MPV
+    Maxus MIFA 9: MPV
+    Mazda 3: Hatchback
+    Mazda 3 4DR: Sedan
+    Mazda 3 HB: Hatchback
+    Mazda 6e: Sedan
+    Mazda CX 3: SUV
+    Mazda MX 30: SUV
+    Mercedes Benz C: Sedan
+    Mercedes Benz CLA: Sedan
+    Mercedes Benz E: Sedan
+    Mercedes Benz EQA: SUV
+    Mercedes Benz EQB: SUV
+    Mercedes Benz EQC: SUV
+    Mercedes Benz EQE: Sedan
+    Mercedes Benz EQS: Sedan
+    Mercedes Benz EQS SUV: SUV
+    Mercedes Benz EQV: MPV
+    Mercedes Benz GLA: SUV
+    Mercedes Benz GLB: SUV
+    Mercedes Benz GLC: SUV
+    Mercedes Benz M: SUV
+    Mercedes Benz Maybach EQS SUV: SUV
+    Mercedes Benz S: Sedan
+    Mercedes Benz eCitan: MPV
+    Mercedes Benz eVito: Other
+    MG 4: Hatchback
+    MG MG4 EV: Hatchback
+    MG 5 EV: Wagon
+    MG Cyberster: Coupe
+    MG IM5 EV: Sedan
+    MG MGS5 EV: SUV
+    MG S5: SUV
+    MG S6: SUV
+    MG ZS: SUV
+    Mini Aceman: Hatchback
+    Mini Cooper: Hatchback
+    Mini Countryman: SUV
+    Mini ONE SW: Wagon
+    Nissan Ariya: SUV
+    Nissan Cabstar: Other
+    Nissan E NV200: Other
+    Nissan Kicks: SUV
+    Nissan Leaf EV: Hatchback
+    Nissan Note: Hatchback
+    Nissan NV200: Other
+    Nissan NV350: Other
+    Nissan Qashqai: SUV
+    Nissan Serena: MPV
+    Nissan Sylphy: Sedan
+    Nissan Townstar: MPV
+    Opel Astra: Hatchback
+    Opel Corsa e: Hatchback
+    Opel Grandland X: SUV
+    Opel Mokka: SUV
+    Opel Mokka e: SUV
+    Ora 07: Sedan
+    Ora 5: SUV
+    Ora Good: Hatchback
+    Peugeot 2008: SUV
+    Peugeot e 2008: SUV
+    Peugeot E 2008GT: SUV
+    Peugeot 3008: SUV
+    Peugeot 5008: SUV
     Polestar 2: Sedan
+    Polestar 3: SUV
+    Polestar 4: SUV
+    Porsche 911: Coupe
+    Porsche 928: Coupe
+    Porsche Cayenne: SUV
+    Porsche Macan: SUV
+    Porsche Taycan: Sedan
+    Proton e MAS 5: Hatchback
+    Proton e MAS 7: SUV
+    Rolls Royce Spectre: Coupe
+    Skoda Elroq: SUV
+    Skoda Enyaq: SUV
+    Skoda Octavia: Sedan
+    Skoda Scala: Hatchback
+    Skoda Superb: Sedan
+    Skyworth K: SUV
+    "Smart #1": SUV
+    "Smart #3": SUV
+    "Smart #5": SUV
+    Smart EQ: Hatchback
+    Subaru Solterra: SUV
+    Suzuki e Vitara: SUV
+    Suzuki Jimny: SUV
+    Suzuki Swift: Hatchback
+    Suzuki APV: Other
+    Suzuki Every: Other
+    Suzuki Spacia: Other
+    Tesla Model 3: Sedan
+    Tesla Model Y: SUV
+    Toyota Alphard: MPV
+    Toyota Aqua: Hatchback
+    Toyota bZ4X: SUV
+    Toyota Camry: Sedan
+    Toyota Corolla Altis: Sedan
+    Toyota Corolla: Sedan
+    Toyota Land: SUV
+    Toyota Previa: MPV
+    Toyota Raize: SUV
+    Toyota Sienta: MPV
+    Toyota Urban Cruiser: SUV
+    Toyota Vellfire: MPV
+    Toyota Vios: Sedan
+    Toyota Yaris: Hatchback
+    Toyota Dyna: Other
+    Toyota Hiace: Other
+    Toyota Proace: Other
+    Toyota Town: Other
+    Volkswagen Golf: Hatchback
+    Volkswagen ID Buzz: MPV
+    Volkswagen ID Buzz Cargo: Other
+    Volkswagen ID 3: Hatchback
+    Volkswagen ID 4: SUV
+    Volkswagen ID 5: SUV
+    Volkswagen ID 7: Sedan
+    Volkswagen Jetta: Sedan
+    Volkswagen Tiguan: SUV
+    Volkswagen Transporter: Other
+    Volvo EC40: SUV
+    Volvo ES90: Sedan
+    Volvo EX30: SUV
+    Volvo EX40: SUV
+    Volvo EX90: SUV
+    Volvo S60: Sedan
+    Volvo XC40: SUV
+    Volvo XC60: SUV
+    Volvo XC90: SUV
+    Xpeng G6: SUV
+    Xpeng X9: MPV
+    Zeekr 009: MPV
+    Zeekr 7X: SUV
+    Zeekr X: SUV
+    # Petrol and hybrid models from the full new car list (website), checked 2026-10-17.
+    Alfa Romeo Junior: SUV
+    Alpine A110: Coupe
+    Aston Martin DBX: SUV
+    Aston Martin Vantage: Coupe
+    Audi Q5: SUV
+    Audi Q7: SUV
+    Audi Q8: SUV
+    Audi RS Q8: SUV
+    Audi SQ5: SUV
+    Audi SQ8: SUV
+    Audi RS 3: Hatchback
+    Audi S3: Hatchback
+    Audi RS 5 Avant: Wagon
+    Audi RS e tron GT: Sedan
+    Audi e tron Sportback: SUV
+    BMW 7 Series: Sedan
+    BMW 3 Series: Sedan
+    BMW 5 Series: Sedan
+    BMW M135: Hatchback
+    BMW M3 Touring: Wagon
+    BMW M4: Coupe
+    BMW M5 Touring: Wagon
+    BMW X2: SUV
+    BMW X5: SUV
+    BMW X6: SUV
+    BMW X7: SUV
+    BYD C6: Sedan
+    BYD Sealion 6: SUV
+    BYD Sealion 8: SUV
+    Changan Q05: SUV
+    Changan S05: SUV
+    Changan S07: SUV
+    Cupra Leon: Hatchback
+    Cupra Terramar: SUV
+    Corvette Stingray: Coupe
+    Deepal Nevo Q05: SUV
+    Denza B5: SUV
+    Denza D9: MPV
+    Ferrari: Coupe
+    Ferrari Purosangue: SUV
+    GAC E9: MPV
+    Honda CR V: SUV
+    Honda HR V: SUV
+    Honda Jazz: Hatchback
+    Honda N Box: Hatchback
+    Honda Odyssey: MPV
+    Honda Prelude: Coupe
+    Honda Stepwgn: MPV
+    Honda WR V: SUV
+    Honda ZR V: SUV
+    Hongqi E HS9: SUV
+    Hyundai Avante: Sedan
+    Hyundai Elexio: SUV
+    Hyundai Tucson: SUV
+    Jaecoo 7: SUV
+    Jaecoo 8: SUV
+    Jaguar F PACE: SUV
+    Jeep Wrangler: SUV
+    KGM Torres: SUV
+    Kia Carnival: MPV
+    Kia Niro: SUV
+    Kia Sorento: SUV
+    Lexus ES: Sedan
+    Lexus LBX: SUV
+    Lexus LM: MPV
+    Lexus LS: Sedan
+    Lexus NX: SUV
+    Lexus RX: SUV
+    Lexus RZ: SUV
+    Lexus UX: SUV
+    Lotus Emira: Coupe
+    Mini John Cooper Works Aceman: Hatchback
+    Mini John Cooper Works Convertible: Coupe
+    Mini John Cooper Works Cooper: Hatchback
+    Mini John Cooper Works Countryman: SUV
+    Maserati GranTurismo: Coupe
+    Maserati Grecale: SUV
+    Maserati MC20: Coupe
+    Mazda CX 5: SUV
+    Mazda CX 60: SUV
+    Mazda CX 80: SUV
+    Mercedes Benz B: MPV
+    Mercedes Benz CLE: Coupe
+    Mercedes Benz G: SUV
+    Mercedes Benz GLE: SUV
+    Mercedes Benz Maybach GLS: SUV
+    Mercedes Benz Maybach SL: Coupe
+    Mercedes Benz SL: Coupe
+    Mercedes Benz V: MPV
+    Mitsuoka Rock Star: Coupe
+    Mitsuoka Viewt: Sedan
+    NIO Firefly: Hatchback
+    Nissan Fairlady: Coupe
+    Nissan X Trail: SUV
+    OHM 35: Hatchback
+    Porsche 718: Coupe
+    Porsche Panamera: Sedan
+    Rolls Royce Cullinan: SUV
+    Rolls Royce Dawn: Coupe
+    Rolls Royce Ghost: Sedan
+    Rolls Royce Phantom: Sedan
+    Rolls Royce Wraith: Coupe
+    Seres 3: SUV
+    Skoda Kamiq: SUV
+    Skoda Kodiaq: SUV
+    Subaru BRZ: Coupe
+    Subaru E Outback: Wagon
+    Subaru Forester: SUV
+    Suzuki Fronx: SUV
+    Suzuki Landy: MPV
+    Suzuki S Cross: SUV
+    Toyota Crown: Sedan
+    Toyota GR Corolla: Hatchback
+    Toyota GR Yaris: Hatchback
+    Toyota GR86: Coupe
+    Toyota Harrier: SUV
+    Toyota Noah: MPV
+    Toyota Prius: Hatchback
+    Toyota RAV4: SUV
+    Toyota Voxy: MPV
+    Toyota Yaris Cross: SUV
+    Toyota Corolla Cross: SUV
+    Toyota Corolla Touring: Wagon
+    Toyota Highlander: SUV
+    Volkswagen T Cross: SUV
+    Volvo V60: Wagon
+    Smart Fortwo: Hatchback
   always_include:
     - BYD Seal
     - BYD Atto 3
@@ -430,6 +805,20 @@ new_ev:
     - MG4
     - Aion Y Plus
     - Deepal S07
+
+# Full new car price list for the website (petrol and hybrid cars next to the EVs). About 38 pages at Sgcarmart's
+# 30 second crawl delay, roughly 20 minutes a day, cached per day. The Telegram report does not use it.
+new_cars:
+  enabled: true
+  max_pages: 45
+  # Truck, bus and van makes on Sgcarmart's list. Goods models of car makes are caught by name (used.filters.exclude_models
+  # plus van, truck, lorry, bus, pick-up, cargo, chassis, tipper, prime mover, tractor, coach).
+  exclude_makes: [Joylong, KYC, Hino, Isuzu, Foton, Forland, FAW Truck, Chenglong, Higer, CRRC, Yutong, Zhongtong Bus, King Long,
+                  Golden Dragon, Qingling, SANY, SHACMAN, SITRAK, SOKON, DFSK, Farizon, JAC, JMC, YaXing, Victory, SRM,
+                  Riddara, Fuso, Mitsubishi Fuso, UD, Scania, MAN, Iveco, Daimler, Mercedes-Benz Trucks, Volvo Trucks]
+  # Electric vans, pickups and trucks on the list under car makes (checked 2026-10-17).
+  exclude_models: [T3, T9R, eTerron 9, Double Cab, EW4, V7, Dispatch, Berlingo Van, ID. Buzz Cargo, eVito, eCitan, Townstar]
+  verified_on: "2026-10-17"
 
 used:
   top_n: 20

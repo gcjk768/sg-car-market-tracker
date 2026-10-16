@@ -24,6 +24,7 @@ from scrapers.fuel_cnergy import scrape_cnergy
 from scrapers.fuel_price import pick_price, scrape_fuel_price
 from scrapers.registrations import scrape_body_types, scrape_registrations
 from scrapers.motorbikes import scrape_motorbikes, shortlist as shortlist_bikes
+from scrapers.new_cars import scrape_new_cars
 from scrapers.new_ev import best_selling_by_body_type, group_by_body_type, model_prices, rank_new_evs, scrape_new_evs, top_best_seller
 from scrapers.used_carro import CarroUsedScraper
 from scrapers.used_motorist import MotoristUsedScraper
@@ -247,6 +248,19 @@ class Pipeline:
             if self.best_selling is None:
                 self.unavailable["best selling EV"] = "LTA registrations by body type could not be read, list shown in value order"
 
+    def run_new_cars(self) -> None:
+        """The full Sgcarmart new car list for the website. Never touches the report."""
+        if not self.cfg.get("new_cars", {}).get("enabled"):
+            return
+        try:
+            variants = scrape_new_cars(self.cfg, self.ua, self.run_date, self.force)
+            self.db.upsert_new_cars(variants, self.run_date)
+            log.info("new car listing: %d variants", len(variants))
+            vault.event("🚗", "scraped new car list", f"{len(variants)} variants, {len({(v.make, v.model) for v in variants})} models")
+        except Exception as exc:
+            log.error("new car listing failed: %s", exc)
+            self.unavailable["new_cars"] = str(exc)
+
     # Sections
 
     def coe_section(self) -> ReportSection:
@@ -321,6 +335,7 @@ class Pipeline:
             self.run_used()
         if "new_ev" in wanted:
             self.run_new_ev()
+            self.run_new_cars()
 
         picks = self.cost_picks() if wanted & {"costs", "summary"} else []
         self.change_reasons: list[str] = []

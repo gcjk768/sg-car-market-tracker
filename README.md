@@ -25,6 +25,19 @@ The bot posts one message per section, in this order: summary, COE position, Bes
 
 <sub>Rendered from the exact HTML the bot sends, using the sample report (sample figures). Regenerate with `uv run python scripts/telegram_preview.py` after changing `report.py`.</sub>
 
+## The website
+
+Everything the tracker finds is also on a small website, served by the `car-site` nginx container on port 8786
+(`site/index.html`, data in `data/site/data.json`). `main.py` rewrites the data after every daily run through
+`website.py`, and `python website.py` rebuilds it from the database at any time. It has seven pages:
+
+* **Today**: COE result, trend and forecast for every category, the three cheapest cars to own, pump prices and the biggest used car price cuts.
+* **New cars**: every new car on Sgcarmart's price list, electric, hybrid and petrol, filtered by fuel, body type, budget, COE category and brand, as cards or a table. Each car shows deposit, monthly instalment, cost a year and the price at the next COE.
+* **Used cars**: every live listing the tracker follows, with the shortlist filters as a toggle, price history and the reason a car is not shortlisted.
+* **Brands**, **Bikes**, **Costs** and **Guide**: LTA registrations by brand with each EV brand's line up, used bikes by licence class, the cost comparison, and the rules behind the numbers.
+
+The full new car list comes from Sgcarmart's listing pages (`scrapers/new_cars.py`, about 38 pages at the site's 30 second crawl delay, once a day). Body types come from `new_ev.body_type_overrides` in `config.yaml`.
+
 ## Why this exists
 
 Buying a car in Singapore means tracking a COE price that moves every two weeks, used listings spread over several portals, and a cost model (ARF, PARF rebate, road tax bands, VES and EEAI rebates, MAS loan limits) that no listing site shows in one place. Checking all of that by hand every day is tedious. This service does it once a day on a home NAS and sends a short, ranked report with a link to every car.

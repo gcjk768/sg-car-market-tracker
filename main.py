@@ -21,6 +21,7 @@ from db import Database
 from models import ReportSection
 import json
 
+import website
 import vault
 from pipeline import Pipeline, should_send
 from report import render_console, sample_report
@@ -91,6 +92,9 @@ def main(argv: list[str] | None = None) -> int:
             if args.section == "all" and not args.dry_run:
                 # Kept even when nothing is sent, so /ask always answers from today's figures.
                 db.set_state("last_report", report_text([s.html for s in sections]))
+            if args.section == "all":
+                # The website shows everything the run found, whether or not Telegram gets a message.
+                website.publish(cfg, db, run_date, user_agent(cfg), force=args.force)
 
         limit = cfg["telegram"]["max_message_length"]
         for s in sections:

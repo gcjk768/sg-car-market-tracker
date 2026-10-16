@@ -8,7 +8,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Iterable, Iterator, Optional
 
-from models import CoeResult, FuelPrice, NewEvVariant, PricePoint, UsedListing
+from models import CoeResult, FuelPrice, NewCarVariant, NewEvVariant, PricePoint, UsedListing
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
@@ -106,6 +106,27 @@ CREATE TABLE IF NOT EXISTS fuel_prices (
     station_prices TEXT NOT NULL DEFAULT '{}',
     source TEXT NOT NULL,
     scraped_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS new_car_prices (
+    scraped_on TEXT NOT NULL,
+    source TEXT NOT NULL,
+    make TEXT NOT NULL,
+    model TEXT NOT NULL,
+    variant TEXT NOT NULL DEFAULT '',
+    fuel TEXT NOT NULL,
+    price_with_coe INTEGER NOT NULL,
+    price_includes_coe INTEGER NOT NULL DEFAULT 1,
+    power_kw REAL,
+    engine_cc INTEGER,
+    fuel_economy TEXT,
+    transmission TEXT,
+    price_change INTEGER,
+    price_change_on TEXT,
+    launch_date TEXT,
+    model_id INTEGER,
+    listing_url TEXT NOT NULL,
+    scraped_at TEXT NOT NULL,
+    PRIMARY KEY (scraped_on, source, make, model, variant)
 );
 """
 
@@ -270,6 +291,39 @@ class Database:
             d.pop("scraped_on")
             out.append(NewEvVariant(**d))
         return out
+
+    # New cars, the full Sgcarmart listing (website only)
+
+    def upsert_new_cars(self, variants: Iterable[NewCarVariant], scraped_on: date) -> int:
+        n = 0
+        with self.tx() as c:
+            for v in variants:
+                c.execute(
+                    """INSERT OR REPLACE INTO new_car_prices
+                       (scraped_on, source, make, model, variant, fuel, price_with_coe, price_includes_coe, power_kw,
+                        engine_cc, fuel_economy, transmission, price_change, price_change_on, launch_date, model_id,
+                        listing_url, scraped_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (scraped_on.isoformat(), v.source, v.make, v.model, v.variant, v.fuel, v.price_with_coe,
+                     int(v.price_includes_coe), v.power_kw, v.engine_cc, v.fuel_economy, v.transmission, v.price_change,
+                     v.price_change_on, v.launch_date, v.model_id, v.listing_url, v.scraped_at.isoformat(timespec="seconds")),
+                )
+                n += 1
+        return n
+
+    def new_cars_on(self, scraped_on: date) -> list[NewCarVariant]:
+        rows = self.conn.execute("SELECT * FROM new_car_prices WHERE scraped_on = ?", (scraped_on.isoformat(),)).fetchall()
+        out = []
+        for r in rows:
+            d = dict(r)
+            d.pop("scraped_on")
+            d["price_includes_coe"] = bool(d["price_includes_coe"])
+            out.append(NewCarVariant(**d))
+        return out
+
+    def latest_new_cars_date(self) -> Optional[date]:
+        row = self.conn.execute("SELECT MAX(scraped_on) AS d FROM new_car_prices").fetchone()
+        return date.fromisoformat(row["d"]) if row and row["d"] else None
 
     # Used listings
 
