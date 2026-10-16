@@ -46,7 +46,7 @@ def test_red_flags_are_cached_until_the_listing_changes(cfg, tmp_path):
     cli = FakeCli({"s-1": ["Sold as is \u2014 no warranty", "256,000 km, likely ex taxi", "x" * 200], "s-2": []})
     stats = insights.red_flags(cars, db, cfg, cli)
     assert stats == {"cached": 0, "asked": 2, "calls": 1}
-    assert cars[0]["red_flags"][1:] == ["Sold as is , no warranty", "256,000 km, likely ex taxi"]   # dash gone, overlong dropped
+    assert cars[0]["red_flags"][1:] == ["Sold as is , no warranty"]   # dash gone, overlong dropped, the model's km flag left to the rule
     assert cars[0]["red_flags"][0].startswith("About ") and "ex taxi" in cars[0]["red_flags"][0]   # the mileage rule comes first
     assert cars[1]["red_flags"] == [] and cars[2]["red_flags"] == []   # skipped: rules only, asked again next time
 
@@ -96,3 +96,16 @@ def test_a_new_prompt_version_asks_again(cfg, tmp_path, monkeypatch):
     monkeypatch.setattr(insights, "PROMPT_VERSION", insights.PROMPT_VERSION + 1)
     insights.red_flags([card(1, 1)], db, cfg, cli)
     assert len(cli.calls) == 2
+
+
+def test_rules_own_owners_and_short_coe_and_the_model_cannot_repeat_them():
+    from datetime import date
+    ml350 = {"mileage_km": 147000, "year": 2011, "owners": 6, "coe_left": 4.42, "description": ""}
+    assert insights.rule_flags(ml350, date(2026, 10, 17)) == ["6 owners"]
+    assert insights.rule_flags({"owners": 1, "coe_left": 2.5, "description": ""}, date(2026, 10, 17)) == ["Only 2.5 years of COE left"]
+    # seen live on 17 Oct: the model said "COE less than 3 years" for 4.4 years left, and repeated a classic flag
+    assert insights._merge(["6 owners"], ["6 owners", "COE less than 3 years", "Sold as is"]) == ["6 owners", "Sold as is"]
+    assert insights._merge(["Classic or vintage scheme, limited days of use a year"], ["Classic vehicle scheme"]) == \
+        ["Classic or vintage scheme, limited days of use a year"]
+    assert insights._merge([], ["COE renewed for 5 years", "high mileage for age", "Imported used vehicle"]) == \
+        ["COE renewed for 5 years", "Imported used vehicle"]

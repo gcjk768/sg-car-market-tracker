@@ -40,6 +40,8 @@ FLAGS_PROMPT = (
 # Classic or vintage registration. Not the bare word "classic": Mazda sells a "Classic" trim.
 CLASSIC = ("classic vehicle", "classic car scheme", "classic plate", "vintage")
 BUILT = re.compile(r"\b(19[5-9]\d|200[0-5])\b")   # a build year in the text, older than any car the filters keep
+MANY_OWNERS = 4
+SHORT_COE_YEARS = 3
 TAXI_KM_PER_YEAR = 35000   # Singapore cars do about 15,000 to 20,000 km a year; taxis and private hire 60,000 plus
 
 
@@ -94,13 +96,24 @@ def rule_flags(card: dict[str, Any], today: Optional[date] = None) -> list[str]:
         return [f"Built {built.group(1)}, classic or vintage registration, limited use a year" if built
                 else "Classic or vintage scheme, limited days of use a year"]
     kpy = km_per_year(card, today)
+    out = []
     if kpy and kpy >= TAXI_KM_PER_YEAR and "commercial vehicle" not in (card.get("flags") or []):   # a lorry is no taxi
-        return [f"About {kpy:,} km a year, likely ex taxi or private hire"]
-    return []
+        out.append(f"About {kpy:,} km a year, likely ex taxi or private hire")
+    if (card.get("owners") or 0) >= MANY_OWNERS:
+        out.append(f"{card['owners']} owners")
+    if card.get("coe_left") is not None and card["coe_left"] < SHORT_COE_YEARS:
+        out.append(f"Only {card['coe_left']:.1f} years of COE left")
+    return out
+
+
+# What the rules own. A model flag on these is dropped: the rule is exact and the model was seen to get them wrong
+# ("COE less than 3 years" on a car with 4.4 years left) or to repeat them ("Classic vehicle scheme" twice).
+RULE_TOPICS = re.compile(r"owner|mileage|\bkm\b|classic|vintage|\bcoe\b(?!.*renew)", re.I)
 
 
 def _merge(rules: list[str], model: list[str]) -> list[str]:
-    return rules + [f for f in model if f not in rules][: max(0, 4 - len(rules))]
+    extra = [f for f in model if f not in rules and not RULE_TOPICS.search(f)]
+    return rules + extra[: max(0, 4 - len(rules))]
 
 
 def _fingerprint(card: dict[str, Any]) -> str:
