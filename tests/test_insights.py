@@ -46,8 +46,9 @@ def test_red_flags_are_cached_until_the_listing_changes(cfg, tmp_path):
     cli = FakeCli({"s-1": ["Sold as is \u2014 no warranty", "256,000 km, likely ex taxi", "x" * 200], "s-2": []})
     stats = insights.red_flags(cars, db, cfg, cli)
     assert stats == {"cached": 0, "asked": 2, "calls": 1}
-    assert cars[0]["red_flags"] == ["Sold as is , no warranty", "256,000 km, likely ex taxi"]   # dash gone, overlong dropped
-    assert cars[1]["red_flags"] == [] and "red_flags" not in cars[2]                            # skipped: asked again next time
+    assert cars[0]["red_flags"][1:] == ["Sold as is , no warranty", "256,000 km, likely ex taxi"]   # dash gone, overlong dropped
+    assert cars[0]["red_flags"][0].startswith("About ") and "ex taxi" in cars[0]["red_flags"][0]   # the mileage rule comes first
+    assert cars[1]["red_flags"] == [] and cars[2]["red_flags"] == []   # skipped: rules only, asked again next time
 
     again = [card(1, 1, desc="Sold as is", km=256000), card(2, 1, desc="Agent serviced", price=95000)]
     stats = insights.red_flags(again, db, cfg, cli)
@@ -67,4 +68,31 @@ def test_red_flags_batches_respect_the_input_cap_and_call_limit(cfg, tmp_path):
 def test_no_ai_means_no_flags_and_no_error(cfg, tmp_path):
     cars = [card(1, 1)]
     stats = insights.red_flags(cars, Database(tmp_path / "c.db"), cfg)   # tests switch AI off
-    assert stats == {"cached": 0, "asked": 0, "calls": 0} and "red_flags" not in cars[0]
+    assert stats == {"cached": 0, "asked": 0, "calls": 0} and cars[0]["red_flags"] == []   # rules only
+
+
+def test_rules_see_taxi_mileage_and_classic_plates():
+    from datetime import date
+    today = date(2026, 10, 17)
+    assert insights.km_per_year({"mileage_km": 256000, "reg_date": "2022-10-18"}, today) == 64043
+    taxi = insights.rule_flags({"mileage_km": 256000, "reg_date": "2022-10-18", "description": ""}, today)
+    assert taxi == ["About 64,043 km a year, likely ex taxi or private hire"]
+    lorry = {"mileage_km": 256000, "reg_date": "2022-10-18", "description": "", "flags": ["commercial vehicle"]}
+    assert insights.rule_flags(lorry, today) == []
+    normal = {"mileage_km": 60000, "reg_date": "2023-01-01", "description": "Agent serviced"}
+    assert insights.rule_flags(normal, today) == []
+    classic = {"mileage_km": 104518, "year": 2023, "description": "Imported Used Vehicle. Registered under Classic Vehicle Scheme."}
+    assert insights.rule_flags(classic, today) == ["Classic or vintage scheme, limited days of use a year"]
+    # a 1986 Defender re-registered in 2023: lifetime mileage, not a taxi
+    defender = {"mileage_km": 194000, "reg_date": "2023-04-20", "description": "A true classic for vintage car enthusiasts! This 1986 Land Rover"}
+    assert insights.rule_flags(defender, today) == ["Built 1986, classic or vintage registration, limited use a year"]
+    assert insights.rule_flags({"mileage_km": 30000, "year": 2023, "name": "Mazda 3 Mild Hybrid 1.5A Classic", "description": ""}, today) == []
+
+
+def test_a_new_prompt_version_asks_again(cfg, tmp_path, monkeypatch):
+    db = Database(tmp_path / "c.db")
+    cli = FakeCli({})
+    insights.red_flags([card(1, 1)], db, cfg, cli)
+    monkeypatch.setattr(insights, "PROMPT_VERSION", insights.PROMPT_VERSION + 1)
+    insights.red_flags([card(1, 1)], db, cfg, cli)
+    assert len(cli.calls) == 2

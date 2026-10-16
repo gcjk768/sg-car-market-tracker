@@ -5,9 +5,9 @@ listings, the same model family and fuel, registered within `site.deal.year_wind
 year already allows for price and COE left, so it compares cars of different ages fairly. Needs at least
 `min_similar` other cars, else no verdict.
 
-Red flags (Claude CLI, `ai` settings): the seller's description plus the car's own figures go to the model,
-which lists concerns a buyer should check (ex-taxi or PHV, as is, warranty ending, mileage far above its
-age, accident or flood wording the keyword filter missed). Answers are cached per listing in the
+Red flags: plain rules first, every build (mileage a year at taxi levels, classic or vintage scheme wording),
+then the Claude CLI (`ai` settings) reads the seller's description with the car's figures and lists other
+concerns a buyer should check (as is, warranty ending, accident or repair wording, COE renewed, imported used). Answers are cached per listing in the
 `listing_flags` table and only asked again when the description, price or mileage changes, so a normal day
 costs a call or two. With AI off or failing, cards simply carry no flags.
 """
@@ -16,21 +16,31 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import statistics
+from datetime import date
 from typing import Any, Optional
 
 log = logging.getLogger(__name__)
 
+# Bump when the prompt changes: cached answers from an older prompt are asked again.
+PROMPT_VERSION = 2
 FLAGS_PROMPT = (
     "You check used car listings in Singapore for a buyer. Standard input is a JSON list of cars, each with an id, "
-    "the car's name, year, mileage in km, owners, COE years left, price in SGD and the seller's description. "
-    "For each car list the concerns a careful buyer should check before viewing: likely ex-taxi or private hire "
-    "(very high mileage for its age, or wording), sold as is, warranty missing or ending, accident, flood or "
-    "repair wording, battery or engine replaced, short COE, parallel import without agent warranty, or anything "
-    "else that lowers its value. Only real concerns stated or strongly implied by the data; marketing words are "
-    "not concerns, and a car with none gets an empty list. Each concern at most 8 plain words, no dashes. "
+    "the car's name, year, mileage in km, km_per_year, owners, COE years left, price in SGD and the seller's "
+    "description. Mileage and classic plates are already checked, so do not mention mileage, km or classic status. "
+    "List only other concerns a careful buyer should check before viewing, stated or strongly implied by the "
+    "description: sold as is, no warranty or warranty ending, accident, flood or repair history, engine, gearbox or "
+    "battery replaced, COE renewed or COE under 3 years, parallel import without agent warranty, ex rental, ex "
+    "taxi or private hire wording, more than 3 owners, imported used vehicle, modified, or anything else that lowers "
+    "its value or limits its use. Marketing words, a normal spec list and 1 to 3 owners are not concerns. Most cars "
+    "have none: give them an empty list. Each concern at most 8 plain words, no dashes. "
     "Return one JSON object and nothing else, mapping each id to its list of concerns. Do not use any tools."
 )
+# Classic or vintage registration. Not the bare word "classic": Mazda sells a "Classic" trim.
+CLASSIC = ("classic vehicle", "classic car scheme", "classic plate", "vintage")
+BUILT = re.compile(r"\b(19[5-9]\d|200[0-5])\b")   # a build year in the text, older than any car the filters keep
+TAXI_KM_PER_YEAR = 35000   # Singapore cars do about 15,000 to 20,000 km a year; taxis and private hire 60,000 plus
 
 
 def _family(make: str, model: str) -> str:
@@ -62,13 +72,45 @@ def deal_verdicts(cards: list[dict[str, Any]], cfg: dict[str, Any]) -> None:
                      "diff": int(round(diff)), "pct": round(pct, 1), "similar": len(others), "median": int(round(median))}
 
 
+def km_per_year(card: dict[str, Any], today: Optional[date] = None) -> Optional[int]:
+    today = today or date.today()
+    if not card.get("mileage_km"):
+        return None
+    if card.get("reg_date"):
+        years = (today - date.fromisoformat(card["reg_date"])).days / 365.25
+    elif card.get("year"):
+        years = today.year - card["year"] + 0.5
+    else:
+        return None
+    return int(card["mileage_km"] / max(years, 0.5))
+
+
+def rule_flags(card: dict[str, Any], today: Optional[date] = None) -> list[str]:
+    """What plain rules can see for sure, every build, no model needed. An old car re-registered recently
+    carries its lifetime mileage, so a classic never gets the taxi flag."""
+    text = (card.get("description") or "").lower() + " " + (card.get("name") or "").lower()
+    built = BUILT.search(text)
+    if any(w in text for w in CLASSIC) or built:
+        return [f"Built {built.group(1)}, classic or vintage registration, limited use a year" if built
+                else "Classic or vintage scheme, limited days of use a year"]
+    kpy = km_per_year(card, today)
+    if kpy and kpy >= TAXI_KM_PER_YEAR and "commercial vehicle" not in (card.get("flags") or []):   # a lorry is no taxi
+        return [f"About {kpy:,} km a year, likely ex taxi or private hire"]
+    return []
+
+
+def _merge(rules: list[str], model: list[str]) -> list[str]:
+    return rules + [f for f in model if f not in rules][: max(0, 4 - len(rules))]
+
+
 def _fingerprint(card: dict[str, Any]) -> str:
-    raw = json.dumps([card.get("description", ""), card.get("price"), card.get("mileage_km")], ensure_ascii=False)
+    raw = json.dumps([PROMPT_VERSION, card.get("description", ""), card.get("price"), card.get("mileage_km")], ensure_ascii=False)
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
 def _facts(card: dict[str, Any]) -> dict[str, Any]:
     return {"id": card["id"], "car": card["name"], "year": card.get("year"), "mileage_km": card.get("mileage_km"),
+            "km_per_year": km_per_year(card),
             "owners": card.get("owners"), "coe_years_left": card.get("coe_left"), "price": card.get("price"),
             "description": (card.get("description") or "")[:600]}
 
@@ -108,8 +150,9 @@ def red_flags(cards: list[dict[str, Any]], db, cfg: dict[str, Any], cli=None) ->
     for c in cards:
         fp = _fingerprint(c)
         hit = db.get_listing_flags(c["id"], fp)
+        c["red_flags"] = rule_flags(c)          # rules always; the model's extras join them below
         if hit is not None:
-            c["red_flags"] = hit
+            c["red_flags"] = _merge(c["red_flags"], hit)
             stats["cached"] += 1
         else:
             todo.append((c, fp))
@@ -138,7 +181,8 @@ def red_flags(cards: list[dict[str, Any]], db, cfg: dict[str, Any], cli=None) ->
             if item["id"] not in answer:
                 continue   # the model skipped it: ask again next time
             card, fp = by_id[item["id"]]
-            card["red_flags"] = _clean(answer[item["id"]])
-            db.put_listing_flags(item["id"], fp, card["red_flags"])
+            found = _clean(answer[item["id"]])
+            db.put_listing_flags(item["id"], fp, found)
+            card["red_flags"] = _merge(rule_flags(card), found)
             stats["asked"] += 1
     return stats
