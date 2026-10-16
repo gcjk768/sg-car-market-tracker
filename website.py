@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import costs
+import insights
 from coe_forecast import bidding_window, forecast
 from db import Database
 from filters import brand_rank, reject_reason, shortlist
@@ -306,7 +307,7 @@ def used_cards(listings: list[UsedListing], cfg: dict[str, Any], today: date, pe
             "dep_year": l.depreciation_per_year, "coe_left": l.coe_years_remaining,
             "coe_expiry": l.coe_expiry.isoformat() if l.coe_expiry else None,
             "omv": l.omv, "arf": l.arf, "dereg_value": l.dereg_value, "engine_cc": l.engine_cc, "power_kw": l.power_kw,
-            "flags": l.flags, "first_seen": l.first_seen.isoformat() if l.first_seen else None,
+            "flags": l.flags, "description": l.description, "first_seen": l.first_seen.isoformat() if l.first_seen else None,
             "days_listed": (today - l.first_seen).days if l.first_seen else None,
             "prev_price": prev, "prev_price_on": prev_on,
             "history": _changes(l),
@@ -463,6 +464,9 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
     pop = Popularity(cars)
     listings = db.active_listings()
     used = used_cards(listings, cfg, today, petrol_price, sales, pop)
+    insights.deal_verdicts(used, cfg)
+    flag_stats = insights.red_flags(used, db, cfg)
+    log.info("red flags: %s", flag_stats)
 
     # The full new car list: petrol and hybrid cars, and any EV the EV price list missed. The deltas move a
     # price with the forecast COE premium, like the EV cards.

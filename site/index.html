@@ -142,6 +142,7 @@ table.t td.min{color:var(--good);font-weight:600}
 .drops{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
 .drop{background:var(--card);border:1px solid var(--line);border-radius:var(--r-s);padding:12px 14px;text-decoration:none;display:flex;flex-direction:column;gap:4px}
 .drop b{font-size:14px}
+.drop .chip{align-self:flex-start}
 .drop .num{font-size:13px;color:var(--ink-2)}
 
 /* filter bar */
@@ -202,6 +203,8 @@ table.list td:first-child{white-space:normal;min-width:200px}
 table.list td a{text-decoration:none;font-weight:700}
 table.list tr.off td{opacity:.72}
 table.list tbody tr:hover td{background:var(--accent-soft)}
+.flags{margin:0;padding:8px 10px 8px 28px;border-radius:var(--r-s);background:var(--warn-soft);color:var(--warn);font-size:12.5px;font-weight:600;line-height:1.45}
+.flags li::marker{content:"⚠ "}
 .empty{padding:40px 20px;text-align:center;color:var(--mute);border:1px dashed var(--line-2);border-radius:var(--r)}
 
 /* brands */
@@ -326,6 +329,7 @@ function today() {
   const cheapest = picks.length ? picks.reduce((m, p) => p.total_low < m.total_low ? p : m) : null;
   const drops = D.used.filter(u => u.prev_price && u.prev_price > u.price).map(u => ({...u, pct: (u.prev_price - u.price) / u.prev_price * 100}))
     .sort((x, y) => y.pct - x.pct).slice(0, 6);
+  const deals = D.used.filter(u => u.passes && u.deal).sort((x, y) => x.deal.pct - y.deal.pct).slice(0, 6);
   const fuel = D.fuel || {}, grades = ["92", "95", "98", "Premium", "Diesel"].filter(g => Object.values(fuel.grades || {}).some(b => b[g] != null));
   const brands = Object.keys(fuel.grades || {}).sort((x, y) => (fuel.grades[x]["95"] ?? 9) - (fuel.grades[y]["95"] ?? 9));
   const minOf = g => Math.min(...brands.map(b => fuel.grades[b][g]).filter(v => v != null));
@@ -379,6 +383,11 @@ function today() {
         <div class="v">${money(p.total_low)} <small>to ${money(p.total_high)} a year</small></div>
         <dl><dt>Depreciation</dt><dd>${money(p.depreciation)}</dd><dt>Energy</dt><dd>${money(p.energy)}</dd><dt>Road tax</dt><dd>${money(p.road_tax)}</dd>${p.finance?.deposit ? `<dt>Deposit · monthly</dt><dd>${k(p.finance.deposit)} · ${money(p.finance.monthly)}</dd>` : ""}</dl>
       </article>`).join("")}</div>
+  </section>` : ""}
+
+  ${deals.length ? `<section>
+    <div class="head"><div><h2>Best deals today</h2><p>Shortlisted used cars that depreciate least against similar live listings of the same model and fuel, registered within a year of each other.</p></div><span class="links"><a href="#used">All used cars</a></span></div>
+    <div class="drops">${deals.map(u => `<a class="drop" href="${esc(u.url)}" target="_blank" rel="noopener"><b>${esc(u.name)} ${u.year || ""}</b><span class="num">${money(u.price)}</span>${dealChip(u.deal)}<span class="small mute">${u.deal.similar} similar cars, median ${money(u.deal.median)} a year${u.red_flags?.length ? ` · <span class="warn">⚠ ${esc(u.red_flags[0])}</span>` : ""}</span></a>`).join("")}</div>
   </section>` : ""}
 
   <section class="fuel">
@@ -441,6 +450,11 @@ function newView() {
 // then the brand's LTA sales, then price. Unranked models go last.
 const bestKey = c => c.best_seller ? c.best_seller.pos : 1e6;
 const byPopular = (x, y) => bestKey(x) - bestKey(y) || (x.popularity ?? 1e6) - (y.popularity ?? 1e6) || (x.brand_rank ?? 999) - (y.brand_rank ?? 999) || (x.price ?? 9e9) - (y.price ?? 9e9);
+// Deal verdict: depreciation a year against similar live listings (computed in insights.py).
+const dealChip = d => !d ? "" : d.verdict === "under" ? `<span class="chip good" title="Median of ${d.similar} similar cars: ${money(d.median)} a year">${money(-d.diff)}/yr under ${d.similar} similar</span>`
+  : d.verdict === "over" ? `<span class="chip bad" title="Median of ${d.similar} similar cars: ${money(d.median)} a year">${money(d.diff)}/yr over ${d.similar} similar</span>`
+  : `<span class="chip flat" title="Median of ${d.similar} similar cars: ${money(d.median)} a year">In line with ${d.similar} similar</span>`;
+const flagList = fl => fl && fl.length ? `<ul class="flags">${fl.map(f => `<li>${esc(f)}</li>`).join("")}</ul>` : "";
 const cheapestOf = vs => vs.reduce((m, x) => (x.price ?? 9e9) < (m.price ?? 9e9) ? x : m, vs[0]);
 const fuelBadge = f => badge(FUEL[f] || f, f === "ev" ? "acc" : f === "hybrid" ? "good" : "flat");
 function newCard(vs) {
@@ -478,9 +492,9 @@ function newTable(models) {
   </tbody></table></div>`;
 }
 function usedTable(rows) {
-  return `<div class="tbl"><table class="t list"><thead><tr><th>Car</th><th>Year</th><th>Price</th><th>Dep a year</th><th>Mileage</th><th>COE left</th><th>Owners</th><th>Monthly</th><th>Listed</th></tr></thead><tbody>
+  return `<div class="tbl"><table class="t list"><thead><tr><th>Car</th><th>Year</th><th>Price</th><th>Dep a year</th><th>Deal</th><th>Mileage</th><th>COE left</th><th>Owners</th><th>Monthly</th><th>Listed</th></tr></thead><tbody>
     ${rows.map(u => `<tr class="${u.passes ? "" : "off"}"><td><a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.name)}</a><div class="small ${u.passes ? "good" : "warn"}">${u.passes ? "Shortlist" : esc(u.reject_reason)}</div></td>
-      <td>${u.year || ""}</td><td>${money(u.price)}${u.prev_price && u.prev_price > u.price ? ` <span class="good">▼${k(u.prev_price - u.price)}</span>` : ""}</td><td>${money(u.dep_year)}</td>
+      <td>${u.year || ""}</td><td>${money(u.price)}${u.prev_price && u.prev_price > u.price ? ` <span class="good">▼${k(u.prev_price - u.price)}</span>` : ""}</td><td>${money(u.dep_year)}</td><td>${u.deal ? `<span class="${u.deal.verdict === "under" ? "good" : u.deal.verdict === "over" ? "bad" : ""}">${u.deal.pct > 0 ? "+" : ""}${u.deal.pct}%</span>` : ""}${u.red_flags?.length ? ` <span class="warn" title="${esc(u.red_flags.join("; "))}">⚠ ${u.red_flags.length}</span>` : ""}</td>
       <td>${u.mileage_km != null ? int(u.mileage_km) : ""}</td><td>${u.coe_left != null ? u.coe_left.toFixed(1) + " y" : ""}</td><td>${u.owners ?? ""}</td>
       <td>${u.finance?.monthly ? money(u.finance.monthly) : ""}</td><td>${u.days_listed != null ? u.days_listed + " d" : ""}</td></tr>`).join("")}
   </tbody></table></div>`;
@@ -498,6 +512,7 @@ function usedView() {
     && (!st.owners || (u.owners != null && u.owners <= Number(st.owners))) && (!st.shortlist || u.passes) && (!st.src || u.source === st.src)
     && (!st.q || (u.name + " " + (u.year || "")).toLowerCase().includes(st.q)));
   const sorters = {// Same as the Telegram report: shortlisted cars, best selling brand, then lowest depreciation, then mileage.
+    deal: (x, y) => (y.passes - x.passes) || (x.deal ? x.deal.pct : 1e6) - (y.deal ? y.deal.pct : 1e6),
     best: (x, y) => (y.passes - x.passes) || (x.brand_rank ?? 999) - (y.brand_rank ?? 999) || (x.dep_year ?? 9e9) - (y.dep_year ?? 9e9) || (x.mileage_km ?? 9e9) - (y.mileage_km ?? 9e9),
     dep: (x, y) => (x.dep_year ?? 9e9) - (y.dep_year ?? 9e9), price: (x, y) => x.price - y.price, price_desc: (x, y) => y.price - x.price,
     km: (x, y) => (x.mileage_km ?? 9e9) - (y.mileage_km ?? 9e9), coe: (x, y) => (y.coe_left ?? 0) - (x.coe_left ?? 0),
@@ -519,7 +534,7 @@ function usedView() {
       <select data-f="coe" aria-label="COE left"><option value="">Any COE left</option>${[5, 6, 7, 8].map(v => `<option value="${v}" ${String(v) === st.coe ? "selected" : ""}>${v}+ years COE</option>`).join("")}</select>
       <select data-f="owners" aria-label="Owners"><option value="">Any owners</option><option value="1" ${st.owners === "1" ? "selected" : ""}>1 owner</option><option value="2" ${st.owners === "2" ? "selected" : ""}>Up to 2 owners</option></select>
       <select data-f="src" aria-label="Source"><option value="">Both sites</option><option value="sgcarmart" ${st.src === "sgcarmart" ? "selected" : ""}>Sgcarmart</option><option value="motorist" ${st.src === "motorist" ? "selected" : ""}>Motorist</option></select>
-      <select data-f="sort" aria-label="Sort">${[["best", "Best selling"], ["dep", "Lowest depreciation a year"], ["annual", "Cheapest to own"], ["price", "Price, low to high"], ["price_desc", "Price, high to low"], ["drop", "Biggest price cut"], ["km", "Lowest mileage"], ["coe", "Most COE left"], ["newest", "Newest listing"]].map(([v, l]) => `<option value="${v}" ${v === st.sort ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <select data-f="sort" aria-label="Sort">${[["best", "Best selling"], ["deal", "Best deal"], ["dep", "Lowest depreciation a year"], ["annual", "Cheapest to own"], ["price", "Price, low to high"], ["price_desc", "Price, high to low"], ["drop", "Biggest price cut"], ["km", "Lowest mileage"], ["coe", "Most COE left"], ["newest", "Newest listing"]].map(([v, l]) => `<option value="${v}" ${v === st.sort ? "selected" : ""}>${l}</option>`).join("")}</select>
       <label class="toggle"><input type="checkbox" data-f="shortlist" ${st.shortlist ? "checked" : ""}> Shortlist only</label>
       ${viewToggle(st)}
     </div>
@@ -534,7 +549,7 @@ function usedCard(u) {
   return `<article class="car ${u.passes ? "" : "off"}">
     <div class="top-row"><div><h3><a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.name)}</a></h3><div class="sub">${u.year || ""}${u.reg_date ? ` · registered ${dmyy(u.reg_date)}` : ""}${u.brand_rank ? ` · #${u.brand_rank} ${u.drivetrain === "ev" ? "EV" : "petrol"} brand` : ""}${u.popularity ? ` · #${u.popularity} new model` : ""}</div></div>
       <div class="badges">${isNew ? badge("New", "acc") : ""}${u.passes ? badge("Shortlist", "good") : ""}${badge(u.body)}</div></div>
-    <div class="price"><span class="p">${money(u.price)}</span>${cut ? `<span class="chip good">▼ ${money(u.prev_price - u.price)} since ${dmy(u.prev_price_on)}</span>` : rise ? `<span class="chip bad">▲ ${money(u.price - u.prev_price)} since ${dmy(u.prev_price_on)}</span>` : ""}</div>
+    <div class="price"><span class="p">${money(u.price)}</span>${cut ? `<span class="chip good">▼ ${money(u.prev_price - u.price)} since ${dmy(u.prev_price_on)}</span>` : rise ? `<span class="chip bad">▲ ${money(u.price - u.prev_price)} since ${dmy(u.prev_price_on)}</span>` : ""}${dealChip(u.deal)}</div>
     ${hist ? `<div class="spark">${hist}</div>` : ""}
     <div class="specs">
       <div><span>Mileage</span><b>${u.mileage_km != null ? int(u.mileage_km) + " km" : "not stated"}</b></div>
@@ -550,6 +565,7 @@ function usedCard(u) {
       ${u.engine_cc ? `<div><span>Engine</span><b>${int(u.engine_cc)} cc</b></div>` : u.power_kw ? `<div><span>Power</span><b>${Math.round(u.power_kw)} kW</b></div>` : ""}
       ${u.annual ? `<div><span>Road tax</span><b>${money(u.annual.road_tax)}</b></div><div><span>Energy</span><b>${money(u.annual.energy)}</b></div>` : ""}
     </div></details>` : ""}
+    ${flagList(u.red_flags)}
     ${u.passes ? "" : `<div class="reason">Not shortlisted: ${esc(u.reject_reason)}</div>`}
     <div class="foot"><span>${esc(u.source === "sgcarmart" ? "Sgcarmart" : "Motorist")} · ${u.days_listed != null ? `${u.days_listed} day${u.days_listed === 1 ? "" : "s"} listed` : ""}</span><a href="${esc(u.url)}" target="_blank" rel="noopener">Listing ↗</a></div>
   </article>`;

@@ -100,6 +100,13 @@ site:
   coe_history_tenders: 12
   # Price list makes that LTA counts under another make, so brand ranks reach them (see top_sellers.ev_models).
   make_aliases: {Aion: GAC, Proton: GEELY, Omoda: CHERY, Jaecoo: CHERY, iCAUR: CHERY, Ora: GREAT WALL}
+  # Deal verdict on used cars: depreciation per year against the median of similar live listings (same model
+  # family and fuel, registered within year_window years). Needs min_similar other cars. Within band_pct of
+  # the median is "in line".
+  deal: {year_window: 1, min_similar: 3, band_pct: 5}
+  # Red flags read by the Claude CLI (ai settings) from each used listing's description and figures, cached per
+  # listing until its description, price or mileage changes. max_calls caps the calls per build.
+  red_flags: {enabled: true, max_calls: 8}
   verified_on: "2026-10-16"
 
 ai:

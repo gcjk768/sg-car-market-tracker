@@ -99,6 +99,12 @@ CREATE TABLE IF NOT EXISTS sent_state (
     value TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS listing_flags (
+    card_id TEXT PRIMARY KEY,
+    fingerprint TEXT NOT NULL,
+    flags TEXT NOT NULL DEFAULT '[]',
+    checked_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS fuel_prices (
     observed_on TEXT PRIMARY KEY,
     ron95_per_litre REAL NOT NULL,
@@ -310,6 +316,17 @@ class Database:
             d.pop("scraped_on")
             out.append(NewEvVariant(**d))
         return out
+
+    # Red flags the model found in a used listing (website only), cached until the listing changes
+
+    def get_listing_flags(self, card_id: str, fingerprint: str) -> Optional[list[str]]:
+        row = self.conn.execute("SELECT fingerprint, flags FROM listing_flags WHERE card_id = ?", (card_id,)).fetchone()
+        return json.loads(row["flags"]) if row and row["fingerprint"] == fingerprint else None
+
+    def put_listing_flags(self, card_id: str, fingerprint: str, flags: list[str]) -> None:
+        with self.tx() as c:
+            c.execute("INSERT OR REPLACE INTO listing_flags (card_id, fingerprint, flags, checked_at) VALUES (?, ?, ?, ?)",
+                      (card_id, fingerprint, json.dumps(flags, ensure_ascii=False), datetime.now().isoformat(timespec="seconds")))
 
     # New cars, the full Sgcarmart listing (website only)
 
