@@ -147,3 +147,15 @@ def test_car_image_comes_from_the_model_id_in_the_price_list_link(cfg):
     assert site.car_image(url, cfg) == "https://i.i-sgcm.com/new_cars/cars/21974/21974_m.jpg"
     assert site.car_image("https://www.sgcarmart.com/new-cars/pricelist", cfg) is None
     assert site.car_image(None, cfg) is None
+
+
+def test_cards_carry_the_360_view_of_their_model(cfg, tmp_path, offline):
+    db = _db(tmp_path)
+    db.upsert_new_cars([NewCarVariant(make="Lexus", model="RX 350h Hybrid", variant="Luxury", fuel="hybrid", price_with_coe=400000,
+                                      power_kw=183, model_id=21700, listing_url="https://www.sgcarmart.com/new-cars/info/21700/lexus-rx-350h-hybrid",
+                                      source="t")], TODAY)
+    db.put_view360({21700: "https://www.sgcarmart.com/new-cars/info/21700/lexus-rx-350h-hybrid"}, TODAY, exact=False)
+    data = site.build(cfg, db, TODAY, "ua")
+    rx = next(c for c in data["new_cars"] if c["model"] == "RX 350h Hybrid")
+    assert rx["view360"] == "https://www.sgcarmart.com/new-cars/info/21700/lexus-rx-350h-hybrid"
+    assert all(c.get("view360") is None for c in data["new_cars"] + data["new_evs"] if c is not rx)

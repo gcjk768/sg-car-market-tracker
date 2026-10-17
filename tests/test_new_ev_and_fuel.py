@@ -171,3 +171,24 @@ def test_sgcarmart_live_ev_index_and_model_page():
     assert len(models) > 80 and models[0]["slug"] == "byd-seal-electric"
     (v,) = s.parse_model((fix / "sgcarmart_new_model_live.html").read_text(encoding="utf-8"), "https://x")
     assert (v.price_with_coe, v.range_km, v.body_type, v.coe_category.value) == (186888, 381, "SUV", "A")
+
+
+def test_model_page_360_viewer_link(cfg):
+    from scrapers.new_ev import view360_link, view360_links
+    page = ('<img src="https://i.i-sgcm.com/new_cars/cars/22040/22040_g1_b.jpg"/><a class="styles_container360ViewBadge" '
+            'href="https://i.i-sgcm.com/new_cars/pano360_viewer.php?specCode=10194&amp;carCode=22040" rel="noreferrer">')
+    url = "https://i.i-sgcm.com/new_cars/pano360_viewer.php?specCode=10194&carCode=22040"
+    assert view360_link(page, cfg) == url
+    assert view360_link("<html>no viewer</html>", cfg) is None
+    with_link = NewEvVariant(make="ZEEKR", model="7X", listing_url="u", price_source_url="u", source="t", view360_url=url)
+    without = NewEvVariant(make="BYD", model="Seal", listing_url="u", price_source_url="u", source="t")
+    assert view360_links([with_link, without]) == {22040: url}
+
+
+def test_parse_model_puts_the_360_viewer_on_every_variant(cfg):
+    s = SgcarmartNewEvScraper(cfg, "ua", RUN)
+    page = (FIX / "sgcarmart_new_model.html").read_text()
+    assert all(v.view360_url is None for v in s.parse_model(page, "https://x/model3"))
+    page = page.replace("</body>", '<a href="https://i.i-sgcm.com/new_cars/pano360_viewer.php?specCode=1&amp;carCode=12847"></a></body>')
+    variants = s.parse_model(page, "https://x/model3")
+    assert variants and {v.view360_url for v in variants} == {"https://i.i-sgcm.com/new_cars/pano360_viewer.php?specCode=1&carCode=12847"}

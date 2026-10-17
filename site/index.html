@@ -179,6 +179,8 @@ table.t td.min{color:var(--good);font-weight:600}
 .car h3 a:hover{text-decoration:underline}
 .car .sub{font-size:13px;color:var(--mute);margin-top:3px}
 .car .badges{display:flex;gap:5px;flex-wrap:wrap}
+.car .v360{text-decoration:none}
+.car .v360:hover{text-decoration:underline}
 .car .price{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .car .price .p{font-family:var(--mono);font-weight:600;font-size:22px}
 .car .price .p small{font:500 12px var(--body);color:var(--mute);margin-left:4px}
@@ -516,10 +518,11 @@ function newCard(vs) {
   const cut = c.price_change && c.price_change < 0, rise = c.price_change && c.price_change > 0;
   const src = c.price_source === "official" ? `<span class="chip good" title="${esc(c.official_url || "")}">Official price</span>` : "";
   const img = c.image || vs.find(x => x.image)?.image;
+  const v360 = v360Of(vs, c);
   return `<article class="car" data-key="${esc(key)}">
     ${img ? `<a class="shot" href="${esc(c.url)}" target="_blank" rel="noopener" tabindex="-1"><img src="${esc(img)}" alt="${esc(v.make)} ${esc(v.model)}" loading="lazy" decoding="async" onerror="this.parentNode.remove()"></a>` : ""}
     <div class="top-row"><div><h3><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(v.make)} ${esc(v.model)}</a></h3><div class="sub">${multi ? `${vs.length} variants` : esc(v.variant)}${rank ? ` · ${rank}` : ""}</div></div>
-      <div class="badges">${best ? badge(`${best.list} best seller #${best.pos}`, "ink") : pop ? badge("#" + pop + " popular", pop <= 20 ? "ink" : "flat") : ""}${fuelBadge(c.fuel)}${badge(v.body)}${c.cat ? badge("Cat " + c.cat) : ""}</div></div>
+      <div class="badges">${best ? badge(`${best.list} best seller #${best.pos}`, "ink") : pop ? badge("#" + pop + " popular", pop <= 20 ? "ink" : "flat") : ""}${fuelBadge(c.fuel)}${badge(v.body)}${c.cat ? badge("Cat " + c.cat) : ""}${v360 ? `<a class="chip acc v360" href="${esc(v360)}" target="_blank" rel="noopener noreferrer" title="Sgcarmart's 360 degree view of the cabin">360° interior ↗</a>` : ""}</div></div>
     ${multi ? `<div class="vpills" role="group" aria-label="Variant">${byPrice.map(x => `<button type="button" class="vpill" data-key="${esc(key)}" data-id="${esc(x.id)}" aria-pressed="${x === c}" title="${esc(x.variant)}"><span class="vn">${esc(x.variant || "Standard")}</span><span class="vp">${k(x.price)}</span></button>`).join("")}</div>` : ""}
     <div class="price"><span class="p">${money(c.price)}</span>${src}${cut ? `<span class="chip good">▼ ${money(-c.price_change)} on ${dmy(c.price_change_on)}</span>` : rise ? `<span class="chip bad">▲ ${money(c.price_change)} on ${dmy(c.price_change_on)}</span>` : ""}</div>
     ${c.price_source !== "official" && c.price_ex_coe ? `<div class="small mute">${c.coe_added ? `${money(c.price_ex_coe)} listed without COE + today's Cat ${c.coe_cat} COE ${money(c.coe_added)}` : `<span class="warn">Listed without COE; category unknown, so none added</span>`}</div>` : ""}
@@ -537,10 +540,11 @@ function newCard(vs) {
     <div class="foot"><span>${c.battery_warranty ? "Battery warranty " + esc(c.battery_warranty) : c.transmission ? esc(c.transmission) : "Sgcarmart price list"}</span><a href="${esc(c.official_url || c.url)}" target="_blank" rel="noopener">${c.price_source === "official" ? "Official site" : "Price list"} ↗</a></div>
   </article>`;
 }
+const v360Of = (vs, c) => c.view360 || vs.find(x => x.view360)?.view360;
 function newTable(models) {
   return `<div class="tbl"><table class="t list"><thead><tr><th>Popular</th><th>Model</th><th>Fuel</th><th>Body</th><th>Cat</th><th>From</th><th>Power</th><th>Range or economy</th><th>Deposit</th><th>Monthly</th><th>Cost a year</th></tr></thead><tbody>
     ${models.map(vs => { const v = vs[0], c = cheapestOf(vs), pop = vs.reduce((m, x) => x.popularity && (!m || x.popularity < m) ? x.popularity : m, null); return `<tr>
-      <td>${pop ? "#" + pop : ""}</td><td><div class="mcell">${c.image ? `<img class="thumb" src="${esc(c.image)}" alt="" loading="lazy" onerror="this.remove()">` : ""}<div><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(v.make)} ${esc(v.model)}</a><div class="small mute">${vs.length > 1 ? vs.length + " variants" : esc(c.variant)}</div></div></div></td>
+      <td>${pop ? "#" + pop : ""}</td><td><div class="mcell">${c.image ? `<img class="thumb" src="${esc(c.image)}" alt="" loading="lazy" onerror="this.remove()">` : ""}<div><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(v.make)} ${esc(v.model)}</a><div class="small mute">${vs.length > 1 ? vs.length + " variants" : esc(c.variant)}${v360Of(vs, c) ? ` · <a href="${esc(v360Of(vs, c))}" target="_blank" rel="noopener noreferrer">360°</a>` : ""}</div></div></div></td>
       <td>${esc(FUEL[c.fuel])}</td><td>${esc(v.body)}</td><td>${c.cat || ""}</td><td>${money(c.price)}${c.price_change < 0 ? ` <span class="good">▼</span>` : ""}</td>
       <td>${c.power_kw ? Math.round(c.power_kw) + " kW" : ""}</td><td>${c.range_km ? int(c.range_km) + " km" : esc(c.economy || "")}</td>
       <td>${c.finance?.deposit ? k(c.finance.deposit) : ""}</td><td>${c.finance?.monthly ? money(c.finance.monthly) : ""}</td><td>${c.annual ? k(c.annual.total_low) : ""}</td></tr>`; }).join("")}

@@ -70,6 +70,26 @@ def _range_standard(text: str) -> str:
     return "unknown"
 
 
+PANO_RE = re.compile(r"pano360_viewer\.php\?specCode=(\d+)&(?:amp;)?carCode=(\d+)")
+
+
+def view360_link(html: str, cfg: dict[str, Any]) -> Optional[str]:
+    """The 360 degree interior viewer a model page links from its first photo, or None."""
+    m = PANO_RE.search(html)
+    tpl = cfg["sources"].get("sgcarmart_view360")
+    return tpl.format(spec=m.group(1), car=m.group(2)) if m and tpl else None
+
+
+def view360_links(variants: list[Any]) -> dict[int, str]:
+    """{model id: viewer link}; the model id is the viewer's carCode."""
+    out = {}
+    for v in variants:
+        m = re.search(r"carCode=(\d+)", v.view360_url or "")
+        if m:
+            out[int(m.group(1))] = v.view360_url
+    return out
+
+
 class SgcarmartNewEvScraper(BaseScraper):
     name = "sgcarmart_new"
 
@@ -225,6 +245,9 @@ class SgcarmartNewEvScraper(BaseScraper):
                         body_type=body_type, listing_url=model_url, price_source_url=model_url, source=self.name,
                     )
                 )
+        link = view360_link(html, self.cfg)
+        for v in variants:
+            v.view360_url = link
         return variants
 
     def run(self) -> list[NewEvVariant]:

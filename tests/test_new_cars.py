@@ -54,3 +54,9 @@ def test_popularity_is_listing_order_without_spotlight_or_repeats(cfg):
     got = {x.model: x.popularity for x in scraper.variants(listing)}
     assert got == {"A": 1, "B": 2, "C": 3, "D": 4}
     assert len(scraper.variants(listing)) == 4
+
+
+def test_listing_says_which_models_have_a_360_view(cfg):
+    v = SgcarmartNewCarScraper(cfg, "ua").parse(PAGE)
+    assert all(x.has_360 for x in v if x.model_id == 22040)        # ZEEKR 7X: has360 true on the listing
+    assert not any(x.has_360 for x in v if x.model_id == 12847)    # Tesla Model 3: false

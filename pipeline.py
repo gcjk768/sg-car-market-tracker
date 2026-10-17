@@ -19,7 +19,7 @@ from scrapers.coe import DataGovCoeScraper, ensure_schedule, scrape_coe
 from scrapers.fuel_cnergy import scrape_cnergy
 from scrapers.fuel_price import pick_price, scrape_fuel_price
 from scrapers.new_cars import scrape_new_cars
-from scrapers.new_ev import scrape_new_evs
+from scrapers.new_ev import scrape_new_evs, view360_links
 from scrapers.official import scrape_official
 from scrapers.registrations import scrape_body_types, scrape_registrations
 from scrapers.used_carro import CarroUsedScraper
@@ -158,6 +158,7 @@ class Pipeline:
         try:
             variants, notes = scrape_new_evs(self.cfg, self.ua, self.run_date, self.force)
             self.db.upsert_new_ev(variants, self.run_date)
+            self.db.put_view360(view360_links(variants), self.run_date, exact=True)
             if notes:
                 log.info("brand page check: %s", "; ".join(f"{k}: {v}" for k, v in sorted(notes.items())))
         except Exception as exc:
@@ -175,6 +176,9 @@ class Pipeline:
         try:
             variants = scrape_new_cars(self.cfg, self.ua, self.run_date, self.force)
             self.db.upsert_new_cars(variants, self.run_date)
+            # the listing says which models have a 360 view; the EV pages above gave the exact viewer for some
+            self.db.put_view360({v.model_id: v.listing_url for v in variants if v.has_360 and v.model_id}, self.run_date, exact=False,
+                                gone={v.model_id for v in variants if v.model_id and not v.has_360})
             log.info("new car listing: %d variants", len(variants))
             vault.event("🚗", "scraped new car list", f"{len(variants)} variants, {len({(v.make, v.model) for v in variants})} models")
         except Exception as exc:

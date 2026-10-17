@@ -58,3 +58,14 @@ def test_fuel_price_roundtrip(tmp_path):
     db.upsert_fuel_price(FuelPrice(observed_on=date(2026, 9, 29), ron95_per_litre=3.48, by_brand={"SPC": 3.46, "Cnergy": 2.54}, source="t"))
     latest = db.latest_fuel_price()
     assert latest.ron95_per_litre == 3.48 and latest.by_brand == {"SPC": 3.46, "Cnergy": 2.54}
+
+
+def test_view360_keeps_the_exact_viewer_and_drops_models_that_lost_it(tmp_path):
+    db = Database(tmp_path / "t.db")
+    viewer = "https://i.i-sgcm.com/new_cars/pano360_viewer.php?specCode=10194&carCode=22040"
+    db.put_view360({22040: viewer}, date(2026, 10, 17), exact=True)
+    db.put_view360({22040: "https://www.sgcarmart.com/new-cars/info/22040/zeekr-7x-electric",
+                    21506: "https://www.sgcarmart.com/new-cars/info/21506/tesla-model-y-electric"}, date(2026, 10, 17), exact=False)
+    assert db.view360() == {22040: viewer, 21506: "https://www.sgcarmart.com/new-cars/info/21506/tesla-model-y-electric"}
+    db.put_view360({}, date(2026, 10, 18), exact=False, gone={21506})
+    assert db.view360() == {22040: viewer}

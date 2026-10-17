@@ -60,6 +60,7 @@ class NewEvVariant(BaseModel):
     source: str
     scraped_at: datetime = Field(default_factory=datetime.now)
     price_forecast: Optional[tuple[int, int, int]] = Field(default=None, description="Low, expected and high price at the next COE tender; set per run, not stored")
+    view360_url: Optional[str] = Field(default=None, description="Sgcarmart's 360 degree interior viewer for this model; set per run, not stored")
 
     @property
     def score(self) -> Optional[float]:
@@ -92,6 +93,7 @@ class NewCarVariant(BaseModel):
     popularity: Optional[int] = Field(default=None, description="Position in Sgcarmart's popularity order, 1 is the most popular")
     best_list: Optional[str] = Field(default=None, description="Sgcarmart best seller list it is on: Cat A, Cat B or Parallel import")
     best_pos: Optional[int] = Field(default=None, description="Its position on that list, 1 first")
+    has_360: bool = Field(default=False, description="Sgcarmart has a 360 degree view of this model; set per run, not stored")
     listing_url: str
     source: str
     scraped_at: datetime = Field(default_factory=datetime.now)

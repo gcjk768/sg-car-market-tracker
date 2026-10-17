@@ -124,11 +124,17 @@ def new_ev_cards(variants: list[NewEvVariant], cfg: dict[str, Any], today: date,
 MODEL_ID = re.compile(r"/new-cars/info/(\d+)/")
 
 
+def model_id_of(url: Optional[str]) -> Optional[int]:
+    """Sgcarmart's model id from a price list link (/new-cars/info/<id>/...), or None."""
+    m = MODEL_ID.search(url or "")
+    return int(m.group(1)) if m else None
+
+
 def car_image(url: Optional[str], cfg: dict[str, Any]) -> Optional[str]:
     """The model's photo, from the model id in its Sgcarmart price list link; None when the link has no id."""
     tpl = cfg.get("site", {}).get("car_image_url")
-    m = MODEL_ID.search(url or "")
-    return tpl.format(id=m.group(1)) if tpl and m else None
+    mid = model_id_of(url)
+    return tpl.format(id=mid) if tpl and mid else None
 
 
 FUEL_WORDS = re.compile(r"\b(?:plug in hybrid|mild hybrid|m hybrid|hybrid|electric|ev|e tron)\b")
@@ -515,6 +521,9 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
               for r in coe.get("rows", []) if r.get("forecast")}
     ev_cards = new_ev_cards(new_evs, cfg, today, sales["ev"], body_counts, pop, official_info, coe_info)
     new_cars = new_car_cards(cars, stored, cfg, today, petrol_price, sales, deltas, pop, official_info, coe_info, dups)
+    view360 = db.view360()
+    for c in ev_cards + new_cars:
+        c["view360"] = view360.get(model_id_of(c["url"]))
 
     # Three cost picks: the best selling new EV, then the first car of each used shortlist.
     picks = []

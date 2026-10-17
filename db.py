@@ -119,6 +119,12 @@ CREATE TABLE IF NOT EXISTS listing_flags (
     flags TEXT NOT NULL DEFAULT '[]',
     checked_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS view360 (
+    model_id INTEGER PRIMARY KEY,
+    url TEXT NOT NULL,
+    exact INTEGER NOT NULL DEFAULT 0,
+    seen_on TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS fuel_prices (
     observed_on TEXT PRIMARY KEY,
     ron95_per_litre REAL NOT NULL,
@@ -345,6 +351,24 @@ class Database:
                 d["packages"] = json.loads(d["packages"] or "{}")
                 out.append(d)
         return out
+
+    # Sgcarmart's 360 degree interior views by model id (website only): the viewer itself when a model page linked
+    # it (exact), else the model page, whose first photo carries the 360 badge.
+
+    def put_view360(self, links: dict[int, str], seen_on: date, exact: bool, gone: Iterable[int] = ()) -> None:
+        """Record links; a model page link never replaces an exact viewer link. `gone` are models the listing now
+        shows without a 360 view, and are dropped."""
+        with self.tx() as c:
+            for mid in gone:
+                c.execute("DELETE FROM view360 WHERE model_id = ?", (mid,))
+            for mid, url in links.items():
+                c.execute("INSERT INTO view360 (model_id, url, exact, seen_on) VALUES (?, ?, ?, ?) ON CONFLICT(model_id) DO UPDATE SET"
+                          " url = CASE WHEN excluded.exact OR NOT view360.exact THEN excluded.url ELSE view360.url END,"
+                          " exact = MAX(view360.exact, excluded.exact), seen_on = excluded.seen_on",
+                          (mid, url, int(exact), seen_on.isoformat()))
+
+    def view360(self) -> dict[int, str]:
+        return {r["model_id"]: r["url"] for r in self.conn.execute("SELECT model_id, url FROM view360")}
 
     # Red flags the model found in a used listing (website only), cached until the listing changes
 

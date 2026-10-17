@@ -191,7 +191,7 @@ class SgcarmartNewCarScraper(BaseScraper):
                     price_change=int(flux["amount"]) if flux.get("amount") else None,
                     price_change_on=flux.get("date") or None,
                     launch_date=m.get("launchDate") or None, model_id=int(m.get("id") or 0) or None,
-                    popularity=ranks.get(key),
+                    popularity=ranks.get(key), has_360=bool((m.get("image") or {}).get("has360")),
                     best_list=best[key][0] if key in best else None, best_pos=best[key][1] if key in best else None,
                     listing_url=url, source=self.name, scraped_at=datetime.now(),
                 ))

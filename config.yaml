@@ -126,6 +126,9 @@ sources:
   sgcarmart_new_listing: "https://www.sgcarmart.com/new-cars/listing/search?page={page}"
   # Sgcarmart's published best sellers: Cat A, Cat B and parallel imports, 8 models each, in its own order.
   sgcarmart_best_sellers: "https://www.sgcarmart.com/new-cars/best-selling-car-models"
+  # Sgcarmart's 360 degree interior viewer: specCode is the variant photographed, carCode the model id. Model
+  # pages link it from their first photo; the site only links to it, nothing here fetches it.
+  sgcarmart_view360: "https://i.i-sgcm.com/new_cars/pano360_viewer.php?specCode={spec}&carCode={car}"
   sgcarmart_coe_results: "https://www.sgcarmart.com/news/coe_results.php"
   onemotoring_coe: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/coe-open-bidding.html"
   # carro.sg redirects to carro.co. Verified base URL, the buy path still needs a check.
