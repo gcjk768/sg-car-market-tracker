@@ -215,11 +215,3 @@ def financing(price: float, omv: float | None, cfg: dict[str, Any], new_car: boo
         tenure_years=tenure, monthly=monthly_instalment(loan, rate, tenure),
         short_tenure_years=short, monthly_short=monthly_instalment(loan, rate, short),
     )
-
-
-def financing_for_used(listing: UsedListing, cfg: dict[str, Any]) -> Financing:
-    return financing(listing.price, listing.omv, cfg, new_car=False)
-
-
-def financing_for_new(variant: NewEvVariant, cfg: dict[str, Any]) -> Financing:
-    return financing(variant.price_with_coe or 0, None, cfg, new_car=True)

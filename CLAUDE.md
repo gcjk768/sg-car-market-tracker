@@ -18,7 +18,7 @@ These are standing instructions from the repository owner. Follow them in every 
 ## Writing
 
 * Do not use dashes as connectors (em dashes, en dashes, or hyphens between words) in
-  generated text, comments, README content or Telegram output. Use commas, periods or
+  generated text, comments, README content or website text. Use commas, periods or
   restructured sentences. Hyphens inside identifiers, URLs and CLI flags are fine.
 
 ## Project

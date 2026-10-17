@@ -170,6 +170,10 @@ table.t td.min{color:var(--good);font-weight:600}
 .car{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;position:relative}
 .car.off{opacity:.78}
 .car .top-row{display:flex;flex-direction:column;gap:8px}
+.car .shot{display:block;margin:-16px -16px 0;aspect-ratio:2/1;background:#fff;border-radius:var(--r) var(--r) 0 0;overflow:hidden;border-bottom:1px solid var(--line)}
+.car .shot img{width:100%;height:100%;object-fit:contain;display:block}
+.mcell{display:flex;align-items:center;gap:10px;text-align:left}
+.thumb{width:72px;flex:none;aspect-ratio:3/2;object-fit:contain;background:#fff;border-radius:6px}
 .car h3{font-size:17px;line-height:1.2}
 .car h3 a{text-decoration:none}
 .car h3 a:hover{text-decoration:underline}
@@ -353,6 +357,7 @@ function today() {
   const drops = D.used.filter(u => u.prev_price && u.prev_price > u.price).map(u => ({...u, pct: (u.prev_price - u.price) / u.prev_price * 100}))
     .sort((x, y) => y.pct - x.pct).slice(0, 6);
   const deals = D.used.filter(u => u.passes && u.deal).sort((x, y) => x.deal.pct - y.deal.pct).slice(0, 6);
+  const news = (D.news || []).slice(0, 6);
   const fuel = D.fuel || {}, grades = ["92", "95", "98", "Premium", "Diesel"].filter(g => Object.values(fuel.grades || {}).some(b => b[g] != null));
   const brands = Object.keys(fuel.grades || {}).sort((x, y) => (fuel.grades[x]["95"] ?? 9) - (fuel.grades[y]["95"] ?? 9));
   const minOf = g => Math.min(...brands.map(b => fuel.grades[b][g]).filter(v => v != null));
@@ -397,8 +402,13 @@ function today() {
     </div>
   </section>
 
+  ${news.length ? `<section>
+    <div class="head"><div><h2>News</h2><p>LTA releases that touch buying or owning a car: COE, quotas, ARF and PARF, VES and EEAI, road tax and ERP.</p></div></div>
+    <div class="drops">${news.map(n => `<a class="drop" href="${esc(n.link)}" target="_blank" rel="noopener"><b>${esc(n.title)}</b><span class="small mute">${dmyy(n.published)}</span>${n.summary ? `<span class="small">${esc(n.summary.length > 140 ? n.summary.slice(0, 139) + "…" : n.summary)}</span>` : ""}</a>`).join("")}</div>
+  </section>` : ""}
+
   ${picks.length ? `<section>
-    <div class="head"><div><h2>Cheapest to own today</h2><p>The report's three picks: the best selling new EV, then the first car of each used shortlist. Estimated yearly cost with road tax, insurance, depreciation, energy and extras.</p></div><span class="links"><a href="#costs">Full comparison</a></span></div>
+    <div class="head"><div><h2>Cheapest to own today</h2><p>The daily run's three picks: the best selling new EV, then the top car of each used shortlist. Estimated yearly cost with road tax, insurance, depreciation, energy and extras.</p></div><span class="links"><a href="#costs">Full comparison</a></span></div>
     <div class="picks">${picks.map(p => `
       <article class="pick${p === cheapest ? "" : ""}">
         <div class="lab">${esc(p.label)}${p === cheapest ? ` · <span class="good">lowest</span>` : ""}</div>
@@ -459,7 +469,7 @@ function newView() {
   const models = [...groups.values()];
   NEW_GROUPS = groups;
   return `
-  <div class="head"><div><h2>New cars</h2><p>Every new car on Sgcarmart's price list, ${int(all.length)} variants: electric, hybrid and petrol. Prices with COE; EV prices are net of the VES and EEAI rebates. Deposit is the MAS minimum, instalment at ${(D.costs.rates.new * 100).toFixed(2)}% flat over ${D.costs.rates.tenure} years.</p></div></div>
+  <div class="head"><div><h2>New cars</h2><p>Every new car on Sgcarmart's price list, ${int(all.length)} variants: electric, hybrid and petrol. ${D.stats.official_matched ? `${int(D.stats.official_matched)} variants carry the brand's own price, read from ${D.stats.official_brands} official websites; the rest are Sgcarmart's.` : ""} Prices with COE; EV prices are net of the VES and EEAI rebates. Deposit is the MAS minimum, instalment at ${(D.costs.rates.new * 100).toFixed(2)}% flat over ${D.costs.rates.tenure} years.</p></div></div>
   <div class="bar">
     <div class="kindrow">${kindToggle(st, kindCounts)}${st.kind === "ice" ? `<div class="chips" data-f="fuel"><button type="button" data-v="" aria-pressed="${st.fuel === ""}">All engines <span>${byKind.length}</span></button>${["hybrid", "petrol", "diesel"].filter(f => fuelCounts[f]).map(f => `<button type="button" data-v="${f}" aria-pressed="${st.fuel === f}">${FUEL[f]} <span>${fuelCounts[f]}</span></button>`).join("")}</div>` : ""}</div>
     <div class="chips" data-f="body"><button type="button" data-v="" aria-pressed="${st.body === ""}">All bodies <span>${byFuel.length}</span></button>${BODY_ORDER.filter(b => bodyCounts[b]).map(b => `<button type="button" data-v="${b}" aria-pressed="${st.body === b}">${BODY_LABEL[b]} <span>${bodyCounts[b]}</span></button>`).join("")}</div>
@@ -505,11 +515,18 @@ function newCard(vs) {
     : [c.engine_cc && ["Engine, est.", `${(c.engine_cc / 1000).toFixed(1)} L`], c.economy && ["Economy", esc(c.economy)], c.power_kw && ["Power", `${Math.round(c.power_kw)} kW`]];
   const cut = c.price_change && c.price_change < 0, rise = c.price_change && c.price_change > 0;
   const src = c.price_source === "official" ? `<span class="chip good" title="${esc(c.official_url || "")}">Official price</span>` : "";
+  const img = c.image || vs.find(x => x.image)?.image;
   return `<article class="car" data-key="${esc(key)}">
+    ${img ? `<a class="shot" href="${esc(c.url)}" target="_blank" rel="noopener" tabindex="-1"><img src="${esc(img)}" alt="${esc(v.make)} ${esc(v.model)}" loading="lazy" decoding="async" onerror="this.parentNode.remove()"></a>` : ""}
     <div class="top-row"><div><h3><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(v.make)} ${esc(v.model)}</a></h3><div class="sub">${multi ? `${vs.length} variants` : esc(v.variant)}${rank ? ` · ${rank}` : ""}</div></div>
       <div class="badges">${best ? badge(`${best.list} best seller #${best.pos}`, "ink") : pop ? badge("#" + pop + " popular", pop <= 20 ? "ink" : "flat") : ""}${fuelBadge(c.fuel)}${badge(v.body)}${c.cat ? badge("Cat " + c.cat) : ""}</div></div>
     ${multi ? `<div class="vpills" role="group" aria-label="Variant">${byPrice.map(x => `<button type="button" class="vpill" data-key="${esc(key)}" data-id="${esc(x.id)}" aria-pressed="${x === c}" title="${esc(x.variant)}"><span class="vn">${esc(x.variant || "Standard")}</span><span class="vp">${k(x.price)}</span></button>`).join("")}</div>` : ""}
     <div class="price"><span class="p">${money(c.price)}</span>${src}${cut ? `<span class="chip good">▼ ${money(-c.price_change)} on ${dmy(c.price_change_on)}</span>` : rise ? `<span class="chip bad">▲ ${money(c.price_change)} on ${dmy(c.price_change_on)}</span>` : ""}</div>
+    ${c.price_source !== "official" && c.price_ex_coe ? `<div class="small mute">${c.coe_added ? `${money(c.price_ex_coe)} listed without COE + today's Cat ${c.coe_cat} COE ${money(c.coe_added)}` : `<span class="warn">Listed without COE; category unknown, so none added</span>`}</div>` : ""}
+    ${c.price_source === "official" ? `<div class="small mute">${[c.coe_added ? `${money(c.price_ex_coe)} without COE + today's Cat ${c.coe_cat} COE ${money(c.coe_added)}` : "",
+      c.sgcarmart_price && c.sgcarmart_price !== c.price ? `Sgcarmart ${money(c.sgcarmart_price)}` : "Same on Sgcarmart",
+      c.list_price && c.list_price !== c.price ? `list ${money(c.list_price)}` : "",
+      ...Object.entries(c.packages || {}).map(([n, v]) => `${esc(n)} ${money(v)}`)].filter(Boolean).join(" · ")}${c.official_note ? `<br>${esc(c.official_note)}` : ""}</div>` : ""}
     ${c.price_next ? `<div class="small mute num">Next COE ~${k(c.price_next[1])}, ${k(c.price_next[0])} to ${k(c.price_next[2])}</div>` : ""}
     <div class="specs">
       ${specs.filter(Boolean).map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join("")}
@@ -523,7 +540,7 @@ function newCard(vs) {
 function newTable(models) {
   return `<div class="tbl"><table class="t list"><thead><tr><th>Popular</th><th>Model</th><th>Fuel</th><th>Body</th><th>Cat</th><th>From</th><th>Power</th><th>Range or economy</th><th>Deposit</th><th>Monthly</th><th>Cost a year</th></tr></thead><tbody>
     ${models.map(vs => { const v = vs[0], c = cheapestOf(vs), pop = vs.reduce((m, x) => x.popularity && (!m || x.popularity < m) ? x.popularity : m, null); return `<tr>
-      <td>${pop ? "#" + pop : ""}</td><td><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(v.make)} ${esc(v.model)}</a><div class="small mute">${vs.length > 1 ? vs.length + " variants" : esc(c.variant)}</div></td>
+      <td>${pop ? "#" + pop : ""}</td><td><div class="mcell">${c.image ? `<img class="thumb" src="${esc(c.image)}" alt="" loading="lazy" onerror="this.remove()">` : ""}<div><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(v.make)} ${esc(v.model)}</a><div class="small mute">${vs.length > 1 ? vs.length + " variants" : esc(c.variant)}</div></div></div></td>
       <td>${esc(FUEL[c.fuel])}</td><td>${esc(v.body)}</td><td>${c.cat || ""}</td><td>${money(c.price)}${c.price_change < 0 ? ` <span class="good">▼</span>` : ""}</td>
       <td>${c.power_kw ? Math.round(c.power_kw) + " kW" : ""}</td><td>${c.range_km ? int(c.range_km) + " km" : esc(c.economy || "")}</td>
       <td>${c.finance?.deposit ? k(c.finance.deposit) : ""}</td><td>${c.finance?.monthly ? money(c.finance.monthly) : ""}</td><td>${c.annual ? k(c.annual.total_low) : ""}</td></tr>`; }).join("")}
@@ -551,7 +568,7 @@ function usedView() {
     && (!st.km || (u.mileage_km != null && u.mileage_km <= Number(st.km))) && (!st.coe || (u.coe_left != null && u.coe_left >= Number(st.coe)))
     && (!st.owners || (u.owners != null && u.owners <= Number(st.owners))) && (!st.shortlist || u.passes) && (!st.src || u.source === st.src)
     && (!st.q || (u.name + " " + (u.year || "")).toLowerCase().includes(st.q)));
-  const sorters = {// Same as the Telegram report: shortlisted cars, best selling brand, then lowest depreciation, then mileage.
+  const sorters = {// Shortlisted cars, then the best selling brand, then lowest depreciation, then mileage.
     deal: (x, y) => (y.passes - x.passes) || (x.deal ? x.deal.pct : 1e6) - (y.deal ? y.deal.pct : 1e6),
     best: (x, y) => (y.passes - x.passes) || (x.brand_rank ?? 999) - (y.brand_rank ?? 999) || (x.dep_year ?? 9e9) - (y.dep_year ?? 9e9) || (x.mileage_km ?? 9e9) - (y.mileage_km ?? 9e9),
     dep: (x, y) => (x.dep_year ?? 9e9) - (y.dep_year ?? 9e9), price: (x, y) => x.price - y.price, price_desc: (x, y) => y.price - x.price,
@@ -669,7 +686,7 @@ function costCars() {
   COST_CARS = out;
   return out;
 }
-// The report's picks preselected; a pick from an older data file without ids is matched by name.
+// The daily run's picks preselected; a pick from an older data file without ids is matched by name.
 function defaultCostSel() {
   const cars = costCars();
   return (D.costs.picks || []).map(p => p.id && cars.has(p.id) ? p.id
@@ -699,7 +716,7 @@ function costsView() {
   // the car losing value rather than a payment, and the loan already pays for the car.
   const cashOut = x => x.finance?.monthly != null ? x.finance.monthly + (x.road_tax + x.insurance_low + x.energy + x.extras) / 12 : null;
   return `
-  <div class="head"><div><h2>Cost of ownership</h2><p>Pick any car on the site in each column: every new car variant and every used listing. Running costs per year or per month, then the deposit and monthly loan under MAS rules. Cash out per month is the 7 year instalment plus road tax, low insurance, energy and upkeep; depreciation is not a payment, so it is left out. It opens on the report's three picks.</p></div></div>
+  <div class="head"><div><h2>Cost of ownership</h2><p>Pick any car on the site in each column: every new car variant and every used listing. Running costs per year or per month, then the deposit and monthly loan under MAS rules. Cash out per month is the 7 year instalment plus road tax, low insurance, energy and upkeep; depreciation is not a payment, so it is left out. It opens on the daily run's three picks: the best selling new EV and the top car of each used shortlist.</p></div></div>
   <div class="seg" data-f="per" role="group" aria-label="Per year or per month" style="margin:0 0 12px">${[["year", "Per year"], ["month", "Per month"]].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${per === v}">${l}</button>`).join("")}</div>
   <div class="cost-table"><table class="t costs"><thead><tr><th>Car</th>${shown.map(([x, i]) => `<th>${costSelect(i, state.costs.sel[i], cars)}${x ? `<div class="pickmeta">${esc(x.kind)} · ${money(x.price)}${x.extra ? `<br>${esc(x.extra)}` : ""}<br><a href="${esc(x.url)}" target="_blank" rel="noopener">Listing ↗</a></div>` : ""}</th>`).join("")}</tr></thead><tbody>
     ${head(`Running costs, per ${per}`, per === "month" ? "the yearly figure divided by 12" : "")}

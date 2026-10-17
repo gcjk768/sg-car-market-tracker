@@ -4,7 +4,7 @@
 
 general:
   timezone: Asia/Singapore
-  # Local time at which scheduler.py (the Docker entry point) runs the daily report.
+  # Local time at which scheduler.py (the Docker entry point) runs the daily scrape and site rebuild.
   schedule_time: "08:00"
   # The contact note is appended to the User Agent so site owners can reach you.
   user_agent: "sg-car-scraper/0.1 (personal car shopping research; contact: {contact})"
@@ -20,9 +20,9 @@ general:
   log_dir: logs
   honour_robots_txt: true
 
-# Keeps the container alive and the report arriving. Read by scheduler.py.
+# Keeps the container alive and the website data fresh. Read by scheduler.py.
 resilience:
-  # A report runs as a child process and is stopped after this long. A full run takes about an
+  # The daily run is a child process and is stopped after this long. A full run takes about an
   # hour because Sgcarmart asks for a 30 s crawl delay.
   max_run_minutes: 180
   # A failed or degraded run is tried again after this many minutes, at most this many times a day.
@@ -38,7 +38,8 @@ resilience:
   # Log files rotate at this size, keeping this many old files.
   log_max_mb: 5
   log_backups: 5
-  # One Telegram alert a day when the report still fails after every retry and self repair.
+  # One alert a day when the daily run still fails after every retry and self repair. It is recorded
+  # as a vault Activity event and in sent_state key last_alert (database), for the vault and the site.
   alert_on_failure: true
   verified_on: "2026-09-30"
 
@@ -47,7 +48,7 @@ resilience:
 # pages, edits the scraper code and runs the tests. The change is kept only when it touches
 # scrapers/ (plus new files under fixtures/ and tests/), the tests pass and the failed sections
 # recover on a dry run. Otherwise every file is put back. Each attempt is saved under
-# data/self_heal/ and reported on Telegram. Needs the CLI signed in inside the container.
+# data/self_heal/ and reported as a vault event and in logs/heal.log. Needs the CLI signed in inside the container.
 self_heal:
   enabled: true
   max_attempts_per_day: 1
@@ -66,34 +67,9 @@ self_heal:
   ignore_unavailable: []
   verified_on: "2026-09-30"
 
-telegram:
-  # Send only when something in the watched sections changed since the last report that was
-  # sent. The job still runs daily so the database keeps tracking prices. --force always sends.
-  send_only_on_change: true
-  # Sections compared against the last sent report. Fuel prices are deliberately left out
-  # because they move every week and would trigger a message on their own.
-  change_sections: [coe, new_ev, used_ev, used_ice]
-  # Send a report anyway after this many quiet days. 0 turns the heartbeat off.
-  heartbeat_after_days: 0
-  max_message_length: 4096
-  # Character width of each fixed width table. About 36 fits a phone in portrait without wrapping.
-  table_width: 36
-  parse_mode: HTML
-  disable_web_page_preview: true
-  # Order of sections sent, one Telegram message per section.
-  section_order:
-    - summary
-    - coe
-    - new_ev
-    - used_ev
-    - used_ice
-    - top_sellers
-    - motorbikes
-    - fuel
-    - costs
-
-# Website (site/index.html served by the car-site nginx container on port 8786). main.py rewrites the
-# data file after every full report; `python website.py` rebuilds it from the database and the day's cache.
+# Website (site/index.html served by the car-site nginx container on port 8786), the tracker's only output.
+# main.py rewrites the data file after every daily run and coe_watch.py on COE result days; `python website.py`
+# rebuilds it from the database and the day's cache.
 site:
   output: data/site/data.json
   # Tenders of history behind each COE category's sparkline.
@@ -107,12 +83,15 @@ site:
   # Red flags read by the Claude CLI (ai settings) from each used listing's description and figures, cached per
   # listing until its description, price or mileage changes. max_calls caps the calls per build.
   red_flags: {enabled: true, max_calls: 8}
+  # Photo on each new car card: Sgcarmart's model thumbnail, keyed by the model id in the price list link
+  # (/new-cars/info/<id>/...). The browser loads it straight from Sgcarmart's image host; robots.txt allows it.
+  car_image_url: "https://i.i-sgcm.com/new_cars/cars/{id}/{id}_m.jpg"
   verified_on: "2026-10-16"
 
 ai:
   # Optional help from the Claude Code CLI in print mode (claude -p). Off by default because
   # the pipeline does not need it. Turn it on when a site changes layout and the label based
-  # parsers start missing fields, or if you want a short analyst note on the summary.
+  # parsers start missing fields, and for the red flag notes on used listings (site.red_flags).
   enabled: true
   command: /app/claude-shim
   # Model alias or id passed to the CLI. Leave null for the CLI default.
@@ -123,14 +102,10 @@ ai:
   max_calls_per_run: 20
   # Use the model to read a listing only when the label parser missed these fields.
   fallback_when_missing: [price, mileage_km, coe_years_remaining]
-  # Three sentence note on the summary section.
-  analyst_note: true
-  # /ask in Telegram sends the question with the latest report, which is longer than a page.
-  ask_max_input_chars: 40000
   # Extra CLI flags, for example ["--permission-mode", "plan"].
   extra_args: []
 
-# New LTA releases posted to Telegram by news_watch.py (LTA's RSS feed). A release is sent when its title or summary
+# New LTA releases collected by news_watch.py (LTA's RSS feed) for the News list on the site. A release is kept when its title or summary
 # contains one of the keywords as a whole word.
 news:
   interval_minutes: 180
@@ -226,15 +201,16 @@ motorbikes:
     tenure_years: 5
 
 coe:
-  # Categories shown in the report. Cat D (motorcycles) shown on request, 2026-10-02.
+  # Categories shown on the site. Cat D (motorcycles) shown on request, 2026-10-02.
   display_categories: [A, B, C, D, E]
   store_categories: [A, B, C, D, E]
   trend_window: 6
   # Bidding opens on the first and third Monday of each month and results are out on the Wednesday.
   tender_weeks_of_month: [1, 3]
   results_weekday: 2   # Monday is 0
-  # Result day watcher: poll from start, post once when the new tender appears, stop at stop (SGT).
-  push:
+  # Result day watcher (coe_watch.py): poll from start, store the new tender and rebuild the site once when it
+  # appears, give up at stop (SGT).
+  results_watch:
     enabled: true
     start: "16:00"
     stop: "16:30"
@@ -335,7 +311,7 @@ top_sellers:
 new_ev:
   top_n: 20
   # Dealer prices in Singapore are advertised with COE and already net of the VES and EEAI
-  # rebates, which are applied to ARF at registration. The report says so on every price.
+  # rebates, which are applied to ARF at registration. The site says so on every price.
   prices_include_rebates: true
   # Sgcarmart's EV index lists about 85 models (2026-10-02); 40 left most line up models unpriced. Each page waits
   # Sgcarmart's 30 second crawl delay: about 130 pages (index plus extra_model_urls) take about an hour, once a day
@@ -815,8 +791,19 @@ new_ev:
     - Aion Y Plus
     - Deepal S07
 
+# Prices from each brand's own Singapore website, read before Sgcarmart's (scrapers/official, one module per brand,
+# researched 2026-10-17). A matched variant shows the official price; Sgcarmart's stays when no official row matches,
+# when the brand publishes none or blocks bots, or when the two differ by more than price_tolerance_pct (not the same
+# car or package). Rows priced without COE (Porsche) get today's premium for the car's category added before matching, and the card says so. max_age_days keeps a brand's last good list through a bad day.
+official:
+  enabled: true
+  # The same car is priced the same or nearly so on both; trims of a model are usually further apart.
+  price_tolerance_pct: 5
+  max_age_days: 14
+  verified_on: "2026-10-17"
+
 # Full new car price list for the website (petrol and hybrid cars next to the EVs). About 38 pages at Sgcarmart's
-# 30 second crawl delay, roughly 20 minutes a day, cached per day. The Telegram report does not use it.
+# 30 second crawl delay, roughly 20 minutes a day, cached per day.
 new_cars:
   enabled: true
   max_pages: 45
@@ -1009,7 +996,7 @@ costs:
       price_brand: Cnergy
       # Brands expected on the comparison page. Missing ones are logged, extra ones are kept.
       brands: [SPC, Shell, Esso, Caltex, Sinopec, Cnergy]
-      # A station the report always shows on its own line with public and member prices.
+      # A station whose public and member prices are stored apart from the other brands.
       preferred_station: Cnergy
       preferred_station_use_member_price: true
     hybrid:

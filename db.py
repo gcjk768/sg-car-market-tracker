@@ -6,7 +6,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import date, datetime
 from pathlib import Path
-from typing import Iterable, Iterator, Optional
+from typing import Any, Iterable, Iterator, Optional
 
 from models import CoeResult, FuelPrice, NewCarVariant, NewEvVariant, PricePoint, UsedListing
 
@@ -99,6 +99,20 @@ CREATE TABLE IF NOT EXISTS sent_state (
     value TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS official_prices (
+    scraped_on TEXT NOT NULL,
+    make TEXT NOT NULL,
+    model TEXT NOT NULL,
+    variant TEXT NOT NULL DEFAULT '',
+    price INTEGER NOT NULL,
+    includes_coe TEXT NOT NULL DEFAULT 'unknown',
+    list_price INTEGER,
+    packages TEXT NOT NULL DEFAULT '{}',
+    fuel TEXT NOT NULL DEFAULT '',
+    source_url TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (scraped_on, make, model, variant)
+);
 CREATE TABLE IF NOT EXISTS listing_flags (
     card_id TEXT PRIMARY KEY,
     fingerprint TEXT NOT NULL,
@@ -189,7 +203,7 @@ class Database:
             self.conn.rollback()
             raise
 
-    # Runs and idempotency
+    # Runs
 
     def start_run(self, run_date: date) -> None:
         with self.tx() as c:
@@ -205,19 +219,6 @@ class Database:
                 "UPDATE runs SET finished_at = ?, status = ?, notes = ? WHERE run_date = ?",
                 (datetime.now().isoformat(timespec="seconds"), status, notes, run_date.isoformat()),
             )
-
-    def mark_sent(self, run_date: date) -> None:
-        with self.tx() as c:
-            c.execute(
-                "UPDATE runs SET sent_at = ? WHERE run_date = ?",
-                (datetime.now().isoformat(timespec="seconds"), run_date.isoformat()),
-            )
-
-    def already_sent(self, run_date: date) -> bool:
-        row = self.conn.execute(
-            "SELECT sent_at FROM runs WHERE run_date = ?", (run_date.isoformat(),)
-        ).fetchone()
-        return bool(row and row["sent_at"])
 
     # COE
 
@@ -315,6 +316,34 @@ class Database:
             d = dict(r)
             d.pop("scraped_on")
             out.append(NewEvVariant(**d))
+        return out
+
+    # Prices from the brands' own websites (website only)
+
+    def upsert_official(self, rows: Iterable[dict[str, Any]], scraped_on: date, makes: Iterable[str]) -> int:
+        """Replace today's rows for the brands that answered; a brand that failed today keeps its last good rows."""
+        n = 0
+        with self.tx() as c:
+            for make in set(makes):
+                c.execute("DELETE FROM official_prices WHERE scraped_on = ? AND make = ?", (scraped_on.isoformat(), make))
+            for r in rows:
+                c.execute("INSERT OR REPLACE INTO official_prices (scraped_on, make, model, variant, price, includes_coe, list_price,"
+                          " packages, fuel, source_url, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                          (scraped_on.isoformat(), r["make"], r["model"], r.get("variant") or "", int(r["price"]), r.get("includes_coe") or "unknown",
+                           r.get("list_price"), json.dumps(r.get("packages") or {}), r.get("fuel") or "", r.get("source_url") or "", r.get("note") or ""))
+                n += 1
+        return n
+
+    def latest_official(self, max_age_days: int = 14) -> list[dict[str, Any]]:
+        """Each make's most recent rows, if no older than max_age_days, so one bad day does not lose a brand."""
+        out = []
+        for m in self.conn.execute("SELECT make, MAX(scraped_on) AS d FROM official_prices GROUP BY make").fetchall():
+            if (date.today() - date.fromisoformat(m["d"])).days > max_age_days:
+                continue
+            for r in self.conn.execute("SELECT * FROM official_prices WHERE make = ? AND scraped_on = ?", (m["make"], m["d"])).fetchall():
+                d = dict(r)
+                d["packages"] = json.loads(d["packages"] or "{}")
+                out.append(d)
         return out
 
     # Red flags the model found in a used listing (website only), cached until the listing changes
@@ -459,7 +488,7 @@ class Database:
         ).fetchone()
         return int(row["n"])
 
-    # Sent state, used to decide whether today's report differs from the last one sent
+    # Key value state: last_run_health, last_alert, news_items, lta_news_seen
 
     def get_state(self, key: str) -> Optional[str]:
         row = self.conn.execute("SELECT value FROM sent_state WHERE key = ?", (key,)).fetchone()
@@ -472,10 +501,6 @@ class Database:
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
                 (key, value, datetime.now().isoformat(timespec="seconds")),
             )
-
-    def last_sent_date(self) -> Optional[date]:
-        row = self.conn.execute("SELECT MAX(run_date) AS d FROM runs WHERE sent_at IS NOT NULL").fetchone()
-        return date.fromisoformat(row["d"]) if row and row["d"] else None
 
     # Fuel
 

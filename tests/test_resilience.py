@@ -29,7 +29,7 @@ class FakeProc:
 class Harness:
     """A supervisor with a movable clock, recorded spawns and recorded alerts."""
 
-    def __init__(self, cfg, tmp_path, listener=False):
+    def __init__(self, cfg, tmp_path):
         cfg["general"]["db_path"] = "data/cars.db"
         cfg["general"]["cache_dir"] = "data/cache"
         cfg["self_heal"]["enabled"] = True
@@ -40,7 +40,7 @@ class Harness:
         self.alerts: list[str] = []
         self.root = tmp_path
         self.sup = Supervisor(cfg, tmp_path, spawn=self.spawn, clock=lambda: self.now,
-                              notify=self.alerts.append, listener=listener)
+                              notify=self.alerts.append)
 
     def spawn(self, script, args):
         proc = FakeProc()
@@ -115,7 +115,7 @@ def test_failed_repair_leads_to_one_alert(cfg, tmp_path):
     assert len(h.alerts) == 1  # once a day
 
 
-def test_telegram_failure_is_retried_but_never_repaired(cfg, tmp_path):
+def test_site_write_failure_is_retried_but_never_repaired(cfg, tmp_path):
     h = Harness(cfg, tmp_path)
     h.at(8)
     h.finish(2)
@@ -124,7 +124,7 @@ def test_telegram_failure_is_retried_but_never_repaired(cfg, tmp_path):
     h.at(10, 2)
     h.finish(2)
     assert "heal.py" not in h.scripts
-    assert len(h.alerts) == 1 and "Telegram delivery failed" in h.alerts[0]
+    assert len(h.alerts) == 1 and "site data could not be written" in h.alerts[0]
 
 
 def test_hung_run_is_stopped_at_its_time_limit(cfg, tmp_path, monkeypatch):
@@ -141,17 +141,25 @@ def test_hung_run_is_stopped_at_its_time_limit(cfg, tmp_path, monkeypatch):
     assert h.sup.retry_at is not None
 
 
-def test_listener_is_restarted_with_backoff(cfg, tmp_path):
-    h = Harness(cfg, tmp_path, listener=True)
+def test_default_alert_goes_to_the_vault_and_last_alert(cfg, tmp_path, monkeypatch):
+    vdir = tmp_path / "vault"
+    monkeypatch.setenv("VAULT_DIR", str(vdir))
+    h = Harness(cfg, tmp_path)
+    h.sup.notify = h.sup._record_alert                    # the default when no notify is passed
+    h.sup._alert("crashed with exit code 1")
+    db = Database(tmp_path / "data" / "cars.db")
+    alert = json.loads(db.get_state("last_alert"))
+    db.close()
+    assert alert["at"].startswith("2026-09-30T07:00") and "crashed with exit code 1" in alert["what"]
+    activity = next((vdir / "Activity").rglob("*.md")).read_text(encoding="utf-8")
+    assert "**daily run failing**" in activity and "crashed with exit code 1" in activity
+
+
+def test_no_listener_is_started(cfg, tmp_path):
+    h = Harness(cfg, tmp_path)
     h.at(7, 0)
-    assert h.scripts == ["bot_listener.py"]
-    h.spawned[0][1].code = 1  # listener crashed
-    h.at(7, 0)
-    assert h.scripts == ["bot_listener.py"]  # waits 30 s
-    h.now += timedelta(seconds=31)
-    h.sup.tick()
-    assert h.scripts == ["bot_listener.py", "bot_listener.py"]
-    assert h.sup.listener_backoff == 60
+    h.at(8, 0)
+    assert h.scripts == ["main.py"]
 
 
 def test_new_day_resets_counters_and_prunes_old_folders(cfg, tmp_path):

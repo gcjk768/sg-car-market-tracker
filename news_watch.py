@@ -1,33 +1,48 @@
-"""Post new LTA news releases that affect buying or owning a car, once each. The scheduler runs this a few
-times a day. The first run only records what is already out, so the topic is not flooded.
+"""Collect new LTA news releases that affect buying or owning a car for the website's News list. The
+scheduler runs this a few times a day. New relevant items go newest first into sent_state key
+news_items (a JSON list of {"title", "link", "published", "summary"}, capped at NEWS_CAP), which
+website.py shows on the Today page at its next build. Links already seen are kept in lta_news_seen,
+so an item is added once.
 
-  python news_watch.py            check and send
-  python news_watch.py --dry-run  print what would be sent
+  python news_watch.py            check and store
+  python news_watch.py --dry-run  print what would be stored
 """
 from __future__ import annotations
 
 import json
 import logging
 import sys
-from datetime import date, datetime
+from dataclasses import asdict
+from datetime import date
 
 import vault
 from db import Database
-from report import news_section
 from scrapers.lta_news import LtaNewsScraper, NewsItem, relevant
-from settings import load_config, load_secrets, user_agent
-from telegram_bot import TelegramClient
+from settings import load_config, user_agent
 
 log = logging.getLogger("news_watch")
 SEEN_KEY = "lta_news_seen"
+NEWS_KEY = "news_items"
+NEWS_CAP = 30
 
 
 def new_items(items: list[NewsItem], seen: set[str] | None, keywords: list[str], exclude: list[str] = ()) -> tuple[list[NewsItem], set[str]]:
-    """(relevant items not seen before, all links now seen). seen None means first run: report nothing."""
+    """(relevant items not seen before, all links now seen). seen None means first run: nothing is new."""
     links = {i.link for i in items}
     if seen is None:
         return [], links
     return [i for i in items if i.link not in seen and relevant(i, keywords, exclude)], seen | links
+
+
+def merge_news(stored: list[dict], fresh: list[NewsItem], cap: int = NEWS_CAP) -> list[dict]:
+    """Fresh items first, newest first, then the stored ones, one entry per link, at most `cap`."""
+    rows = sorted((asdict(i) for i in fresh), key=lambda r: r["published"], reverse=True) + stored
+    out, links = [], set()
+    for r in rows:
+        if r["link"] not in links:
+            links.add(r["link"])
+            out.append(r)
+    return out[:cap]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -38,25 +53,29 @@ def main(argv: list[str] | None = None) -> int:
         items = scraper.run()
     finally:
         scraper.close()
+    keywords, exclude = cfg["news"]["keywords"], cfg["news"].get("exclude", [])
     db = Database(cfg["general"]["db_path"])
     try:
         raw = db.get_state(SEEN_KEY)
-        fresh, seen = new_items(items, set(json.loads(raw)) if raw else None, cfg["news"]["keywords"], cfg["news"].get("exclude", []))
+        fresh, seen = new_items(items, set(json.loads(raw)) if raw else None, keywords, exclude)
         if "--dry-run" in argv:
             print(f"{len(fresh)} new relevant of {len(items)}:", *[f"\n- {i.published} {i.title}" for i in fresh])
             return 0
-        if fresh:
-            s = load_secrets()
-            client = TelegramClient(s["telegram_bot_token"], s["telegram_chat_id"], api_base=s.get("telegram_api_base"),
-                                    thread_id=s.get("telegram_thread_id"))
-            client.send_many([news_section(fresh).html])
+        stored = db.get_state(NEWS_KEY)
+        if stored is None:
+            # First time the site list is kept: start it with the relevant releases already in the feed.
+            start = [i for i in items if relevant(i, keywords, exclude)]
+            db.set_state(NEWS_KEY, json.dumps(merge_news([], start), ensure_ascii=False))
+            vault.event("📰", "LTA news list started", f"{min(len(start), NEWS_CAP)} relevant releases from the feed")
+        elif fresh:
+            db.set_state(NEWS_KEY, json.dumps(merge_news(json.loads(stored), fresh), ensure_ascii=False))
             for i in fresh:
-                vault.event("📰", "LTA news sent", i.title, i.link)
-        elif raw is None:
+                vault.event("📰", "LTA news stored", i.title, i.link)
+        if raw is None:
             vault.event("📰", "LTA news watcher started", f"{len(items)} existing releases recorded")
         # the whole current feed first (a feed holds years of items), then older links, so nothing in the feed is ever dropped
         keep = list(dict.fromkeys([i.link for i in items] + sorted(seen)))[:2000]
-        db.set_state(SEEN_KEY, json.dumps(keep))  # only after a successful send, so a failure is retried
+        db.set_state(SEEN_KEY, json.dumps(keep))
     finally:
         db.close()
     return 0

@@ -1,10 +1,11 @@
 """Website data: everything the tracker knows today, written to data/site/data.json for the car-site
-container (nginx, site/index.html). main.py rewrites it after every full report; `python website.py`
-rebuilds it from the database and the day's page cache without scraping anything new.
+container (nginx, site/index.html). The website is the tracker's only output. main.py rewrites it after
+every daily run and coe_watch.py on COE result days; `python website.py` rebuilds it from the database
+and the day's page cache without scraping anything new.
 
-The Telegram report shows a shortlist (top 20, filtered). The website shows every new EV variant on
-today's price list and every live used listing, with the same costings on each card, so it can be
-browsed by body type, budget, brand and drivetrain. Nothing here changes the report.
+The site shows every new EV variant on today's price list, the full new car list and every live used
+listing, with the same costings on each card, so it can be browsed by body type, budget, brand and
+drivetrain. LTA news collected by news_watch.py comes from sent_state key news_items.
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ from typing import Any, Optional
 
 import costs
 import insights
+import official
 from coe_forecast import bidding_window, forecast
 from db import Database
 from filters import brand_rank, reject_reason, shortlist
@@ -84,7 +86,9 @@ def _rank_in(make: str, counts: dict[str, int] | None, cfg: dict[str, Any]) -> t
 
 
 def new_ev_cards(variants: list[NewEvVariant], cfg: dict[str, Any], today: date, ev_sales: dict[str, int] | None,
-                 body_counts: dict[str, dict[str, int]] | None, pop: "Popularity | None" = None) -> list[dict[str, Any]]:
+                 body_counts: dict[str, dict[str, int]] | None, pop: "Popularity | None" = None,
+                 official_info: dict[int, dict[str, Any]] | None = None,
+                 coe_info: dict[int, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     out = []
     goods = cfg["used"]["filters"].get("exclude_models", []) + cfg.get("new_cars", {}).get("exclude_models", [])
     for i, v in enumerate(variants):
@@ -100,10 +104,12 @@ def new_ev_cards(variants: list[NewEvVariant], cfg: dict[str, Any], today: date,
             "range_km": v.range_km, "range_standard": v.range_standard, "battery_kwh": v.battery_kwh,
             "power_kw": v.power_kw, "ves_rebate": v.ves_rebate, "vehicle_warranty": v.vehicle_warranty,
             "battery_warranty": v.battery_warranty, "promotion": v.promotion, "url": v.listing_url,
+            "image": car_image(v.listing_url, cfg),
             "score": round(v.score, 1) if v.score else None,
             "brand_rank": rank, "brand_regs": regs, "body_rank": body_rank, "body_regs": body_regs,
             "popularity": pop.of(v.make, v.model, ev=True) if pop else None,
             "best_seller": pop.best(v.make, v.model, ev=True) if pop else None,
+            **official.card_fields((official_info or {}).get(id(v)), (coe_info or {}).get(id(v))),
             "finance": _fin(v.price_with_coe, None, cfg, True),
         }
         if v.price_with_coe:
@@ -113,6 +119,16 @@ def new_ev_cards(variants: list[NewEvVariant], cfg: dict[str, Any], today: date,
                 log.debug("no cost estimate for %s: %s", v.display_name, exc)
         out.append(card)
     return out
+
+
+MODEL_ID = re.compile(r"/new-cars/info/(\d+)/")
+
+
+def car_image(url: Optional[str], cfg: dict[str, Any]) -> Optional[str]:
+    """The model's photo, from the model id in its Sgcarmart price list link; None when the link has no id."""
+    tpl = cfg.get("site", {}).get("car_image_url")
+    m = MODEL_ID.search(url or "")
+    return tpl.format(id=m.group(1)) if tpl and m else None
 
 
 FUEL_WORDS = re.compile(r"\b(?:plug in hybrid|mild hybrid|m hybrid|hybrid|electric|ev|e tron)\b")
@@ -200,6 +216,8 @@ def coe_cat_for(v: NewCarVariant, cfg: dict[str, Any]) -> Optional[str]:
     c = cfg["coe"]
     if v.fuel == "ev":
         return None if v.power_kw is None else ("A" if v.power_kw <= c["cat_a_max_power_kw"] else "B")
+    if v.power_kw is not None and v.power_kw > c["cat_a_max_engine_power_kw"]:
+        return "B"   # power alone makes it Cat B, whatever the engine (no Porsche name carries its engine size)
     if v.engine_cc is None:
         return None
     return "A" if v.engine_cc <= c["cat_a_max_engine_cc"] and (v.power_kw or 0) <= c["cat_a_max_engine_power_kw"] else "B"
@@ -219,14 +237,23 @@ def same_car(listed: NewCarVariant, ev_list: list[NewEvVariant]) -> bool:
     return False
 
 
+def ev_duplicates(cars: list[NewCarVariant], ev_list: list[NewEvVariant]) -> set[int]:
+    """Listing EVs the EV price list already carries. Worked out once, on Sgcarmart's own prices, before any COE or
+    official price changes them: same_car compares prices, and a changed copy would no longer look like the same car."""
+    ev_models = {_model_key(v.make, v.model) for v in ev_list}
+    return {id(v) for v in cars if v.fuel == "ev" and (_model_key(v.make, v.model) in ev_models or same_car(v, ev_list))}
+
+
 def new_car_cards(variants: list[NewCarVariant], ev_list: list[NewEvVariant], cfg: dict[str, Any], today: date,
                   petrol_price: Optional[float], sales: dict[str, dict[str, int] | None],
-                  deltas: dict[str, tuple[int, int, int]], pop: "Popularity | None" = None) -> list[dict[str, Any]]:
+                  deltas: dict[str, tuple[int, int, int]], pop: "Popularity | None" = None,
+                  official_info: dict[int, dict[str, Any]] | None = None,
+                  coe_info: dict[int, dict[str, Any]] | None = None, dups: set[int] | None = None) -> list[dict[str, Any]]:
     """Petrol, hybrid and diesel cars from the full listing, plus EVs the EV price list does not carry."""
     out = []
-    ev_models = {_model_key(v.make, v.model) for v in ev_list}
+    skip = ev_duplicates(variants, ev_list) if dups is None else dups
     for i, v in enumerate(variants):
-        if v.fuel == "ev" and (_model_key(v.make, v.model) in ev_models or same_car(v, ev_list)):
+        if id(v) in skip:
             continue
         kind = "ev" if v.fuel == "ev" else "ice"
         dt = Drivetrain.ev if v.fuel == "ev" else Drivetrain.hybrid if v.fuel == "hybrid" else Drivetrain.ice
@@ -239,6 +266,7 @@ def new_car_cards(variants: list[NewCarVariant], ev_list: list[NewEvVariant], cf
             "price_next": [v.price_with_coe + x for x in d] if d else None,
             "power_kw": v.power_kw, "engine_cc": v.engine_cc, "economy": v.fuel_economy, "transmission": v.transmission,
             "price_change": v.price_change, "price_change_on": v.price_change_on, "url": v.listing_url,
+            "image": car_image(v.listing_url, cfg),
             # A dealer special edition sits only in a paid spotlight slot, so it has no rank of its own; it
             # takes its model's ("WR-V Vin's Auto Edition" is a WR-V).
             "brand_rank": rank, "brand_regs": regs,
@@ -248,6 +276,7 @@ def new_car_cards(variants: list[NewCarVariant], ev_list: list[NewEvVariant], cf
             "best_seller": ({"list": v.best_list, "pos": v.best_pos} if v.best_list
                             else None if v.popularity else (pop.best(v.make, v.model, ev=v.fuel == "ev") if pop else None)),
             "finance": _fin(v.price_with_coe, None, cfg, True),
+            **official.card_fields((official_info or {}).get(id(v)), (coe_info or {}).get(id(v))),
         }
         try:
             b = costs.breakdown(v.display_name, dt, v.price_with_coe, v.engine_cc, v.power_kw,
@@ -432,7 +461,7 @@ def bikes_block(bikes: dict[str, Any], cfg: dict[str, Any], today: date) -> dict
 
 def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force: bool = False) -> dict[str, Any]:
     """Everything the website shows, as plain JSON types. Scrapers are only used for the LTA tables and
-    SGBikemart, which come from the day's cache after a report run."""
+    SGBikemart, which come from the day's cache after a daily run."""
     site_cfg = cfg.get("site", {})
     reg = scrape_registrations(cfg, user_agent, today, force)
     makes = reg[0] if reg else {}
@@ -451,6 +480,20 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
     if not stored:  # the site also builds on a day with no run yet: show the last price list
         row = db.conn.execute("SELECT MAX(scraped_on) AS d FROM new_ev_prices").fetchone()
         stored = db.new_ev_on(date.fromisoformat(row["d"])) if row and row["d"] else []
+    ndate = db.latest_new_cars_date()
+    cars = sorted(db.new_cars_on(ndate) if ndate else [], key=lambda v: (v.make.lower(), v.model.lower(), v.price_with_coe))
+    # Official prices first: a matched variant's price becomes the brand's own, before any cost is worked out.
+    official_rows = db.latest_official(int(cfg.get("official", {}).get("max_age_days", 14)))
+    premiums = {r["cat"]: r["premium"] for r in coe.get("rows", [])}
+    cat_of = lambda v: (v.coe_category.value if getattr(v, "coe_category", None) else
+                        coe_cat_for(v, cfg) if isinstance(v, NewCarVariant) else None)
+    # Prices Sgcarmart lists without COE (Porsche, Ferrari and others) take today's premium first, so official rows
+    # and every card compare on the same footing.
+    dups = ev_duplicates(cars, stored)                    # before any price changes, see ev_duplicates
+    priced = stored + [c for c in cars if id(c) not in dups]
+    coe_info = official.add_coe(priced, official.without_coe_ids(stored, cars), premiums, cat_of)
+    official_info = official.apply(priced, official_rows, cfg, premiums, cat_of)
+    log.info("official prices: %d rows, %d variants matched", len(official_rows), len(official_info))
     for v in stored:
         f = forecasts.get(v.coe_category.value) if v.coe_category else None
         if f and v.price_with_coe:
@@ -459,8 +502,6 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
         v.body_type = body_type(v.make, v.model, v.variant, cfg)
     new_evs = sorted(stored, key=lambda v: (v.make.lower(), v.model.lower(), v.price_with_coe or 0))
 
-    ndate = db.latest_new_cars_date()
-    cars = sorted(db.new_cars_on(ndate) if ndate else [], key=lambda v: (v.make.lower(), v.model.lower(), v.price_with_coe))
     pop = Popularity(cars)
     listings = db.active_listings()
     used = used_cards(listings, cfg, today, petrol_price, sales, pop)
@@ -472,11 +513,10 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
     # price with the forecast COE premium, like the EV cards.
     deltas = {r["cat"]: tuple(r["forecast"][k] - r["premium"] for k in ("low", "point", "high"))
               for r in coe.get("rows", []) if r.get("forecast")}
-    ev_cards = new_ev_cards(new_evs, cfg, today, sales["ev"], body_counts, pop)
-    new_cars = new_car_cards(cars, stored, cfg, today, petrol_price, sales, deltas, pop)
+    ev_cards = new_ev_cards(new_evs, cfg, today, sales["ev"], body_counts, pop, official_info, coe_info)
+    new_cars = new_car_cards(cars, stored, cfg, today, petrol_price, sales, deltas, pop, official_info, coe_info, dups)
 
-    # The report's three cost picks, with the same choices: best selling new EV, then the first car of
-    # each used shortlist.
+    # Three cost picks: the best selling new EV, then the first car of each used shortlist.
     picks = []
     best_new = None
     if stored and body_counts:
@@ -511,6 +551,8 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
         "generated_at": datetime.now().isoformat(timespec="seconds"), "run_date": today.isoformat(),
         "stats": {
             "new_ev_variants": len(ev_cards), "new_ev_brands": len({c["make"] for c in ev_cards}),
+            "official_matched": len(official_info), "official_brands": len({r["make"] for r in official_rows}),
+            "coe_added": sum(1 for x in coe_info.values() if x["coe_added"]),
             "new_car_variants": len(new_cars), "new_car_models": len({(c["make"], c["model"]) for c in new_cars}),
             "used_active": len(used), "used_passing": sum(1 for u in used if u["passes"]),
             "new_today": sum(1 for u in used if u["first_seen"] == today.isoformat()),
@@ -526,6 +568,7 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
         "brands": brands_block(reg, ts.get("ev_models") or {}, model_prices(new_evs, ts.get("ev_models") or {}), cfg,
                                int(ts.get("top_n", 20)), pop),
         "body_months": list(body_months),
+        "news": json.loads(db.get_state("news_items") or "[]"),
         "bikes": bikes_block(bikes, cfg, today),
         "costs": {"picks": picks, "assumptions": cfg["costs"]["insurance"]["assumptions"].strip(), "annual_km": cfg["costs"]["annual_km"],
                   "insurance_links": cfg["sources"].get("insurance_comparison", []),
@@ -557,7 +600,7 @@ def write(data: dict[str, Any], path: Path | str) -> Path:
 
 
 def publish(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force: bool = False) -> Optional[Path]:
-    """Build and write the site data. Best effort: a failure is logged and never stops a report."""
+    """Build and write the site data. Best effort: a failure is logged and None returned, never raised."""
     try:
         data = build(cfg, db, today, user_agent, force)
         out = write(data, cfg.get("site", {}).get("output", DEFAULT_OUTPUT))

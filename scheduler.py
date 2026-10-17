@@ -1,21 +1,24 @@
-"""Container entry point and supervisor. Keeps the report arriving without anyone watching.
+"""Container entry point and supervisor. Keeps the website data fresh without anyone watching.
 
-* Runs the daily report at general.schedule_time as a child process, stopped after
-  resilience.max_run_minutes, so a hung browser page cannot freeze the service.
-* A run that crashes, cannot send, or leaves sections unavailable is retried after
+* Runs the daily scrape (main.py, which rewrites data/site/data.json) at general.schedule_time as a
+  child process, stopped after resilience.max_run_minutes, so a hung browser page cannot freeze
+  the service.
+* A run that crashes, cannot write the site data, or leaves sections unavailable is retried after
   resilience.retry_after_minutes. When it fails again and self_heal is on, heal.py asks the
-  Claude CLI to repair the code, keeps the change only if it is safe and works, and the report
-  runs again. After every retry and repair, one Telegram alert a day says what still fails.
-* Runs bot_listener.py as a second child process and restarts it with backoff if it exits.
+  Claude CLI to repair the code, keeps the change only if it is safe and works, and the run
+  starts again. After every retry and repair, one alert a day says what still fails: it goes to
+  the vault's Activity log and to sent_state key last_alert.
+* On COE result days, starts coe_watch.py (coe.results_watch), which updates the site as soon as
+  the new tender is out. A few times a day runs news_watch.py, and bid_capture.py while bidding
+  is open.
 * Writes data/heartbeat every tick. `python scheduler.py --health` checks it for Docker's
   healthcheck, and a watchdog thread exits the process if the loop itself stops ticking, so
   Docker's restart policy starts it fresh.
 * Once a day, removes page cache folders and self repair records past their keep days.
-* On start, catches up a report the container missed while it was down.
+* On start, catches up a run the container missed while it was down.
 
 Environment:
-  RUN_ON_START=1   run a report as soon as the container starts
-  RUN_LISTENER=1   also run bot_listener.py so /run, /coe, /filters and /ask work
+  RUN_ON_START=1   run the daily scrape as soon as the container starts
 """
 from __future__ import annotations
 
@@ -39,7 +42,7 @@ from settings import PROJECT_ROOT, load_config
 
 log = logging.getLogger("scheduler")
 
-DONE_STATUSES = ("ok", "no-change", "skipped")
+DONE_STATUSES = ("ok",)
 
 
 def next_run(now: datetime, schedule_time: str) -> datetime:
@@ -53,7 +56,7 @@ def next_run(now: datetime, schedule_time: str) -> datetime:
 
 @dataclass
 class Child:
-    kind: str  # report, heal or listener
+    kind: str  # report, heal or coe
     proc: Any  # subprocess.Popen, or a test double with poll() and kill()
     started: datetime
     deadline: Optional[datetime]
@@ -79,8 +82,7 @@ class Supervisor:
     def __init__(self, cfg: dict[str, Any], root: Path = PROJECT_ROOT, *,
                  spawn: Callable[[str, list[str]], Any] | None = None,
                  clock: Callable[[], datetime] | None = None,
-                 notify: Callable[[str], None] | None = None,
-                 listener: bool = False):
+                 notify: Callable[[str], None] | None = None):
         self.cfg = cfg
         self.root = Path(root)
         self.res = cfg.get("resilience", {})
@@ -88,17 +90,13 @@ class Supervisor:
         self.schedule_time = str(cfg["general"].get("schedule_time", "08:00"))
         self.spawn = spawn or (lambda script, args: spawn_python(script, args, self.root))
         self.clock = clock or (lambda: datetime.now(self.tz))
-        self.notify = notify or self._telegram
-        self.want_listener = listener
+        self.notify = notify or self._record_alert
         now = self.clock()
         self.next_daily = next_run(now, self.schedule_time)
         self.child: Optional[Child] = None
-        self.listener: Optional[Child] = None
-        self.listener_backoff = 30
         self.coe_watcher: Optional[Child] = None
         self.coe_watch_day: Optional[date] = None
         self.jobs: dict[str, dict] = {}  # periodic one shot scripts: {name: {"proc", "started", "next"}}
-        self.listener_next: Optional[datetime] = now
         self.retry_at: Optional[datetime] = None
         self.day: Optional[date] = None
         self.failures_today = 0
@@ -123,7 +121,6 @@ class Supervisor:
         self.last_tick = time.monotonic()
         self._new_day(now)
         self._heartbeat(now)
-        self._supervise_listener(now)
         self._coe_watch(now)
         self._periodic("news_watch.py", now, self._news_due(now), 10)
         self._periodic("bid_capture.py", now, self._capture_due(now), 10)
@@ -137,11 +134,11 @@ class Supervisor:
             self.retry_at = None
             self.start_report("retry")
 
-    # Result day COE push
+    # Result day COE watcher
 
     def _coe_watch(self, now: datetime) -> None:
-        push = self.cfg.get("coe", {}).get("push", {})
-        if not push.get("enabled"):
+        watch = self.cfg.get("coe", {}).get("results_watch", {})
+        if not watch.get("enabled"):
             return
         if self.coe_watcher is not None:
             if self.coe_watcher.proc.poll() is None:
@@ -157,8 +154,8 @@ class Supervisor:
         ensure_schedule(self.cfg, user_agent(self.cfg), today)
         if today not in tender_result_dates(today.year, today.month, tuple(coe["tender_weeks_of_month"]), coe["results_weekday"]):
             return
-        h, m = (int(x) for x in str(push.get("start", "16:00")).split(":"))
-        eh, em = (int(x) for x in str(push.get("stop", "16:30")).split(":"))
+        h, m = (int(x) for x in str(watch.get("start", "16:00")).split(":"))
+        eh, em = (int(x) for x in str(watch.get("stop", "16:30")).split(":"))
         start = now.replace(hour=h, minute=m, second=0, microsecond=0)
         end = now.replace(hour=eh, minute=em, second=0, microsecond=0)
         if self.coe_watch_day == today or not (start <= now < end):
@@ -247,9 +244,10 @@ class Supervisor:
         what = self._describe(code, failing)
         self.failures_today += 1
         log.warning("report failed (%s), failure %d today", what, self.failures_today)
-        telegram_only = code == 2 and not failing
+        # Exit 2 alone means only the site data write failed: a retry may help, a code repair will not.
+        site_only = code == 2 and not failing
         sh = self.cfg.get("self_heal", {})
-        can_heal = (not telegram_only and sh.get("enabled", False)
+        can_heal = (not site_only and sh.get("enabled", False)
                     and self.heals_today < int(sh.get("max_attempts_per_day", 1)))
         if self.failures_today >= 2 and can_heal:
             self.start_heal()
@@ -269,7 +267,7 @@ class Supervisor:
         if self.failures_today <= int(self.res.get("max_retries_per_day", 2)):
             self.retry_at = now + timedelta(minutes=int(self.res.get("retry_after_minutes", 60)))
         else:
-            self._alert("the report still fails and self repair could not fix it")
+            self._alert("the daily run still fails and self repair could not fix it")
 
     @staticmethod
     def _describe(code: int, failing: list[str]) -> str:
@@ -277,7 +275,7 @@ class Supervisor:
         if code == -9:
             parts.append("ran past its time limit")
         elif code == 2:
-            parts.append("Telegram delivery failed")
+            parts.append("site data could not be written")
         elif code:
             parts.append(f"crashed with exit code {code}")
         if failing:
@@ -289,33 +287,13 @@ class Supervisor:
             return
         self.alerted_today = True
         nxt = self.next_daily.strftime("%a %d %b %H:%M")
-        text = (f"<b>Daily report problem</b>\nThe report still fails after every retry: {_escape(what)}.\n"
+        text = (f"The daily run still fails after every retry: {what}. "
                 f"Next scheduled run: {nxt}. Details in logs/run.log on the NAS.")
         log.error("alerting: %s", what)
         try:
             self.notify(text)
         except Exception as exc:
-            log.warning("alert could not be sent: %s", exc)
-
-    # Listener
-
-    def _supervise_listener(self, now: datetime) -> None:
-        if not self.want_listener:
-            return
-        if self.listener is not None:
-            code = self.listener.proc.poll()
-            if code is None:
-                if now - self.listener.started > timedelta(minutes=30):
-                    self.listener_backoff = 30  # it has been up a while, so reset the backoff
-                return
-            log.warning("listener exited with code %s, restarting in %d s", code, self.listener_backoff)
-            self.listener = None
-            self.listener_next = now + timedelta(seconds=self.listener_backoff)
-            self.listener_backoff = min(self.listener_backoff * 2, 600)
-        if self.listener_next is not None and now >= self.listener_next:
-            self.listener = Child("listener", self.spawn("bot_listener.py", []), now, None)
-            self.listener_next = None
-            log.info("listener started")
+            log.warning("alert could not be recorded: %s", exc)
 
     # Day boundary, heartbeat, housekeeping, catch up
 
@@ -413,23 +391,21 @@ class Supervisor:
         threading.Thread(target=watch, name="watchdog", daemon=True).start()
 
     def stop_children(self) -> None:
-        for child in (self.child, self.listener, self.coe_watcher):
+        for child in (self.child, self.coe_watcher):
             if child is not None and child.proc.poll() is None:
                 kill_tree(child.proc)
 
-    def _telegram(self, text: str) -> None:
-        from settings import load_secrets
-        from telegram_bot import TelegramClient
+    def _record_alert(self, text: str) -> None:
+        """Default alert: a vault event plus sent_state key last_alert, {"at": iso time, "what": text}."""
+        import vault
+        from db import Database
 
-        s = load_secrets()
-        TelegramClient(s["telegram_bot_token"], s["telegram_chat_id"], api_base=s.get("telegram_api_base"),
-                       thread_id=s.get("telegram_thread_id")).send_message(text)
-
-
-def _escape(text: str) -> str:
-    import html
-
-    return html.escape(text, quote=False)
+        vault.event("🚨", "daily run failing", text)
+        db = Database(self.root / self.cfg["general"]["db_path"])
+        try:
+            db.set_state("last_alert", json.dumps({"at": self.clock().isoformat(timespec="seconds"), "what": text}))
+        finally:
+            db.close()
 
 
 def healthy(root: Path, cfg: dict[str, Any], now: Optional[datetime] = None) -> bool:
@@ -456,7 +432,7 @@ def main(argv: list[str] | None = None) -> int:
     import vault
 
     vault.event("🟢", "scheduler started")  # also moves any flat Activity notes into YYYY/MM/
-    sup = Supervisor(cfg, PROJECT_ROOT, listener=os.getenv("RUN_LISTENER") == "1")
+    sup = Supervisor(cfg, PROJECT_ROOT)
 
     def stop(signum, frame):  # docker stop sends SIGTERM
         log.info("stopping on signal %s", signum)
@@ -466,7 +442,7 @@ def main(argv: list[str] | None = None) -> int:
 
     signal.signal(signal.SIGTERM, stop)
     sup.catch_up(os.getenv("RUN_ON_START") == "1")
-    log.info("next daily report at %s", sup.next_daily.isoformat(timespec="minutes"))
+    log.info("next daily run at %s", sup.next_daily.isoformat(timespec="minutes"))
     sup.run_forever()
     return 0
 

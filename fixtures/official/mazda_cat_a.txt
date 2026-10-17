@@ -1,0 +1,875 @@
+0	368	119	Price ﬁgures reﬂected are accurate at the time of print. Trans Eurokars Pte Ltd reserves the right to amend prices without prior notice.
+0	790	247	Price list valid from to
+0	413	62	MAZDA 3 HATCHBACK
+0	404	94	M-HYBRID
+0	657	351	LIST PRICE EFFECTIVE PRICEVARIANT
+0	706	174	PRICE LIST: CATEGORY A
+0	656	58	CATEGORY A MODEL
+0	773	396	Updated on
+0	596	95	MAZDA 2
+0	512	75	MAZDA 3 SEDAN
+0	503	93	M-HYBRID
+0	95	192	MAZDA SHOWROOM & SERVICE CENTRE
+0	43	143	For more information please visit
+0	43	233	www.mazda.com.sg.
+0	43	292	For corporate sales contact
+0	43	366	corporatesales@mazda.com.sg or
+0	35	174	9888 9981. For leasing options contact
+0	35	281	leasing@eurokars.com.sg or 9363 5809 / 9107 3244.
+0	75	159	5 Ubi Close | Singapore 408605
+0	66	139	Sales Tel: 6395 8888 Service Tel: 6395 8899
+0	75	330	23 Leng Kee Road | Singapore 159095
+0	66	320	Sales Tel: 6603 6118 Service Tel: 6603 6128
+0	790	247	P
+0	790	254	r
+0	790	258	i
+0	790	261	c
+0	790	267	e
+0	790	277	l
+0	790	280	i
+0	790	283	s
+0	790	288	t
+0	790	296	v
+0	790	301	a
+0	790	307	l
+0	790	311	i
+0	790	314	d
+0	790	324	f
+0	790	328	r
+0	790	332	o
+0	790	340	m
+0	790	454	t
+0	790	458	o
+0	706	174	P
+0	706	186	R
+0	706	199	I
+0	706	207	C
+0	706	221	E
+0	706	240	L
+0	706	250	I
+0	706	258	S
+0	706	270	T
+0	706	281	:
+0	706	298	C
+0	706	312	A
+0	706	326	T
+0	706	337	E
+0	706	348	G
+0	706	363	O
+0	706	379	R
+0	706	392	Y
+0	706	412	A
+0	773	396	U
+0	773	405	p
+0	773	412	d
+0	773	419	a
+0	773	425	t
+0	773	429	e
+0	773	436	d
+0	773	446	o
+0	773	453	n
+0	95	192	M
+0	95	203	A
+0	95	211	Z
+0	95	219	D
+0	95	229	A
+0	95	241	S
+0	95	248	H
+0	95	257	O
+0	95	266	W
+0	95	278	R
+0	95	286	O
+0	95	295	O
+0	95	305	M
+0	95	320	&
+0	95	333	S
+0	95	340	E
+0	95	346	R
+0	95	354	V
+0	95	362	I
+0	95	367	C
+0	95	375	E
+0	95	386	C
+0	95	395	E
+0	95	401	N
+0	95	410	T
+0	95	416	R
+0	95	424	E
+0	43	143	F
+0	43	146	o
+0	43	150	r
+0	43	153	m
+0	43	159	o
+0	43	162	r
+0	43	164	e
+0	43	169	i
+0	43	171	n
+0	43	174	f
+0	43	176	o
+0	43	180	r
+0	43	182	m
+0	43	187	a
+0	43	190	t
+0	43	192	i
+0	43	194	o
+0	43	197	n
+0	43	202	p
+0	43	206	l
+0	43	208	e
+0	43	211	a
+0	43	214	s
+0	43	216	e
+0	43	221	v
+0	43	224	i
+0	43	226	s
+0	43	228	i
+0	43	230	t
+0	43	233	w
+0	43	238	w
+0	43	243	w
+0	43	247	.
+0	43	249	m
+0	43	255	a
+0	43	258	z
+0	43	261	d
+0	43	264	a
+0	43	267	.
+0	43	269	c
+0	43	272	o
+0	43	276	m
+0	43	281	.
+0	43	283	s
+0	43	285	g
+0	43	289	.
+0	43	292	F
+0	43	295	o
+0	43	298	r
+0	43	302	c
+0	43	305	o
+0	43	309	r
+0	43	311	p
+0	43	314	o
+0	43	318	r
+0	43	320	a
+0	43	323	t
+0	43	325	e
+0	43	330	s
+0	43	333	a
+0	43	336	l
+0	43	337	e
+0	43	340	s
+0	43	345	c
+0	43	347	o
+0	43	351	n
+0	43	355	t
+0	43	356	a
+0	43	360	c
+0	43	363	t
+0	43	366	c
+0	43	369	o
+0	43	373	r
+0	43	375	p
+0	43	375	p
+0	43	378	o
+0	43	382	r
+0	43	384	a
+0	43	387	t
+0	43	389	e
+0	43	393	s
+0	43	395	a
+0	43	398	l
+0	43	400	e
+0	43	403	s
+0	43	405	@
+0	43	405	@
+0	43	411	m
+0	43	416	a
+0	43	420	z
+0	43	422	d
+0	43	426	a
+0	43	429	.
+0	43	431	c
+0	43	434	o
+0	43	438	m
+0	43	443	.
+0	43	445	s
+0	43	447	g
+0	43	452	o
+0	43	456	r
+0	35	174	9
+0	35	177	8
+0	35	181	8
+0	35	184	8
+0	35	189	9
+0	35	193	9
+0	35	197	8
+0	35	200	1
+0	35	204	.
+0	35	207	F
+0	35	210	o
+0	35	214	r
+0	35	217	l
+0	35	219	e
+0	35	222	a
+0	35	225	s
+0	35	228	i
+0	35	229	n
+0	35	233	g
+0	35	237	o
+0	35	241	p
+0	35	245	t
+0	35	247	i
+0	35	248	o
+0	35	252	n
+0	35	255	s
+0	35	259	c
+0	35	262	o
+0	35	266	n
+0	35	274	c
+0	35	277	t
+0	35	281	l
+0	35	282	e
+0	35	286	a
+0	35	289	s
+0	35	291	i
+0	35	293	n
+0	35	296	g
+0	35	299	@
+0	35	299	@
+0	35	305	e
+0	35	308	u
+0	35	312	r
+0	35	314	o
+0	35	318	k
+0	35	321	a
+0	35	324	r
+0	35	326	s
+0	35	328	.
+0	35	330	c
+0	35	333	o
+0	35	337	m
+0	35	342	.
+0	35	344	s
+0	35	346	g
+0	35	351	o
+0	35	355	r
+0	35	358	9
+0	35	362	3
+0	35	365	6
+0	35	369	3
+0	35	374	5
+0	35	378	8
+0	35	381	0
+0	35	385	9
+0	35	390	/
+0	35	395	9
+0	35	399	1
+0	35	402	0
+0	35	406	7
+0	35	411	3
+0	35	415	2
+0	35	418	4
+0	35	422	4
+0	35	425	.
+0	75	159	5
+0	75	165	U
+0	75	170	b
+0	75	174	i
+0	75	178	C
+0	75	183	l
+0	75	185	o
+0	75	189	s
+0	75	192	e
+0	75	199	|
+0	75	205	S
+0	75	208	i
+0	75	210	n
+0	75	214	g
+0	75	218	a
+0	75	221	p
+0	75	226	o
+0	75	230	r
+0	75	232	e
+0	75	238	4
+0	75	242	0
+0	75	246	8
+0	75	251	6
+0	75	255	0
+0	75	259	5
+0	66	139	S
+0	66	143	a
+0	66	147	l
+0	66	149	e
+0	66	152	s
+0	66	157	T
+0	66	161	e
+0	66	164	l
+0	66	166	:
+0	66	171	6
+0	66	175	3
+0	66	179	9
+0	66	183	5
+0	66	189	8
+0	66	193	8
+0	66	197	8
+0	66	202	8
+0	66	210	S
+0	66	213	e
+0	66	217	r
+0	66	219	v
+0	66	223	i
+0	66	224	c
+0	66	228	e
+0	66	234	T
+0	66	237	e
+0	66	241	l
+0	66	243	:
+0	66	247	6
+0	66	251	3
+0	66	255	9
+0	66	260	5
+0	66	266	8
+0	66	270	8
+0	66	274	9
+0	66	278	9
+0	75	330	2
+0	75	335	3
+0	75	341	L
+0	75	344	e
+0	75	348	n
+0	75	352	g
+0	75	358	K
+0	75	362	e
+0	75	366	e
+0	75	372	R
+0	75	376	o
+0	75	380	a
+0	75	384	d
+0	75	392	|
+0	75	398	S
+0	75	402	i
+0	75	404	n
+0	75	408	g
+0	75	411	a
+0	75	415	p
+0	75	419	o
+0	75	424	r
+0	75	426	e
+0	75	432	1
+0	75	436	5
+0	75	441	9
+0	75	445	0
+0	75	449	9
+0	75	453	5
+0	66	320	S
+0	66	324	a
+0	66	328	l
+0	66	329	e
+0	66	333	s
+0	66	338	T
+0	66	342	e
+0	66	346	l
+0	66	348	:
+0	66	352	6
+0	66	356	6
+0	66	360	0
+0	66	365	3
+0	66	371	6
+0	66	375	1
+0	66	379	1
+0	66	384	8
+0	66	392	S
+0	66	395	e
+0	66	399	r
+0	66	402	v
+0	66	405	i
+0	66	407	c
+0	66	410	e
+0	66	416	T
+0	66	420	e
+0	66	424	l
+0	66	426	:
+0	66	430	6
+0	66	434	6
+0	66	439	0
+0	66	443	3
+0	66	449	6
+0	66	453	1
+0	66	457	2
+0	66	462	8
+0	413	62	M
+0	413	71	A
+0	413	79	Z
+0	413	86	D
+0	413	94	A
+0	413	106	3
+0	413	116	H
+0	413	124	A
+0	413	132	T
+0	413	138	C
+0	413	145	H
+0	413	153	B
+0	413	160	A
+0	413	167	C
+0	413	175	K
+0	404	94	M
+0	404	104	-
+0	404	109	H
+0	404	117	Y
+0	404	124	B
+0	404	130	R
+0	404	137	I
+0	404	141	D
+0	413	175	K
+0	413	175	K
+0	657	351	L
+0	657	358	I
+0	657	362	S
+0	657	369	T
+0	657	380	P
+0	657	388	R
+0	657	395	I
+0	657	400	C
+0	657	409	E
+0	657	445	E
+0	657	452	F
+0	657	458	F
+0	657	465	E
+0	657	472	C
+0	657	480	T
+0	657	487	I
+0	657	492	V
+0	657	500	E
+0	657	511	P
+0	657	518	R
+0	657	526	I
+0	657	531	C
+0	657	539	E
+0	657	241	V
+0	657	249	A
+0	657	257	R
+0	657	265	I
+0	657	269	A
+0	657	277	N
+0	657	287	T
+0	656	58	C
+0	656	67	A
+0	656	75	T
+0	656	82	E
+0	656	89	G
+0	656	98	O
+0	656	108	R
+0	656	115	Y
+0	656	127	A
+0	656	140	M
+0	656	151	O
+0	656	161	D
+0	656	170	E
+0	656	177	L
+0	596	95	M
+0	596	105	A
+0	596	112	Z
+0	596	119	D
+0	596	128	A
+0	596	139	2
+0	512	75	M
+0	512	85	A
+0	512	92	Z
+0	512	100	D
+0	512	108	A
+0	512	119	3
+0	512	130	S
+0	512	136	E
+0	512	142	D
+0	512	150	A
+0	512	157	N
+0	503	93	M
+0	503	102	-
+0	503	108	H
+0	503	116	Y
+0	503	122	B
+0	503	129	R
+0	503	136	I
+0	503	140	D
+0	596	95	M
+0	596	95	M
+0	596	105	A
+0	596	105	A
+0	596	112	Z
+0	596	112	Z
+0	596	119	D
+0	596	119	D
+0	596	128	A
+0	596	128	A
+0	596	139	2
+0	596	139	2
+0	596	95	M
+0	596	95	M
+0	596	105	A
+0	596	105	A
+0	596	112	Z
+0	596	112	Z
+0	596	119	D
+0	596	119	D
+0	596	128	A
+0	596	128	A
+0	596	139	2
+0	596	139	2
+0	512	75	M
+0	512	75	M
+0	512	85	A
+0	512	85	A
+0	512	92	Z
+0	512	92	Z
+0	512	100	D
+0	512	100	D
+0	512	108	A
+0	512	108	A
+0	512	119	3
+0	512	119	3
+0	512	130	S
+0	512	130	S
+0	512	136	E
+0	512	136	E
+0	512	142	D
+0	512	142	D
+0	512	150	A
+0	512	150	A
+0	512	157	N
+0	512	157	N
+0	413	71	A
+0	413	79	Z
+0	413	86	D
+0	413	94	A
+0	413	106	3
+0	413	116	H
+0	413	124	A
+0	413	132	T
+0	413	138	C
+0	413	145	H
+0	413	153	B
+0	413	160	A
+0	413	167	C
+0	413	175	K
+0	413	71	A
+0	413	175	K
+0	413	71	A
+0	413	79	Z
+0	413	86	D
+0	413	94	A
+0	413	106	3
+0	413	116	H
+0	413	124	A
+0	413	132	T
+0	413	138	C
+0	413	145	H
+0	413	153	B
+0	413	160	A
+0	413	167	C
+0	413	175	K
+0	413	175	K
+0	413	71	A
+0	413	79	Z
+0	413	86	D
+0	413	94	A
+0	413	106	3
+0	413	116	H
+0	413	124	A
+0	413	132	T
+0	413	138	C
+0	413	145	H
+0	413	153	B
+0	413	160	A
+0	413	167	C
+0	413	175	K
+0	413	175	K
+0	413	175	K
+0	413	71	A
+0	413	79	Z
+0	413	86	D
+0	413	94	A
+0	413	106	3
+0	413	116	H
+0	413	124	A
+0	413	132	T
+0	413	138	C
+0	413	145	H
+0	413	153	B
+0	413	160	A
+0	413	167	C
+0	413	175	K
+0	413	71	A
+0	413	79	Z
+0	413	86	D
+0	413	94	A
+0	413	106	3
+0	413	116	H
+0	413	124	A
+0	413	132	T
+0	413	138	C
+0	413	145	H
+0	413	153	B
+0	413	160	A
+0	413	167	C
+0	413	175	K
+0	368	119	P
+0	368	123	r
+0	368	125	i
+0	368	127	c
+0	368	129	e
+0	368	134	f
+0	368	136	i
+0	368	138	g
+0	368	141	u
+0	368	144	r
+0	368	146	e
+0	368	149	s
+0	368	154	r
+0	368	156	e
+0	368	159	f
+0	368	161	l
+0	368	162	e
+0	368	165	c
+0	368	168	t
+0	368	170	e
+0	368	174	d
+0	368	179	a
+0	368	182	r
+0	368	184	e
+0	368	189	a
+0	368	192	c
+0	368	195	c
+0	368	198	u
+0	368	201	r
+0	368	203	a
+0	368	207	t
+0	368	209	e
+0	368	213	a
+0	368	217	t
+0	368	220	t
+0	368	222	h
+0	368	226	e
+0	368	230	t
+0	368	232	i
+0	368	234	m
+0	368	239	e
+0	368	244	o
+0	368	248	f
+0	368	251	p
+0	368	255	r
+0	368	257	i
+0	368	258	n
+0	368	262	t
+0	368	264	.
+0	368	267	T
+0	368	270	r
+0	368	272	a
+0	368	276	n
+0	368	279	s
+0	368	283	E
+0	368	286	u
+0	368	290	r
+0	368	292	o
+0	368	295	k
+0	368	298	a
+0	368	301	r
+0	368	304	s
+0	368	308	P
+0	368	311	t
+0	368	313	e
+0	368	318	L
+0	368	320	t
+0	368	322	d
+0	368	328	r
+0	368	330	e
+0	368	333	s
+0	368	335	e
+0	368	339	r
+0	368	341	v
+0	368	344	e
+0	368	347	s
+0	368	351	t
+0	368	353	h
+0	368	356	e
+0	368	361	r
+0	368	363	i
+0	368	365	g
+0	368	368	h
+0	368	371	t
+0	368	375	t
+0	368	377	o
+0	368	382	a
+0	368	385	m
+0	368	391	e
+0	368	394	n
+0	368	397	d
+0	368	403	p
+0	368	406	r
+0	368	408	i
+0	368	410	c
+0	368	413	e
+0	368	416	s
+0	368	420	w
+0	368	425	i
+0	368	426	t
+0	368	428	h
+0	368	432	o
+0	368	435	u
+0	368	439	t
+0	368	442	p
+0	368	446	r
+0	368	448	i
+0	368	450	o
+0	368	453	r
+0	368	457	n
+0	368	460	o
+0	368	464	t
+0	368	466	i
+0	368	468	c
+0	368	470	e
+0	368	474	.
+0	368	119	P
+0	368	125	i
+0	368	134	f
+0	368	134	f
+0	368	136	i
+0	368	159	f
+0	368	159	f
+0	368	161	l
+0	368	161	l
+0	368	174	d
+0	368	174	d
+0	368	222	h
+0	368	222	h
+0	368	232	i
+0	368	248	f
+0	368	248	f
+0	368	257	i
+0	368	267	T
+0	368	283	E
+0	368	295	k
+0	368	295	k
+0	368	308	P
+0	368	318	L
+0	368	322	d
+0	368	322	d
+0	368	353	h
+0	368	353	h
+0	368	363	i
+0	368	368	h
+0	368	368	h
+0	368	397	d
+0	368	397	d
+0	368	408	i
+0	368	425	i
+0	368	428	h
+0	368	428	h
+0	368	448	i
+0	368	466	i
+0	35	120	9888 9981. For leasing options contact rental.experience@eurokars.com.sg or 8858 0011 / 9682 1122 / 9693 2233 / 9228 9900.
+0	6	14	06-Aug-2026
+0	787	358	06-Aug-2026
+0	6	14	19-Aug-2026
+0	787	471	19-Aug-2026
+0	6	14	06-Aug-2026
+0	770	471	06-Aug-2026
+0	6	40	VES Band B: 5.2L/100km
+0	580	41	VES Band B: 5.2L/100km
+0	17	17	1.5L Hatchback Sports
+0	589	203	1.5L Hatchback Sports
+0	17	32	$230,888
+0	589	329	$230,888
+0	17	38	$187,888
+0	589	436	$187,888
+0	6	38	VES Band C1: 5.9L/100km
+0	485	41	VES Band C1: 5.9L/100km
+0	14	15	1.5L Sedan Classic Plus
+0	541	203	1.5L Sedan Classic Plus
+0	14	32	$242,888
+0	541	329	$242,888
+0	14	38	$199,888
+0	541	436	$199,888
+0	14	20	1.5L Sedan Executive
+0	508	203	1.5L Sedan Executive
+0	14	32	$248,888
+0	508	329	$248,888
+0	14	38	$205,888
+0	508	436	$205,888
+0	14	25	1.5L Sedan Luxury
+0	474	203	1.5L Sedan Luxury
+0	14	32	$253,888
+0	474	329	$253,888
+0	14	38	$210,888
+0	474	436	$210,888
+0	6	38	VES Band C1: 5.9L/100km
+0	387	41	VES Band C1: 5.9L/100km
+0	17	18	1.5L Hatchback Astina
+0	408	202	1.5L Hatchback Astina
+0	17	32	$257,888
+0	408	329	$257,888
+0	17	38	$214,888
+0	408	436	$214,888
+0	35	120	06-Aug-2026 / 19-Aug-2026 / 06-Aug-2026 / VES Band B: 5.2L/100km / 1.5L Hatchback Sports / $230,888 / $187,888 / VES Band C1: 5.9L/100km / 1.5L Sedan Classic Plus / $242,888 / $199,888 / 1.5L Sedan Executive / $248,888 / $205,888 / 1.5L Sedan Luxury / $253,888 / $210,888 / VES Band C1: 5.9L/100km / 1.5L Hatchback Astina / $257,888 / $214,888
+1	729	41	MODEL
+1	708	41	LIST PRICE
+1	686	41	VES
+1	665	41	FINANCE AND INSURANCE REBATES
+1	622	41	PROMOTION
+1	579	41	FINAL PRICE
+1	558	41	DOWN PAYMENT
+1	536	41	LOAN AMOUNT
+1	515	41	INTEREST AND TENURE
+1	494	41	MONTHLY INSTALLMENT
+1	472	41	TRADE IN
+1	451	41	OUTSTANDING LOAN
+1	429	41	BALANCE PAYMENT
+1	387	41	REMARKS
+1	782	84	The following entries, ﬁgures and numbers are for illustration purposes only and shall not constitute any binding offer or
+1	772	71	quotation by Trans Eurokars Pte Ltd, nor be construed as creating any binding obligations on the part of Trans Eurokars Pte Ltd.
+1	4	2	Terms and Conditions apply. Specifications may vary.
+1	298	32	Terms and Conditions apply. Specifications may vary.
+1	55	2	All prices quoted include OBU, Number Plate, Registration fee, 6 months Road Tax, 9% GST and any VES rebate or surcharge where applicable.
+1	48	2	Insurance subsidy subject to in-house insurance plan
+1	41	2	Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years
+1	34	2	Additional top up of $1,000 for Machine Gray and Soul Red Crystal is required on all MAZDA models
+1	27	2	Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models
+1	20	2	Trade-In bonus of $35,000
+1	13	2	^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan
+1	234	32	All prices quoted include OBU, Number Plate, Registration fee, 6 months Road Tax, 9% GST and any VES rebate or surcharge where applicable.  / Insurance subsidy subject to in-house insurance plan / Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years / Additional top up of $1,000 for Machine Gray and Soul Red Crystal is required on all MAZDA models / Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models / Trade-In bonus of $35,000 / ^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan
+1	4	2	Booking Deposits:
+1	218	32	Booking Deposits:
+1	33	2	Booking Deposit:                     $12,800
+1	26	2	Indent Booking Deposit          $25,600
+1	175	32	Booking Deposit:                     $12,800 / Indent Booking Deposit          $25,600
+1	4	2	Off Peak Car Package
+1	218	170	Off Peak Car Package
+1	30	2	Inclusive of 1 year Road Tax, Road Tax
+1	22	2	rebate & OPC rebate ($17,000)
+1	175	170	Inclusive of 1 year Road Tax, Road Tax  / rebate & OPC rebate ($17,000)
+1	4	2	Rebates & Subsidies
+1	218	307	Rebates & Subsidies
+1	33	2	In-house finance rebate                 $2,000
+1	26	2	Insurance subsidy for 1 year plan  $1,000
+1	175	307	In-house finance rebate                 $2,000 / Insurance subsidy for 1 year plan  $1,000
+1	4	2	6 Months Road Tax
+1	218	445	6 Months Road Tax
+1	33	2	1.5L      $341
+1	175	445	1.5L      $341
+1	5	2	COE BIDDING REBATE LEVEL for CAT A:
+1	160	32	COE BIDDING REBATE LEVEL for CAT A:
+1	23	2	$90,000 Guaranteed COE Plan
+1	16	2	$85,000 Non-Guaranteed COE Plan
+1	128	32	$90,000 Guaranteed COE Plan / $85,000 Non-Guaranteed COE Plan
+1	4	2	COE BIDDING PACKAGE:
+1	160	214	COE BIDDING PACKAGE:
+1	23	2	Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales Agreement
+1	16	2	("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bid shall be governed by the terms of the
+1	9	2	COE Bidding Agreement.
+1	128	214	Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales Agreement  / ("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bid shall be governed by the terms of the  / COE Bidding Agreement.
+1	58	2	Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat. COE (Cat.
+1	51	2	E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same month of successful
+1	44	2	COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 3 years / 100,000km (whichever comes first)
+1	37	2	New Car Warranty and Standard 3 Free servicing - 1st 1,000 km, 5,000 km & 10,000km. Strictly no changes are permitted to model or color after booking. Prices are subject to
+1	30	2	change without prior notice. All prevailing taxes shall be borne by the Customer.
+1	61	32	Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat. COE (Cat.  / E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same month of successful  / COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 3 years / 100,000km (whichever comes first)  / New Car Warranty and Standard 3 Free servicing - 1st 1,000 km, 5,000 km & 10,000km. Strictly no changes are permitted to model or color after booking. Prices are subject to /  change without prior notice. All prevailing taxes shall be borne by the Customer.
+1	772	71	Terms and Conditions apply. Specifications may vary. / All prices quoted include OBU, Number Plate, Registration fee, 6 months Road Tax, 9% GST and any VES rebate or surcharge where applicable.  / Insurance subsidy subject to in-house insurance plan / Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years / Additional top up of $1,000 for Machine Gray and Soul Red Crystal is required on all MAZDA models / Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models / Trade-In bonus of $35,000 / ^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan / Booking Deposits: / Booking Deposit:                     $12,800 / Indent Booking Deposit          $25,600 / Off Peak Car Package / Inclusive of 1 year Road Tax, Road Tax  / rebate & OPC rebate ($17,000) / Rebates & Subsidies / In-house finance rebate                 $2,000 / Insurance subsidy for 1 year plan  $1,000 / 6 Months Road Tax / 1.5L      $341 / COE BIDDING REBATE LEVEL for CAT A: / $90,000 Guaranteed COE Plan / $85,000 Non-Guaranteed COE Plan / COE BIDDING PACKAGE: / Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales Agreement  / ("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bid shall be governed by the terms of the  / COE Bidding Agreement. / Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat. COE (Cat.  / E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same month of successful  / COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 3 years / 100,000km (whichever comes first)  / New Car Warranty and Standard 3 Free servicing - 1st 1,000 km, 5,000 km & 10,000km. Strictly no changes are permitted to model or color after booking. Prices are subject to /  change without prior notice. All prevailing taxes shall be borne by the Customer.

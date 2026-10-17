@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import main
 from scrapers.base import BaseScraper, FetchError
 
@@ -10,37 +12,55 @@ def _offline(monkeypatch):
     monkeypatch.setattr(BaseScraper, "fetch_rendered", boom)
 
 
-def test_sample_dry_run_exits_zero(tmp_config, capsys):
-    assert main.main(["--sample", "--dry-run", "--config", str(tmp_config)]) == 0
-    out = capsys.readouterr().out
-    assert "SAMPLE DATA" in out
-    assert "considerations" not in out
+def _health(tmp_config):
+    import json
+
+    from db import Database
+    from settings import load_config
+
+    cfg = load_config(tmp_config)
+    db = Database(cfg["general"]["db_path"])
+    try:
+        health = json.loads(db.get_state("last_run_health"))
+        status = db.conn.execute("SELECT status FROM runs").fetchone()["status"]
+    finally:
+        db.close()
+    return cfg, health, status
 
 
-def test_pipeline_dry_run_marks_missing_sections(tmp_config, capsys, monkeypatch):
+def test_dry_run_records_health_and_leaves_the_site_alone(tmp_config, monkeypatch):
     _offline(monkeypatch)
     assert main.main(["--dry-run", "--section", "coe", "--config", str(tmp_config)]) == 0
-    assert "unavailable today" in capsys.readouterr().out
+    cfg, health, status = _health(tmp_config)
+    assert set(health) == {"date", "section", "dry_run", "unavailable"}
+    assert health["section"] == "coe" and health["dry_run"] is True and "coe" in health["unavailable"]
+    assert status == "dry-run"
+    assert not Path(cfg["site"]["output"]).exists()
 
 
-def test_full_pipeline_offline_produces_every_section(tmp_config, capsys, monkeypatch):
+def test_full_run_offline_writes_the_site_data(tmp_config, monkeypatch):
+    import json
+
     _offline(monkeypatch)
-    assert main.main(["--dry-run", "--config", str(tmp_config)]) == 0
-    out = capsys.readouterr().out
-    for key in ("summary", "coe", "new_ev", "used_ev", "used_ice", "costs"):
-        assert key in out
-    assert "Unavailable today" in out
+    assert main.main(["--config", str(tmp_config)]) == 0
+    cfg, health, status = _health(tmp_config)
+    assert status == "ok" and health["dry_run"] is False
+    assert {"coe", "new_ev"} <= set(health["unavailable"])
+    data = json.loads(Path(cfg["site"]["output"]).read_text(encoding="utf-8"))
+    assert data["news"] == [] and data["used"] == []
 
 
-def test_send_without_token_fails_cleanly(tmp_config, monkeypatch):
-    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
-    monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
-    assert main.main(["--sample", "--config", str(tmp_config)]) == 2
+def test_site_write_failure_exits_2(tmp_config, monkeypatch):
+    import website
+
+    _offline(monkeypatch)
+    monkeypatch.setattr(website, "build", lambda *a, **k: 1 / 0)
+    assert main.main(["--section", "coe", "--config", str(tmp_config)]) == 2
+    assert _health(tmp_config)[2] == "site-failed"
 
 
 def test_pipeline_merges_cnergy_board(tmp_config, monkeypatch):
     from datetime import date
-    from pathlib import Path
 
     import pipeline as pl
     from db import Database

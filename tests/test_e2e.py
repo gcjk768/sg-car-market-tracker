@@ -1,10 +1,9 @@
-"""End to end: the real pipeline against a local web server that serves the fixtures, and the
-real Telegram client against a local mock of the Bot API."""
+"""End to end: the real program (main.py) against a local web server that serves the fixtures, down to
+the website data file it writes."""
 from __future__ import annotations
 
 import json
 import os
-import re
 import threading
 from datetime import date
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -15,7 +14,6 @@ import yaml
 
 import main
 from scrapers.base import BaseScraper
-from telegram_bot import MAX_MESSAGE_LENGTH
 
 FIX = Path(__file__).resolve().parent.parent / "fixtures"
 
@@ -50,8 +48,6 @@ def route(path: str) -> str | None:
 
 
 class Handler(BaseHTTPRequestHandler):
-    sent: list[dict] = []
-
     def log_message(self, *a):  # keep pytest output quiet
         pass
 
@@ -64,20 +60,6 @@ class Handler(BaseHTTPRequestHandler):
         body = (FIX / fixture).read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
-        payload = json.loads(self.rfile.read(length) or b"{}")
-        if self.path.endswith("/sendMessage"):
-            Handler.sent.append(payload)
-            body = json.dumps({"ok": True, "result": {"message_id": len(Handler.sent)}}).encode()
-        else:
-            body = json.dumps({"ok": False, "description": "unknown method"}).encode()
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -98,6 +80,7 @@ def e2e_config(tmp_path, cfg, server, monkeypatch):
         "db_path": str(tmp_path / "cars.db"), "cache_dir": str(tmp_path / "cache"),
         "log_dir": str(tmp_path / "logs"), "throttle_seconds": 0, "throttle_jitter_seconds": 0, "max_retries": 1,
     })
+    cfg["site"]["output"] = str(tmp_path / "site" / "data.json")
     src = cfg["sources"]
     src.update({
         "onemotoring_coe": f"{server}/coe/onemotoring", "sgcarmart_coe_results": f"{server}/coe/sgcarmart",
@@ -136,66 +119,39 @@ def e2e_config(tmp_path, cfg, server, monkeypatch):
         from scrapers.used_carro import CarroUsedScraper
 
         monkeypatch.setattr(CarroUsedScraper, "needs_js", False)
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:TEST")
-    monkeypatch.setenv("TELEGRAM_CHAT_ID", "42")
-    monkeypatch.setenv("TELEGRAM_THREAD_ID", "7")
-    monkeypatch.setenv("TELEGRAM_API_BASE", server)
     # No PDF fixture for LTA table M03 exists, so the brand totals it would give are supplied here.
     import pipeline
+    import website
 
-    monkeypatch.setattr(pipeline, "scrape_registrations", lambda *a, **k: (
-        {"BYD": {"total": 9028, "ev": 8318, "petrol": 710}, "TOYOTA": {"total": 4412, "ev": 245, "petrol": 4165},
-         "TESLA": {"total": 3723, "ev": 3723, "petrol": 0}}, ["2026-01", "2026-08"]))
-    Handler.sent.clear()
+    reg = lambda *a, **k: ({"BYD": {"total": 9028, "ev": 8318, "petrol": 710}, "TOYOTA": {"total": 4412, "ev": 245, "petrol": 4165},  # noqa: E731
+                            "TESLA": {"total": 3723, "ev": 3723, "petrol": 0}}, ["2026-01", "2026-08"])
+    monkeypatch.setattr(pipeline, "scrape_registrations", reg)
+    monkeypatch.setattr(website, "scrape_registrations", reg)
     return path
 
 
-def test_full_run_sends_every_section_to_the_mock_bot_api(e2e_config, capsys):
-    assert main.main(["--config", str(e2e_config)]) == 0
-    texts = [m["text"] for m in Handler.sent]
-    assert len(texts) >= 6
-    assert all(len(t) <= MAX_MESSAGE_LENGTH for t in texts)
-    assert all(m["chat_id"] == "42" and m["message_thread_id"] == 7 and m["parse_mode"] == "HTML" for m in Handler.sent)
-    joined = "\n".join(texts)
-    for title in ("SG car market daily", "COE position", "Best Selling Top EV", "Best Selling Used EV", "Best Selling Used Petrol Car", "Cost of ownership"):
-        assert title.upper() in joined, title
-    assert "best value list" not in joined.lower()
-    assert "</a></b> · #1 EV brand" in joined  # the used BYD Atto 3
-    assert "</a></b> · #1 petrol brand" in joined  # the used Toyota Corolla Altis
-    # The Tesla sedan count comes from the spreadsheet, the Model 3 price from the model page.
-    assert "#1 EV sedan brand · 660 registered" in joined
-    # Real data flowed through: the COE fixture, the Tesla model page, the used listings and Cnergy.
-    assert "131,890" in joined
-    assert "Tesla Model 3 RWD 110" in joined
-    assert "BYD Atto 3" in joined and "Toyota Corolla Altis" in joined
-    assert "Cnergy today" in joined
-    assert "first report" in joined
-    for t in texts:
-        assert t.count("<pre>") == t.count("</pre>")
-        assert t.count("<a href=") == t.count("</a>")
-    # Every car list is numbered cards, the car name is the link.
-    assert re.search(r'^\S+ <b>1\. <a href="http', joined, flags=re.M)
-
-    # Same day again: idempotent, nothing resent.
-    before = len(Handler.sent)
-    assert main.main(["--config", str(e2e_config)]) == 0
-    assert len(Handler.sent) == before
-    assert "already sent today" in capsys.readouterr().out
-
-    # --force resends even though nothing changed.
-    assert main.main(["--config", str(e2e_config), "--force"]) == 0
-    assert len(Handler.sent) > before
-
-
-def test_dry_run_reports_no_change_after_a_send(e2e_config, capsys):
-    assert main.main(["--config", str(e2e_config)]) == 0
-    from db import Database
+def _site(e2e_config) -> Path:
     from settings import load_config
 
-    cfg = load_config(e2e_config)
-    db = Database(cfg["general"]["db_path"])
-    db.conn.execute("UPDATE runs SET sent_at = NULL")  # pretend a new day: only the signature matters
-    db.conn.commit()
-    db.close()
-    assert main.main(["--config", str(e2e_config), "--dry-run"]) == 0
-    assert "would not send, nothing changed" in capsys.readouterr().out
+    return Path(load_config(e2e_config)["site"]["output"])
+
+
+def test_full_run_writes_the_site_data(e2e_config):
+    assert main.main(["--config", str(e2e_config)]) == 0
+    data = json.loads(_site(e2e_config).read_text(encoding="utf-8"))
+    # Real data flowed through: the COE fixture, the Tesla model page, the used listings and Cnergy.
+    coe = {r["cat"]: r for r in data["coe"]["rows"]}
+    assert coe["A"]["premium"] == 131890 and coe["B"]["premium"]
+    assert any(c["name"].startswith("Tesla Model 3") for c in data["new_evs"])
+    names = " ".join(u["name"] for u in data["used"])
+    assert "BYD Atto 3" in names and "Toyota Corolla Altis" in names
+    byd = next(u for u in data["used"] if u["name"].startswith("BYD Atto 3"))
+    assert byd["brand_rank"] == 1 and byd["annual"]["total_low"] > 0
+    assert data["brands"]["ev"][0]["make"] == "BYD"
+    assert data["fuel"]["ron95"] > 0
+    assert data["news"] == []
+
+
+def test_dry_run_leaves_the_site_data_alone(e2e_config):
+    assert main.main(["--config", str(e2e_config), "--section", "coe", "--dry-run"]) == 0
+    assert not _site(e2e_config).exists()

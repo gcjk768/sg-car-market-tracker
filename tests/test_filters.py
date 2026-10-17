@@ -1,7 +1,7 @@
 from datetime import date
 
-from filters import reject_reason, shortlist, tag_for
-from models import PricePoint, UsedListing
+from filters import reject_reason, shortlist
+from models import UsedListing
 
 TODAY = date(2026, 9, 29)
 
@@ -69,19 +69,6 @@ def test_sales_ranking_puts_best_selling_brands_first(cfg):
     assert brand_count("Mercedes-Benz", sales) == 360
     assert brand_rank("Tesla", sales) == 2
     assert brand_rank("Hyundai", sales) is None
-
-
-def test_tags():
-    today = date(2026, 9, 29)
-    new = make(first_seen=today, price_history=[PricePoint(seen_on=today, price=118800)])
-    assert tag_for(new, today) == "NEW"
-    dropped = make(first_seen=date(2026, 9, 20), price=116800, price_history=[
-        PricePoint(seen_on=date(2026, 9, 20), price=118800), PricePoint(seen_on=today, price=116800)])
-    assert tag_for(dropped, today) == "DROP ▼2,000"
-    steady = make(first_seen=date(2026, 9, 20), price_history=[PricePoint(seen_on=date(2026, 9, 20), price=118800)])
-    assert tag_for(steady, today) == ""
-    # A since date earlier than first_seen marks it NEW even if not seen today.
-    assert tag_for(steady, date(2026, 9, 15)) == "NEW"
 
 
 def test_negated_accident_wording_is_not_excluded(cfg):

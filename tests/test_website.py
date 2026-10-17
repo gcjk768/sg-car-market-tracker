@@ -74,7 +74,7 @@ def test_build_has_every_car_with_costs_and_flags(cfg, tmp_path, offline):
     db = _db(tmp_path)
     data = site.build(cfg, db, TODAY, "ua")
     json.dumps(data)   # plain types only
-    assert data["stats"] == {"new_ev_variants": 3, "new_ev_brands": 3, "new_car_variants": 3, "new_car_models": 3, "used_active": 2, "used_passing": 1,
+    assert data["stats"] == {"new_ev_variants": 3, "new_ev_brands": 3, "official_matched": 0, "official_brands": 0, "coe_added": 0, "new_car_variants": 3, "new_car_models": 3, "used_active": 2, "used_passing": 1,
                              "new_today": 0, "drops": 1, "gone": 0}   # first seen yesterday
     atto = next(c for c in data["new_evs"] if c["model"] == "Atto 3")
     assert atto["body"] == "SUV" and atto["cat"] == "A" and atto["finance"]["deposit"] == 73955
@@ -129,3 +129,21 @@ def test_popularity_lookup_matches_spellings_and_whole_words():
     assert pop.of("Mercedes BENZ", "GLB") == 30 and pop.of("Mercedes-Benz", "GLB Mild Hybrid 200") == 30
     assert pop.of("MG", "S6 EV") is None and pop.of("BYD", "Seal 6 Electric") == 17
     assert pop.of("Mercedes-Benz", "") is None          # a bare make never takes a rank
+
+
+def test_an_ev_on_both_lists_keeps_its_official_price_and_shows_once(cfg, tmp_path, offline):
+    """The listing copy of an EV must not take the official row and then be dropped as a duplicate."""
+    db = _db(tmp_path)
+    db.upsert_new_cars([NewCarVariant(make="BYD", model="Atto 3 Electric", variant="Evo 60 kWh", fuel="ev", price_with_coe=184888,
+                                      power_kw=150, listing_url="https://x/a3l", source="t")], TODAY)
+    db.upsert_official([{"make": "BYD", "model": "Atto 3", "variant": "Evo", "price": 182888, "includes_coe": "with"}], TODAY, {"BYD"})
+    data = site.build(cfg, db, TODAY, "ua")
+    attos = [c for c in data["new_evs"] + data["new_cars"] if c["make"] == "BYD" and "Atto 3" in c["model"]]
+    assert len(attos) == 1 and attos[0]["price"] == 182888 and attos[0]["price_source"] == "official"
+
+
+def test_car_image_comes_from_the_model_id_in_the_price_list_link(cfg):
+    url = "https://www.sgcarmart.com/new-cars/info/21974/aion-hyptec-ht-electric"
+    assert site.car_image(url, cfg) == "https://i.i-sgcm.com/new_cars/cars/21974/21974_m.jpg"
+    assert site.car_image("https://www.sgcarmart.com/new-cars/pricelist", cfg) is None
+    assert site.car_image(None, cfg) is None

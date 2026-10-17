@@ -42,13 +42,13 @@ def test_used_listing_new_then_drop_then_gone(tmp_path):
 def test_run_bookkeeping(tmp_path):
     db = Database(tmp_path / "t.db")
     today = date(2026, 9, 29)
+    status = lambda: db.conn.execute("SELECT status FROM runs WHERE run_date = ?", (today.isoformat(),)).fetchone()["status"]
     db.start_run(today)
-    assert db.already_sent(today) is False
-    db.mark_sent(today)
+    assert status() == "started"
     db.finish_run(today, "ok")
-    assert db.already_sent(today) is True
-    db.start_run(today)  # rerun on the same day keeps the sent marker
-    assert db.already_sent(today) is True
+    assert status() == "ok"
+    db.start_run(today)  # a rerun on the same day reuses the row
+    assert status() == "started"
 
 
 def test_fuel_price_roundtrip(tmp_path):

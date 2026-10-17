@@ -137,14 +137,6 @@ def test_news_feed_parse_filter_and_first_run_is_silent(cfg):
     assert new_items(items, {i.link for i in items[1:]}, ["zzz"])[0] == []       # unseen but not relevant
 
 
-def test_news_section_is_one_clean_block_per_item(cfg):
-    from report import news_section
-    from scrapers.lta_news import parse_feed
-
-    html = news_section(parse_feed((FIX / "lta_news_feed.xml").read_text())[:2]).html
-    assert html.startswith("📰 <b>LTA NEWS</b> · 2 new") and html.count("Read the release") == 2 and "&amp;amp;" not in html
-
-
 def test_lta_live_page_table_with_unlabelled_description_column():
     html = """<table><tr><th>Category</th><th>Quota</th><th>QP($)</th></tr>
     <tr><td>A</td><td>CAR-DETAILS AT ONEMOTORING</td><td>1,232</td><td>130,001</td></tr>
@@ -167,3 +159,36 @@ def test_news_seen_list_keeps_every_link_in_a_long_feed(tmp_path, cfg, monkeypat
     assert set(json.loads(db.get_state(news_watch.SEEN_KEY))) == {i.link for i in items}
     db.close()
     assert news_watch.new_items(items, {i.link for i in items}, ["coe"])[0] == []
+
+
+def test_news_watch_stores_new_items_newest_first_and_the_site_shows_them(tmp_path, cfg, monkeypatch):
+    import json
+    import news_watch
+    import website
+    from db import Database
+    from scrapers.lta_news import NewsItem
+
+    old = [NewsItem(f"COE quota {n}", f"https://x/old{n}", f"2026-09-{n + 10:02d}", "s") for n in range(3)]
+    cfg["general"]["db_path"] = str(tmp_path / "cars.db")
+    cfg["news"]["keywords"] = ["coe"]
+    feed = list(old)
+    monkeypatch.setattr(news_watch, "load_config", lambda: cfg)
+    monkeypatch.setattr(news_watch.LtaNewsScraper, "run", lambda self: feed)
+    news_watch.main([])                                  # first run: the list starts with what is relevant in the feed
+    db = Database(cfg["general"]["db_path"])
+    assert [r["link"] for r in json.loads(db.get_state(news_watch.NEWS_KEY))] == ["https://x/old2", "https://x/old1", "https://x/old0"]
+    feed[:0] = [NewsItem("Road works", "https://x/other", "2026-10-02", ""),
+                NewsItem("COE results", "https://x/new", "2026-10-01", "Premiums fell")]
+    news_watch.main([])
+    news_watch.main([])                                  # seen links are never added twice
+    stored = json.loads(db.get_state(news_watch.NEWS_KEY))
+    assert stored[0] == {"title": "COE results", "link": "https://x/new", "published": "2026-10-01", "summary": "Premiums fell"}
+    assert len(stored) == 4                              # "Road works" is not relevant
+    assert news_watch.merge_news(stored, [NewsItem("COE", f"https://x/{n}", "2026-10-03", "") for n in range(40)])[0]["link"] == "https://x/0"
+    assert len(news_watch.merge_news(stored, [NewsItem("COE", f"https://x/{n}", "2026-10-03", "") for n in range(40)])) == news_watch.NEWS_CAP
+
+    monkeypatch.setattr(website, "scrape_registrations", lambda *a, **k: None)
+    monkeypatch.setattr(website, "scrape_body_types", lambda *a, **k: None)
+    monkeypatch.setattr(website, "scrape_motorbikes", lambda *a, **k: {"used": {}, "brands": None})
+    assert website.build(cfg, db, date(2026, 10, 3), "ua")["news"] == stored
+    db.close()

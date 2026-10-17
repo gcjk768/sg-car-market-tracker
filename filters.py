@@ -1,13 +1,12 @@
-"""Filtering, ranking and tagging of used listings. All thresholds come from config.yaml."""
+"""Filtering and ranking of used listings. All thresholds come from config.yaml."""
 from __future__ import annotations
 
 import re
 from collections import Counter
 from datetime import date
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable
 
 from models import Drivetrain, UsedListing
-from telegram_bot import fmt_delta
 
 
 # "accident free", "no accidents", "non accident" and "never in an accident" are reassurances,
@@ -114,19 +113,3 @@ def shortlist(listings: Iterable[UsedListing], cfg: dict[str, Any], today: date,
         kept.sort(key=lambda l: score(l, cfg))
     n = top_n or cfg["used"]["top_n"]
     return kept[:n], rejected
-
-
-def tag_for(listing: UsedListing, since: date) -> str:
-    """NEW when first seen on or after `since`, DROP with the delta when the price fell since then."""
-    if listing.first_seen and listing.first_seen >= since:
-        return "NEW"
-    before = [p for p in listing.price_history if p.seen_on < since]
-    if before:
-        previous = before[-1].price
-        if listing.price < previous:
-            return "DROP " + fmt_delta(listing.price - previous)
-    return ""
-
-
-def tagged(listings: Sequence[UsedListing], since: date) -> list[tuple[UsedListing, str]]:
-    return [(l, tag_for(l, since)) for l in listings]

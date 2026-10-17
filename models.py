@@ -1,4 +1,4 @@
-"""Pydantic models for every scraped record and for report rows."""
+"""Pydantic models for every scraped record and for the cost figures."""
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -203,12 +203,3 @@ class Financing(BaseModel):
     monthly: int
     short_tenure_years: int
     monthly_short: int
-
-
-class ReportSection(BaseModel):
-    """One Telegram message worth of content. Text is already HTML formatted."""
-
-    key: str
-    title: str
-    html: str
-    available: bool = True

@@ -9,8 +9,8 @@ services:
     container_name: sg-car-scraper
     # Rebuild on every up, so Dockge Update picks up requirements.txt changes.
     pull_policy: build
-    # scheduler.py supervises the report and the listener as child processes, retries failed
-    # runs and exits on purpose if its own loop stalls, so Docker restarts it.
+    # scheduler.py supervises the daily run and the COE and news watchers as child processes,
+    # retries failed runs and exits on purpose if its own loop stalls, so Docker restarts it.
     restart: unless-stopped
     # A small init reaps finished child processes such as Chromium.
     init: true
@@ -30,11 +30,10 @@ services:
       # The Claude CLI keeps its login here. It is a host volume below, so signing in once
       # from the container terminal survives restarts and rebuilds.
       CLAUDE_CONFIG_DIR: /root/.claude
-      # 1 sends a report as soon as the container starts, useful for the first test.
-      RUN_ON_START: "1"
-      # 1 also answers /run, /coe and /filters in Telegram.
-      RUN_LISTENER: "1"
-      # Obsidian vault (movement log and memory), mounted below. Unset to switch it off.
+      # 1 runs the full daily scrape as soon as the container starts. Off: a full crawl takes about
+      # two hours, and the scheduler already catches up a day it missed while the container was down.
+      RUN_ON_START: "0"
+      # Obsidian vault (movement log), mounted below. Unset to switch it off.
       VAULT_DIR: /vault
     volumes:
       # Code, config, data and logs come straight from this folder, so an update is copy the

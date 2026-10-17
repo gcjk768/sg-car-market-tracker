@@ -8,7 +8,7 @@ ai.enabled is true in config.yaml:
   pull the fields out of the page text as JSON,
 * listing descriptions are checked for accident, as is, no warranty, scrap or export wording
   that the keyword list missed,
-* optionally, a three sentence analyst note for the summary section.
+* the website's red flag notes on used listings (insights.py).
 
 Authentication is whatever the CLI already has: CLAUDE_CODE_OAUTH_TOKEN from `claude
 setup-token` (uses your Claude subscription) or ANTHROPIC_API_KEY. Each run is capped by
@@ -16,7 +16,6 @@ ai.max_calls_per_run so a broken parser cannot turn into a large bill.
 """
 from __future__ import annotations
 
-import html
 import json
 import logging
 import re
@@ -120,43 +119,3 @@ def extract_listing_fields(cli: ClaudeCli, page_text: str) -> dict[str, Any]:
     )
     data = cli.ask_json(prompt, page_text) or {}
     return {k: v for k, v in data.items() if k in LISTING_FIELDS and v not in (None, "", [])}
-
-
-MEMORY_INTRO = ("\n\nWhat the tracker already did and learned, from its vault, newest first. Use it for price "
-                "trends and days on market. A car the memory shows was already reported at the same price is "
-                "not news, so do not flag it again:\n")
-
-
-def with_memory(prompt: str, memory: str) -> str:
-    return prompt + MEMORY_INTRO + memory if memory else prompt
-
-
-def analyst_note(cli: ClaudeCli, facts: dict[str, Any], memory: str = "") -> Optional[str]:
-    """Three plain sentences on today's report. Facts are the numbers already computed."""
-    prompt = (
-        "You are given today's Singapore car market figures as JSON on standard input: COE "
-        "premiums, the best value new EV, the best used EV and the best used petrol or hybrid "
-        "car with their annual costs, and what changed since the last report. Write at most "
-        "three short plain sentences for a buyer deciding between them. No headings, no "
-        "bullet points, no dashes. Do not invent figures. Do not use any tools."
-    )
-    text = cli.ask(with_memory(prompt, memory), json.dumps(facts, default=str))
-    return text.strip() if text else None
-
-
-def report_text(sections_html: list[str]) -> str:
-    """Plain text of a built report, saved so /ask can answer from it."""
-    return "\n\n".join(html.unescape(re.sub(r"<[^>]+>", "", h)).strip() for h in sections_html)
-
-
-def answer_question(cli: ClaudeCli, question: str, report: str, memory: str = "") -> Optional[str]:
-    """Answer a Telegram /ask question from the latest report, plus general car knowledge."""
-    prompt = (
-        "You help a buyer in Singapore choose a car. Standard input holds the latest report from "
-        "their car tracker: COE premiums, new and used EV and petrol car lists with prices and "
-        "running costs, top selling brands and pump prices. Answer this question in at most eight "
-        "short plain sentences. Use the report's figures where they apply and say when you rely "
-        "on general knowledge instead. Do not invent prices. No headings, no dashes, no markdown. "
-        "Do not use any tools. Question: " + question
-    )
-    return cli.ask(with_memory(prompt, memory), report)

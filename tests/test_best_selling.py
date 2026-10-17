@@ -1,9 +1,6 @@
-import re
-from datetime import date
 from pathlib import Path
 
 from models import NewEvVariant
-from report import best_selling_ev_section, sample_report
 from scrapers.new_ev import best_selling_by_body_type, make_matches, top_best_seller
 from scrapers.registrations import body_code, parse_body_types_rows, parse_body_types_xlsx
 
@@ -88,25 +85,3 @@ def test_ranking_per_body_type(cfg):
     assert round(suv[0]["share"]) == round(2463 * 100 / (2463 + 1220 + 250))
     assert groups["Hatchback"][0]["models"][0].model == "UT"
     assert top_best_seller(list(groups.items())).model == "Atto 2"
-
-
-def test_section_cards_and_missing_brands(cfg):
-    groups = [("SUV", [
-        {"make": "BYD", "registrations": 2463, "share": 62.3, "rank": 1, "models": [_v("BYD", "Atto 3", 171888, "SUV")]},
-        {"make": "ZEEKR", "registrations": 250, "share": 6.3, "rank": 2, "models": []},
-    ])]
-    html = best_selling_ev_section(groups, ["2026-01", "2026-08"], cfg=cfg, source_url="https://lta/m03.xlsx").html
-    assert html.startswith("⚡ <b>BEST SELLING TOP EV</b>")
-    assert "<u>SUV and crossover</u>" in html
-    assert re.search(r'⚡ <b>1\. <a href="https://x/Atto 3">BYD Atto 3</a></b> · #1 EV SUV brand · 2,463 registered · 62%\n💰 \$171,888', html)
-    assert html.rstrip().endswith("</blockquote>")  # method note last
-    assert "no model on today's price list: #2 Zeekr 250" in html
-    assert "from Jan to Aug 2026" in html
-    assert "best value" not in html.lower()
-    assert "/km" not in html.replace(" km", "")  # no value score on the best selling cards
-
-
-def test_sample_report_uses_best_selling_list(cfg):
-    html = {s.key: s for s in sample_report(cfg, date(2026, 9, 29))}["new_ev"].html
-    assert "BEST SELLING TOP EV" in html and "best value" not in html.lower()
-    assert "EV SUV brand" in html and "Zeekr" in html

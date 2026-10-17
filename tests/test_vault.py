@@ -69,7 +69,7 @@ def test_disabled_without_vault_dir(tmp_path, monkeypatch):
     monkeypatch.delenv("VAULT_DIR", raising=False)
     vault.event("✅", "report sent")
     vault.track_car(car(), TODAY)
-    assert vault.memory() == "" and not vault.enabled()
+    assert not vault.enabled()
 
 
 def test_car_note_price_history_is_append_only(vdir):
@@ -98,19 +98,6 @@ def test_listing_seen_before_the_vault_is_tracked_without_a_new_alert(vdir):
     assert not list((vdir / "Activity").rglob("*.md"))
 
 
-def test_reported_once_unless_price_changes(vdir):
-    vault.track_car(car(), TODAY)
-    assert not vault.already_reported(car())
-    assert vault.cars_reported([car()], TODAY) == 1
-    assert vault.already_reported(car())
-    assert vault.cars_reported([car()], TODAY) == 0  # not flagged again
-    assert not vault.already_reported(car(price=110000))
-    vault.track_car(car(price=110000), TODAY)
-    assert vault.cars_reported([car(price=110000)], TODAY) == 1
-    note = next((vdir / "Cars").glob("*.md"))
-    assert history(note)[-1] == "- 2026-10-02 📣 reported again at $110,000"
-
-
 def test_gone_listing_is_archived(vdir, tmp_path):
     from db import Database
 
@@ -134,46 +121,6 @@ def test_coe_history_written_once_per_tender(vdir):
     assert history(note) == ["- 2026-09-24 2026-09 second exercise: $131,890 (-$1,110), bids 1,500 for quota 1,000"]
 
 
-def test_memory_is_capped_newest_first_and_has_the_car(vdir):
-    for i in range(400):
-        vault.event("🔎", "scraped sgcarmart ev", f"run {i:03d}")  # today: memory() reads the last 7 days
-    vault.track_car(car(), TODAY)
-    vault.track_car(car(price=115800), TODAY)
-    mem = vault.memory(cars=[car()], chars=vault.MEMORY_CHARS)
-    assert len(mem) <= 4000
-    assert mem.index("price $115,800") < mem.index("listed at $118,800")  # newest first
-    assert "first seen 2026-10-02" in mem
-    assert "run 399" in mem and "run 000" not in mem  # the newest activity survives the cap
-    assert vault.memory(query="Is the BYD Atto 3 worth it?").count("BYD Atto 3 2023 — sgcarmart 1234567,") == 1
-    assert "sgcarmart 1234567, first seen" not in vault.memory(query="what about the MG4?")
-
-
-def test_memory_reaches_the_prompts(vdir, cfg, monkeypatch, tmp_path):
-    from ai import ClaudeCli, analyst_note, report_text
-    from bot_listener import ask_text
-    from db import Database
-    from tests.test_ai import _fake_run
-
-    vault.track_car(car(), TODAY)
-    cfg["ai"]["enabled"] = True
-    cfg["general"]["db_path"] = str(tmp_path / "cars.db")
-    monkeypatch.setattr("ai.shutil.which", lambda cmd: "/usr/bin/claude")
-    run, calls = _fake_run({"result": "Fine."})
-    monkeypatch.setattr("ai.subprocess.run", run)
-
-    analyst_note(ClaudeCli(cfg), {"coe": {"A": 1}}, vault.memory(cars=[car()]))
-    assert "listed at $118,800" in calls[0]["args"][2] and "do not flag it again" in calls[0]["args"][2]
-
-    db = Database(cfg["general"]["db_path"])
-    db.set_state("last_report", report_text(["<b>Used EV</b>"]))
-    db.close()
-    assert ask_text("Is the BYD Atto 3 a good buy?", cfg) == "Fine."
-    assert "listed at $118,800" in calls[1]["args"][2]
-    assert calls[1]["input"] == "Used EV"  # the report is still the whole standard input
-    assert "**/ask** · Is the BYD Atto 3 a good buy? · answered" in vault._activity_path(
-        vdir, vault.now_sgt().date()).read_text(encoding="utf-8")
-
-
 def test_vault_errors_never_raise(tmp_path, monkeypatch):
     blocker = tmp_path / "not a folder"
     blocker.write_text("x")
@@ -182,13 +129,10 @@ def test_vault_errors_never_raise(tmp_path, monkeypatch):
     vault.track_car(car(), TODAY)
     vault.cars_gone(None, "sgcarmart", TODAY)
     vault.coe_result(None)
-    assert vault.cars_reported([car()], TODAY) == 0
-    assert vault.already_reported(car()) is False
-    assert vault.memory(cars=[car()]) == ""
 
 
-def test_report_html_is_the_same_with_the_vault_on(cfg, tmp_path, monkeypatch):
-    """The vault only reads and writes notes: the Telegram sections are byte for byte the same."""
+def test_pipeline_stores_the_same_with_the_vault_on(cfg, tmp_path, monkeypatch):
+    """The vault only writes notes: the run's database and health are the same with it on or off."""
     import pipeline as pl
     from db import Database
     from scrapers.base import BaseScraper, FetchError
@@ -205,7 +149,9 @@ def test_report_html_is_the_same_with_the_vault_on(cfg, tmp_path, monkeypatch):
         cfg["general"]["cache_dir"] = str(tmp_path / mode / "cache")
         db = Database(tmp_path / mode / "cars.db")
         db.upsert_used_listings([car(first_seen=None)], TODAY)
-        out[mode] = [s.html for s in pl.Pipeline(cfg, db, TODAY, "ua").build("all")]
+        pipe = pl.Pipeline(cfg, db, TODAY, "ua")
+        pipe.run("all")
+        out[mode] = (sorted(pipe.unavailable), [(l.listing_id, l.price) for l in db.active_listings()])
         db.close()
     assert out["on"] == out["off"]
     assert list((tmp_path / "vault" / "Cars").glob("*.md"))

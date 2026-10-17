@@ -1,6 +1,6 @@
 """Self repair through the Claude Code CLI in print mode (claude -p).
 
-scheduler.py starts this as a child process when the daily report keeps failing after a retry,
+scheduler.py starts this as a child process when the daily run keeps failing after a retry,
 usually because a site changed its layout and a parser no longer finds its fields. It:
 
 1. snapshots every project file,
@@ -8,20 +8,19 @@ usually because a site changed its layout and a parser no longer finds its field
    today's cached pages, limited by self_heal.allowed_tools, max_turns and max_budget_usd,
 3. rejects the attempt if any file outside self_heal.editable changed, or a file was added
    outside self_heal.addable, or a file was deleted,
-4. runs the test suite, then a dry run of the report against today's cached pages,
+4. runs the test suite, then a dry run (`python main.py --dry-run`) against today's cached pages,
 5. keeps the change only when the tests pass and the failed sections recover without new ones
    failing. Otherwise every file goes back to its snapshot.
 
 Every attempt is saved under data/self_heal/<time>/ (prompt, CLI output, test output, patch,
-result) and reported on Telegram. Exit code 0 means a change was kept and the report should run
-again, 1 means nothing was kept.
+result) and reported as a vault event and in logs/heal.log. Exit code 0 means a change was kept and
+the daily run should start again, 1 means nothing was kept.
 
-  python heal.py            repair using the failures recorded by the last report run
+  python heal.py            repair using the failures recorded by the last run
 """
 from __future__ import annotations
 
 import difflib
-import html
 import json
 import logging
 import os
@@ -133,7 +132,7 @@ def build_prompt(unavailable: dict[str, str], log_tail: str, cache_dir: Path, cf
     failed = "\n".join(f"* {k}: {v}" for k, v in sorted(unavailable.items())) or "* the run crashed, see the log"
     return (
         "You are running unattended inside the SG car scraper container, in the project folder. "
-        "Today's report run failed for these sections:\n"
+        "Today's scrape run failed for these sections:\n"
         f"{failed}\n\n"
         "Diagnose why and fix the code so they work again.\n\n"
         f"Every page fetched today is cached under {cache_dir}/ as the text the scraper saw. Read the "
@@ -144,8 +143,8 @@ def build_prompt(unavailable: dict[str, str], log_tail: str, cache_dir: Path, cf
         "config.yaml, existing tests or anything else.\n"
         "* Do not bypass robots.txt, throttling, CAPTCHAs, logins or other anti bot measures. If a site "
         "now blocks automated access, change nothing and say so.\n"
-        "* If the failure is not a code problem (network down, site offline, Telegram or Claude login "
-        "errors), change nothing and say so.\n"
+        "* If the failure is not a code problem (network down, site offline, Claude login errors), "
+        "change nothing and say so.\n"
         "* Keep the change small. Keep support for the old layout where you can, so existing tests pass.\n"
         "* Run `python -m pytest -q -x` before you finish. It must pass. You may run "
         "`python main.py --dry-run --section coe` (or new, used) to check the fix against today's cached pages.\n"
@@ -292,25 +291,24 @@ def attempt(cfg: dict[str, Any], root: Path, unavailable: dict[str, str], *,
 
 
 def notice(result: HealResult) -> str:
-    """Telegram message for one attempt."""
-    e = lambda s: html.escape(str(s), quote=False)  # noqa: E731
+    """Plain text summary of one attempt, for the log."""
     verdict = {
         "kept": "Change kept", "reverted": "Change undone", "rejected": "Change refused and undone",
         "nochange": "No change made", "skipped": "Not attempted", "failed": "Repair failed",
     }.get(result.status, result.status)
-    lines = [f"<b>Self repair: {e(verdict)}</b>", f"Failed today: {e(', '.join(result.failing) or 'the run crashed')}",
-             f"Why: {e(result.reason)}"]
+    lines = [f"Self repair: {verdict}", f"Failed today: {', '.join(result.failing) or 'the run crashed'}",
+             f"Why: {result.reason}"]
     if result.remaining and result.status == "kept":
-        lines.append(f"Still failing: {e(', '.join(result.remaining))}")
+        lines.append(f"Still failing: {', '.join(result.remaining)}")
     if result.modified or result.added:
-        lines.append(f"Files: {e(', '.join(result.modified + result.added))}")
+        lines.append(f"Files: {', '.join(result.modified + result.added)}")
     if result.summary:
-        lines.append(f"<blockquote expandable>{e(result.summary[:1500])}</blockquote>")
+        lines.append(f"Claude: {result.summary[:1500]}")
     if result.status == "kept":
         lines.append("The change is only on the NAS. Run git diff in the project folder to see it, "
                      "and send it on so it can go into the repository.")
     if result.record_dir:
-        lines.append(f"Record: {e(result.record_dir)}")
+        lines.append(f"Record: {result.record_dir}")
     if result.cost_usd:
         lines.append(f"Claude cost: ${result.cost_usd:.2f}")
     return "\n".join(lines)
@@ -319,8 +317,7 @@ def notice(result: HealResult) -> str:
 def main() -> int:
     import vault
     from main import setup_logging
-    from settings import PROJECT_ROOT, load_config, load_secrets
-    from telegram_bot import TelegramClient
+    from settings import PROJECT_ROOT, load_config
 
     cfg = load_config()
     root = PROJECT_ROOT
@@ -328,15 +325,8 @@ def main() -> int:
     setup_logging(root / cfg["general"]["log_dir"], res.get("log_max_mb", 5), res.get("log_backups", 5), filename="heal.log")
     health = read_health(cfg, root)
     result = attempt(cfg, root, health.get("unavailable", {}))
-    log.info("self repair %s: %s", result.status, result.reason)
+    log.info("%s", notice(result))
     vault.event("🩹", f"self repair {result.status}", f"{', '.join(result.failing) or 'crashed run'}: {result.reason[:160]}")
-    secrets = load_secrets()
-    try:
-        client = TelegramClient(secrets["telegram_bot_token"], secrets["telegram_chat_id"],
-                                api_base=secrets.get("telegram_api_base"), thread_id=secrets.get("telegram_thread_id"))
-        client.send_message(notice(result))
-    except Exception as exc:
-        log.warning("could not send the self repair notice: %s", exc)
     return 0 if result.status == "kept" else 1
 
 

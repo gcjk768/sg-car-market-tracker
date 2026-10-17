@@ -1,15 +1,11 @@
-"""Obsidian vault on the NAS: the tracker's movement log and memory.
+"""Obsidian vault on the NAS: the tracker's movement log.
 
-WRITE: one line per event in Activity/YYYY/MM/YYYY-MM-DD.md (`- HH:MM emoji **what** · detail · [[note]]`,
+One line per event in Activity/YYYY/MM/YYYY-MM-DD.md (`- HH:MM emoji **what** · detail · [[note]]`,
 SGT), one note per tracked used listing in Cars/ and one per COE category in COE/, each with an
 append only `## History`.
 
-READ: memory() returns a capped excerpt, newest first, of the relevant car notes and the recent
-Activity, which ai.py adds to the analyst note and /ask prompts.
-
 Off unless VAULT_DIR is set. Every public function is best effort: it logs and returns a default
-on any error, so the vault can never crash a run or lose a report. No secrets or prompts are
-written here.
+on any error, so the vault can never crash a run. No secrets or prompts are written here.
 """
 from __future__ import annotations
 
@@ -18,7 +14,7 @@ import logging
 import os
 import re
 from collections.abc import Iterable
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -28,8 +24,6 @@ import yaml
 log = logging.getLogger(__name__)
 
 SGT = ZoneInfo("Asia/Singapore")
-MEMORY_CHARS = 4000
-MEMORY_DAYS = 7
 _UNSAFE = re.compile(r'[\\/:*?"<>|#^\[\]\n\r]+')
 
 HOME = """---
@@ -38,12 +32,11 @@ updated: {today}
 ---
 # SG Car Market
 
-Movement log and memory of the SG car tracker (Telegram topic "SG EV Car Tracker"). The bot writes
-here and reads it back before each AI note and /ask answer. Edit freely; History sections are
-append only.
+Movement log of the SG car tracker, whose output is the car website (port 8786). The tracker writes
+here. Edit freely; History sections are append only.
 
 * `Activity/YYYY/MM/`: one note per day, one line per event (runs, new and gone listings, price moves,
-  COE results, reports, commands, self repairs).
+  COE results, news, alerts, self repairs).
 * `Cars/`: one note per tracked used listing, `Make Model year — source id`, with its price History.
 * `COE/`: one note per category with the bidding History.
 """
@@ -235,8 +228,7 @@ def track_car(listing, today: date) -> None:
         return
     fm.update({"tags": ["active"], "updated": today.isoformat(), "source": listing.source,
                "listing_id": str(listing.listing_id), "price": listing.price, "url": listing.url,
-               "first_seen": (listing.first_seen or today).isoformat(),
-               "reported_price": fm.get("reported_price")})
+               "first_seen": (listing.first_seen or today).isoformat()})
     _append_history(path, fm, body, line, top)
 
 
@@ -269,36 +261,6 @@ def cars_gone(db, source: str, today: date) -> None:
             event("❌", "listing gone", detail)
 
 
-@safe(default=False)
-def already_reported(listing) -> bool:
-    """True when the vault shows this listing was reported at its current price."""
-    top = root()
-    if top is None:
-        return False
-    fm, _ = _read(_car_path(top, listing))
-    return fm.get("reported_price") == listing.price
-
-
-@safe(default=0)
-def cars_reported(listings: Iterable, today: date) -> int:
-    """Mark listings sent to Telegram. Only a first report or a new price is logged, never a repeat."""
-    top = root()
-    if top is None:
-        return 0
-    n = 0
-    for listing in listings:
-        path = _car_path(top, listing)
-        fm, body = _read(path)
-        if not body or fm.get("reported_price") == listing.price:
-            continue
-        again = fm.get("reported_price") is not None
-        fm.update({"reported_price": listing.price, "updated": today.isoformat()})
-        _append_history(path, fm, body, f"- {today} 📣 {'reported again' if again else 'reported'} at {money(listing.price)}", top)
-        event("📣", "reported again" if again else "reported", f"{listing.display_name} {money(listing.price)}", path.stem)
-        n += 1
-    return n
-
-
 # COE
 
 
@@ -322,55 +284,3 @@ def coe_result(result, delta: int | None = None) -> None:
     fm.update({"tags": ["active"], "updated": result.tender_date.isoformat(), "premium": result.quota_premium})
     _append_history(path, fm, body, f"{key}{result.exercise}: {money(result.quota_premium)}{change}{bids}", top)
     event("🎫", "COE result", f"{title} {money(result.quota_premium)}{change}", title)
-
-
-# Memory
-
-
-def _history(path: Path) -> list[str]:
-    _, body = _read(path)
-    return [ln for ln in body.partition("## History")[2].splitlines() if ln.strip()]
-
-
-@safe(default=[])
-def cars_matching(text: str, limit: int = 5) -> list[Path]:
-    """Car notes whose make and model appear in `text` (an /ask question), newest first."""
-    top = root()
-    if top is None or not (top / "Cars").exists():
-        return []
-    q = " " + " ".join(re.findall(r"\w+", text.lower())) + " "
-    hits = []
-    for p in (top / "Cars").glob("*.md"):
-        name = p.stem.split(" — ")[0]
-        name = re.sub(r"\s\d{4}$", "", name).lower()
-        if name and f" {' '.join(re.findall(r'[a-z0-9]+', name))} " in q:
-            hits.append(p)
-    return sorted(hits, key=lambda p: p.stat().st_mtime, reverse=True)[:limit]
-
-
-@safe(default="")
-def memory(cars: Iterable = (), query: str = "", chars: int = MEMORY_CHARS, days: int = MEMORY_DAYS) -> str:
-    """Capped excerpt, newest first: the relevant car notes, then recent Activity lines."""
-    top = root()
-    if top is None or not top.is_dir():
-        return ""
-    today = now_sgt().date()
-    out = [f"Today is {today} (SGT)."]
-    paths = [_car_path(top, c) for c in cars] + (cars_matching(query) if query else [])
-    seen = set()
-    for p in paths:
-        if p in seen or not p.exists():
-            continue
-        seen.add(p)
-        fm, _ = _read(p)
-        first = fm.get("first_seen")
-        on_market = f", first seen {first}" if first else ""
-        out.append(f"{p.stem}{on_market}:")
-        out += list(reversed(_history(p)))
-    for i in range(days):
-        f = _activity_path(top, today - timedelta(days=i))
-        if f.exists():
-            lines = [ln for ln in f.read_text(encoding="utf-8").splitlines() if ln.startswith("- ")]
-            out.append(f"Activity {f.stem}:")
-            out += list(reversed(lines))
-    return "\n".join(out)[:chars] if len(out) > 1 else ""
