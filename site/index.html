@@ -207,6 +207,18 @@ table.list tr.off td{opacity:.72}
 table.list tbody tr:hover td{background:var(--accent-soft)}
 .flags{margin:0;padding:8px 10px 8px 28px;border-radius:var(--r-s);background:var(--warn-soft);color:var(--warn);font-size:12.5px;font-weight:600;line-height:1.45}
 .flags li::marker{content:"⚠ "}
+.kindrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.seg.kind{margin-left:0}
+.seg.kind button{padding:8px 18px;font-size:14px;font-weight:700}
+.seg.kind button span{font-family:var(--mono);font-weight:500;font-size:12px;opacity:.65;margin-left:4px}
+.vpills{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.vpill{border:1px solid var(--line-2);background:var(--card);border-radius:var(--r-s);padding:5px 9px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:1px;max-width:100%;text-align:left}
+.vpill{min-width:0}
+.vpill .vn{font-size:12px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vpill .vp{font-family:var(--mono);font-size:11.5px;color:var(--mute)}
+.vpill[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.vpill[aria-pressed="true"] .vp{color:inherit;opacity:.75}
+.vpill:hover:not([aria-pressed="true"]){border-color:var(--ink)}
 .empty{padding:40px 20px;text-align:center;color:var(--mute);border:1px dashed var(--line-2);border-radius:var(--r)}
 
 /* brands */
@@ -285,8 +297,9 @@ const BUDGETS = [["", "Any budget"], ["0-100000", "Under $100k"], ["100000-15000
 const DT = {ev: "Electric", hybrid: "Hybrid", ice: "Petrol"};
 let D = null;
 const state = {
-  new: {fuel: "", body: "", budget: "", cat: "", make: "", q: "", sort: "popular", layout: "cards"},
-  used: {dt: "ev", body: "", budget: "", make: "", km: "", coe: "", owners: "", shortlist: true, q: "", sort: "best", src: "", layout: "cards"},
+  new: {kind: "ev", fuel: "", body: "", budget: "", cat: "", make: "", q: "", sort: "popular", layout: "cards"},
+  newSel: {},
+  used: {kind: "ev", dt: "", body: "", budget: "", make: "", km: "", coe: "", owners: "", shortlist: true, q: "", sort: "best", src: "", layout: "cards"},
   bikes: {cls: "2B"},
 };
 
@@ -410,13 +423,21 @@ function today() {
 const FUEL = {ev: "Electric", hybrid: "Hybrid", petrol: "Petrol", diesel: "Diesel"};
 let ALL_NEW = null;
 const allNew = () => ALL_NEW || (ALL_NEW = D.new_evs.map(v => ({...v, fuel: "ev"})).concat(D.new_cars || []));
+// The EV / ICE switch at the top of New cars and Used cars. ICE is everything with an engine: petrol, hybrid, diesel.
+function kindToggle(st, counts) {
+  const opts = [["ev", "EV"], ["ice", "ICE"], ["all", "All"]];
+  return `<div class="seg kind" data-f="kind" role="group" aria-label="Electric or engine">${opts.map(([v, l]) =>
+    `<button type="button" data-v="${v}" aria-pressed="${st.kind === v}">${l} <span>${counts[v] ?? 0}</span></button>`).join("")}</div>`;
+}
 function viewToggle(st) {
   return `<div class="seg" data-f="layout" role="group" aria-label="Layout"><button type="button" data-v="cards" aria-pressed="${st.layout !== "table"}">Cards</button><button type="button" data-v="table" aria-pressed="${st.layout === "table"}">Table</button></div>`;
 }
 function newView() {
   const st = state.new, all = allNew();
-  const byFuel = all.filter(v => !st.fuel || v.fuel === st.fuel);
+  const byKind = all.filter(v => st.kind === "all" || (st.kind === "ev") === (v.fuel === "ev"));
+  const byFuel = byKind.filter(v => st.kind !== "ice" || !st.fuel || v.fuel === st.fuel);
   const fuelCounts = {}; all.forEach(v => fuelCounts[v.fuel] = (fuelCounts[v.fuel] || 0) + 1);
+  const kindCounts = {ev: fuelCounts.ev || 0, ice: all.length - (fuelCounts.ev || 0), all: all.length};
   const bodyCounts = {}; byFuel.forEach(v => bodyCounts[v.body] = (bodyCounts[v.body] || 0) + 1);
   const makes = [...new Set(byFuel.map(v => v.make))].sort((x, y) => x.localeCompare(y));
   let rows = byFuel.filter(v => (!st.body || v.body === st.body) && inBudget(v.price, st.budget) && (!st.cat || v.cat === st.cat) && (!st.make || v.make === st.make)
@@ -428,11 +449,11 @@ function newView() {
   const groups = new Map();
   rows.forEach(v => { const key = v.make + "|" + v.model; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(v); });
   const models = [...groups.values()];
-  const n = D.stats;
+  NEW_GROUPS = groups;
   return `
   <div class="head"><div><h2>New cars</h2><p>Every new car on Sgcarmart's price list, ${int(all.length)} variants: electric, hybrid and petrol. Prices with COE; EV prices are net of the VES and EEAI rebates. Deposit is the MAS minimum, instalment at ${(D.costs.rates.new * 100).toFixed(2)}% flat over ${D.costs.rates.tenure} years.</p></div></div>
   <div class="bar">
-    <div class="chips" data-f="fuel"><button type="button" data-v="" aria-pressed="${st.fuel === ""}">All fuels <span>${all.length}</span></button>${["ev", "hybrid", "petrol", "diesel"].filter(f => fuelCounts[f]).map(f => `<button type="button" data-v="${f}" aria-pressed="${st.fuel === f}">${FUEL[f]} <span>${fuelCounts[f]}</span></button>`).join("")}</div>
+    <div class="kindrow">${kindToggle(st, kindCounts)}${st.kind === "ice" ? `<div class="chips" data-f="fuel"><button type="button" data-v="" aria-pressed="${st.fuel === ""}">All engines <span>${byKind.length}</span></button>${["hybrid", "petrol", "diesel"].filter(f => fuelCounts[f]).map(f => `<button type="button" data-v="${f}" aria-pressed="${st.fuel === f}">${FUEL[f]} <span>${fuelCounts[f]}</span></button>`).join("")}</div>` : ""}</div>
     <div class="chips" data-f="body"><button type="button" data-v="" aria-pressed="${st.body === ""}">All bodies <span>${byFuel.length}</span></button>${BODY_ORDER.filter(b => bodyCounts[b]).map(b => `<button type="button" data-v="${b}" aria-pressed="${st.body === b}">${BODY_LABEL[b]} <span>${bodyCounts[b]}</span></button>`).join("")}</div>
     <div class="ctrls">
       <input type="search" id="new-q" placeholder="Search make, model or variant" value="${esc(st.q)}" aria-label="Search new cars">
@@ -443,7 +464,7 @@ function newView() {
       ${viewToggle(st)}
     </div>
   </div>
-  <div class="count"><b>${models.length}</b> models · <b>${rows.length}</b> variants${st.fuel ? ` · ${FUEL[st.fuel].toLowerCase()}` : ""}${st.body ? ` · ${BODY_LABEL[st.body]}` : ""}</div>
+  <div class="count"><b>${models.length}</b> models · <b>${rows.length}</b> variants · ${st.kind === "ev" ? "electric" : st.kind === "ice" ? (st.fuel ? FUEL[st.fuel].toLowerCase() : "petrol, hybrid and diesel") : "all fuels"}${st.body ? ` · ${BODY_LABEL[st.body]}` : ""}</div>
   ${!models.length ? `<div class="empty">Nothing matches. Loosen a filter.</div>`
     : st.layout === "table" ? newTable(models) : `<div class="grid">${models.map(vs => newCard(vs)).join("")}</div>`}`;
 }
@@ -459,8 +480,14 @@ const dealChip = d => !d ? "" : d.verdict === "under" ? `<span class="chip good"
 const flagList = fl => fl && fl.length ? `<ul class="flags">${fl.map(f => `<li>${esc(f)}</li>`).join("")}</ul>` : "";
 const cheapestOf = vs => vs.reduce((m, x) => (x.price ?? 9e9) < (m.price ?? 9e9) ? x : m, vs[0]);
 const fuelBadge = f => badge(FUEL[f] || f, f === "ev" ? "acc" : f === "hybrid" ? "good" : "flat");
+let NEW_GROUPS = new Map();
+const keyOf = v => v.make + "|" + v.model;
+// One card per model. The variant buttons switch the whole card (price, specs, deposit, monthly, cost a year,
+// next COE price) to that variant; the cheapest is shown first. The choice is kept while you filter or sort.
 function newCard(vs) {
-  const v = vs[0], c = cheapestOf(vs), multi = vs.length > 1;
+  const v = vs[0], key = keyOf(v), multi = vs.length > 1;
+  const byPrice = vs.slice().sort((x, y) => (x.price ?? 9e9) - (y.price ?? 9e9));
+  const c = byPrice.find(x => x.id === state.newSel[key]) || byPrice[0];
   const rank = v.body_rank ? `#${v.body_rank} EV ${v.body.toLowerCase()} brand` : v.brand_rank ? `#${v.brand_rank} ${v.fuel === "ev" ? "EV" : "petrol"} brand` : "";
   const pop = vs.reduce((m, x) => x.popularity && (!m || x.popularity < m) ? x.popularity : m, null);
   const best = vs.find(x => x.best_seller)?.best_seller;
@@ -469,19 +496,20 @@ function newCard(vs) {
     ? [c.range_km && [`Range${c.range_standard && c.range_standard !== "estimated" ? " " + esc(c.range_standard) : ", est."}`, `${int(c.range_km)} km`], c.battery_kwh && ["Battery", `${c.battery_kwh} kWh`], c.power_kw && ["Power", `${Math.round(c.power_kw)} kW`]]
     : [c.engine_cc && ["Engine, est.", `${(c.engine_cc / 1000).toFixed(1)} L`], c.economy && ["Economy", esc(c.economy)], c.power_kw && ["Power", `${Math.round(c.power_kw)} kW`]];
   const cut = c.price_change && c.price_change < 0, rise = c.price_change && c.price_change > 0;
-  return `<article class="car">
+  const src = c.price_source === "official" ? `<span class="chip good" title="${esc(c.official_url || "")}">Official price</span>` : "";
+  return `<article class="car" data-key="${esc(key)}">
     <div class="top-row"><div><h3><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(v.make)} ${esc(v.model)}</a></h3><div class="sub">${multi ? `${vs.length} variants` : esc(v.variant)}${rank ? ` · ${rank}` : ""}</div></div>
       <div class="badges">${best ? badge(`${best.list} best seller #${best.pos}`, "ink") : pop ? badge("#" + pop + " popular", pop <= 20 ? "ink" : "flat") : ""}${fuelBadge(c.fuel)}${badge(v.body)}${c.cat ? badge("Cat " + c.cat) : ""}</div></div>
-    <div class="price"><span class="p">${multi ? `<small style="margin:0 4px 0 0">from</small>` : ""}${money(c.price)}</span>${cut ? `<span class="chip good">▼ ${money(-c.price_change)} on ${dmy(c.price_change_on)}</span>` : rise ? `<span class="chip bad">▲ ${money(c.price_change)} on ${dmy(c.price_change_on)}</span>` : ""}</div>
+    ${multi ? `<div class="vpills" role="group" aria-label="Variant">${byPrice.map(x => `<button type="button" class="vpill" data-key="${esc(key)}" data-id="${esc(x.id)}" aria-pressed="${x === c}" title="${esc(x.variant)}"><span class="vn">${esc(x.variant || "Standard")}</span><span class="vp">${k(x.price)}</span></button>`).join("")}</div>` : ""}
+    <div class="price"><span class="p">${money(c.price)}</span>${src}${cut ? `<span class="chip good">▼ ${money(-c.price_change)} on ${dmy(c.price_change_on)}</span>` : rise ? `<span class="chip bad">▲ ${money(c.price_change)} on ${dmy(c.price_change_on)}</span>` : ""}</div>
     ${c.price_next ? `<div class="small mute num">Next COE ~${k(c.price_next[1])}, ${k(c.price_next[0])} to ${k(c.price_next[2])}</div>` : ""}
     <div class="specs">
       ${specs.filter(Boolean).map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join("")}
       ${finLine(c.finance)}
       ${annualLine(c.annual)}
     </div>
-    ${multi ? `<details class="vlist"><summary>All ${vs.length} variants</summary><ul class="variants">${vs.slice().sort((x, y) => x.price - y.price).map(x => `<li><span class="n" title="${esc(x.variant)}">${esc(x.variant)}</span><span class="v">${money(x.price)}${x.range_km ? ` · ${int(x.range_km)} km` : x.power_kw ? ` · ${Math.round(x.power_kw)} kW` : ""}${x.cat ? ` · ${x.cat}` : ""}</span></li>`).join("")}</ul></details>` : ""}
     ${c.promotion ? `<div class="promo" title="${esc(c.promotion)}">${esc(c.promotion)}</div>` : ""}
-    <div class="foot"><span>${c.battery_warranty ? "Battery warranty " + esc(c.battery_warranty) : c.transmission ? esc(c.transmission) : "Sgcarmart price list"}</span><a href="${esc(c.url)}" target="_blank" rel="noopener">Price list ↗</a></div>
+    <div class="foot"><span>${c.battery_warranty ? "Battery warranty " + esc(c.battery_warranty) : c.transmission ? esc(c.transmission) : "Sgcarmart price list"}</span><a href="${esc(c.official_url || c.url)}" target="_blank" rel="noopener">${c.price_source === "official" ? "Official site" : "Price list"} ↗</a></div>
   </article>`;
 }
 function newTable(models) {
@@ -505,8 +533,10 @@ function usedTable(rows) {
 /* ---------- USED ---------- */
 function usedView() {
   const st = state.used;
-  const pool = D.used.filter(u => u.drivetrain === st.dt);
+  const isEv = u => u.drivetrain === "ev";
+  const pool = D.used.filter(u => st.kind === "all" || (st.kind === "ev") === isEv(u)).filter(u => st.kind !== "ice" || !st.dt || u.drivetrain === st.dt);
   const counts = {ev: 0, hybrid: 0, ice: 0}; D.used.forEach(u => counts[u.drivetrain]++);
+  const kindCounts = {ev: counts.ev, ice: counts.hybrid + counts.ice, all: D.used.length};
   const bodyCounts = {}; pool.forEach(u => bodyCounts[u.body] = (bodyCounts[u.body] || 0) + 1);
   const makes = [...new Set(pool.map(u => u.make))].sort((x, y) => x.localeCompare(y));
   let rows = pool.filter(u => (!st.body || u.body === st.body) && inBudget(u.price, st.budget) && (!st.make || u.make === st.make)
@@ -526,7 +556,7 @@ function usedView() {
   return `
   <div class="head"><div><h2>Used cars</h2><p>Every live listing the tracker follows on Sgcarmart and Motorist, ${D.stats.used_active} today. The shortlist filters are at most ${money(f.price_ceiling)}, up to ${int(f.max_km_per_year)} km a year, ${f.max_owners} owners, ${f.min_coe_years} years of COE left; cars outside them stay visible with the reason.</p></div></div>
   <div class="bar">
-    <div class="chips" data-f="dt">${["ev", "hybrid", "ice"].map(d => `<button type="button" data-v="${d}" aria-pressed="${st.dt === d}">${DT[d]} <span>${counts[d]}</span></button>`).join("")}</div>
+    <div class="kindrow">${kindToggle(st, kindCounts)}${st.kind === "ice" ? `<div class="chips" data-f="dt"><button type="button" data-v="" aria-pressed="${st.dt === ""}">All engines <span>${kindCounts.ice}</span></button>${["hybrid", "ice"].map(d => `<button type="button" data-v="${d}" aria-pressed="${st.dt === d}">${DT[d]} <span>${counts[d]}</span></button>`).join("")}</div>` : ""}</div>
     <div class="chips" data-f="body"><button type="button" data-v="" aria-pressed="${st.body === ""}">All bodies <span>${pool.length}</span></button>${BODY_ORDER.filter(b => bodyCounts[b]).map(b => `<button type="button" data-v="${b}" aria-pressed="${st.body === b}">${BODY_LABEL[b]} <span>${bodyCounts[b]}</span></button>`).join("")}</div>
     <div class="ctrls">
       <input type="search" id="used-q" placeholder="Search make, model or year" value="${esc(st.q)}" aria-label="Search used cars">
@@ -541,7 +571,7 @@ function usedView() {
       ${viewToggle(st)}
     </div>
   </div>
-  <div class="count"><b>${rows.length}</b> ${DT[st.dt].toLowerCase()} cars · <b>${rows.filter(u => u.passes).length}</b> on the shortlist</div>
+  <div class="count"><b>${rows.length}</b> ${st.kind === "ev" ? "electric" : st.kind === "ice" ? (st.dt ? DT[st.dt].toLowerCase() : "petrol and hybrid") : ""} cars · <b>${rows.filter(u => u.passes).length}</b> on the shortlist</div>
   ${!rows.length ? `<div class="empty">Nothing matches. Loosen a filter or untick Shortlist only.</div>` : st.layout === "table" ? usedTable(rows) : `<div class="grid">${rows.map(usedCard).join("")}</div>`}`;
 }
 function usedCard(u) {
@@ -677,8 +707,18 @@ function wire(el, name) {
   }
   el.querySelectorAll(".chips[data-f], .seg[data-f]").forEach(c => c.addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
-    st[c.dataset.f] = b.dataset.v; if (c.dataset.f === "dt" || c.dataset.f === "fuel") st.body = ""; render(name);
+    st[c.dataset.f] = b.dataset.v;
+    if (c.dataset.f === "kind") { st.fuel = ""; st.dt = ""; st.body = ""; st.make = ""; }
+    if (c.dataset.f === "dt" || c.dataset.f === "fuel") st.body = "";
+    render(name);
   }));
+  // Variant buttons redraw only their own card.
+  el.addEventListener("click", e => {
+    const b = e.target.closest(".vpill"); if (!b) return;
+    state.newSel[b.dataset.key] = b.dataset.id;
+    const card = b.closest("article.car"), vs = NEW_GROUPS.get(b.dataset.key);
+    if (card && vs) card.outerHTML = newCard(vs);
+  });
   el.querySelectorAll("select[data-f]").forEach(s => s.addEventListener("change", () => { st[s.dataset.f] = s.value; render(name); }));
   el.querySelectorAll("input[type=checkbox][data-f]").forEach(c => c.addEventListener("change", () => { st[c.dataset.f] = c.checked; render(name); }));
   const q = el.querySelector("input[type=search]");
