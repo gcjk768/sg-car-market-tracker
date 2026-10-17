@@ -239,6 +239,13 @@ table.list tbody tr:hover td{background:var(--accent-soft)}
 /* costs */
 .cost-table{overflow-x:auto}
 .cost-table table.t td{font-size:14px}
+table.costs th{vertical-align:top;text-transform:none;letter-spacing:0;min-width:200px}
+table.costs th:first-child{min-width:150px}
+table.costs tr.sect td{background:var(--bg-2);font:700 12px/1.4 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);text-align:left}
+table.costs tr.sect td span{text-transform:none;letter-spacing:0;font-weight:500;color:var(--mute);margin-left:6px}
+.costpick{width:100%;max-width:280px;border:1px solid var(--line-2);background:var(--card);color:var(--ink);border-radius:var(--r-s);padding:7px 8px;font:600 13px var(--body)}
+.pickmeta{margin-top:6px;font:500 12px/1.45 var(--body);color:var(--mute);text-align:left}
+.pickmeta a{color:var(--accent);text-decoration:none;font-weight:600}
 .cost-table tr.total td{font-weight:700;background:var(--accent-soft)}
 .guide{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media (max-width:760px){.guide{grid-template-columns:1fr}}
@@ -299,6 +306,7 @@ let D = null;
 const state = {
   new: {kind: "ev", fuel: "", body: "", budget: "", cat: "", make: "", q: "", sort: "popular", layout: "cards"},
   newSel: {},
+  costs: {sel: null, per: "year"},
   used: {kind: "ev", dt: "", body: "", budget: "", make: "", km: "", coe: "", owners: "", shortlist: true, q: "", sort: "best", src: "", layout: "cards"},
   bikes: {cls: "2B"},
 };
@@ -647,20 +655,64 @@ function bikesView() {
 }
 
 /* ---------- COSTS ---------- */
+// Every car on the site, as one comparable row: the new car cards (EV list and full list) and the used listings.
+let COST_CARS = null;
+function costCars() {
+  if (COST_CARS) return COST_CARS;
+  const out = new Map();
+  const newCards = D.new_evs.map(v => ({...v, fuel: "ev"})).concat(D.new_cars || []);
+  for (const v of newCards) if (v.annual) out.set(v.id, {id: v.id, group: `New ${v.fuel === "ev" ? "EV" : "ICE"} · ${v.make}`, label: `${v.make} ${v.model} ${v.variant || ""}`.trim(),
+    price: v.price, url: v.url, kind: v.fuel === "ev" ? "New EV" : `New ${FUEL[v.fuel] || "ICE"}`, ...v.annual, finance: v.finance});
+  for (const u of D.used) if (u.annual) out.set(u.id, {id: u.id, group: `Used ${u.drivetrain === "ev" ? "EV" : "ICE"} · ${u.make}`,
+    label: `${u.name} ${u.year || ""}`.trim(), price: u.price, url: u.url, kind: `Used ${DT[u.drivetrain]}`, ...u.annual, finance: u.finance,
+    extra: `${u.mileage_km != null ? int(u.mileage_km) + " km · " : ""}${u.coe_left != null ? u.coe_left.toFixed(1) + "y COE · " : ""}${u.source === "sgcarmart" ? "Sgcarmart" : "Motorist"}`});
+  COST_CARS = out;
+  return out;
+}
+// The report's picks preselected; a pick from an older data file without ids is matched by name.
+function defaultCostSel() {
+  const cars = costCars();
+  return (D.costs.picks || []).map(p => p.id && cars.has(p.id) ? p.id
+    : ([...cars.values()].find(c => c.url === p.url && p.name.startsWith(c.label.split(" ").slice(0, 3).join(" "))) || {}).id || "").slice(0, 3);
+}
+function costSelect(i, sel, cars) {
+  const groups = new Map();
+  for (const c of [...cars.values()].sort((x, y) => x.group.localeCompare(y.group) || x.label.localeCompare(y.label) || x.price - y.price)) {
+    if (!groups.has(c.group)) groups.set(c.group, []);
+    groups.get(c.group).push(c);
+  }
+  return `<select class="costpick" data-i="${i}" aria-label="Car ${i + 1}"><option value="">None</option>${[...groups].map(([g, cs]) =>
+    `<optgroup label="${esc(g)}">${cs.map(c => `<option value="${esc(c.id)}" ${c.id === sel ? "selected" : ""}>${esc(c.label)} · ${money(c.price)}</option>`).join("")}</optgroup>`).join("")}</select>`;
+}
 function costsView() {
-  const c = D.costs, p = c.picks || [];
-  if (!p.length) return `<div class="head"><h2>Cost of ownership</h2></div><div class="empty">No shortlisted cars to compare today.</div>`;
-  const row = (label, get, cls = "") => `<tr class="${cls}"><td>${label}</td>${p.map(x => `<td>${get(x)}</td>`).join("")}</tr>`;
+  const c = D.costs, cars = costCars();
+  if (!state.costs.sel) state.costs.sel = defaultCostSel();
+  while (state.costs.sel.length < 3) state.costs.sel.push("");
+  const p = state.costs.sel.map(id => cars.get(id) || null);
+  const shown = p.map((x, i) => [x, i]);
+  const lowest = Math.min(...p.filter(Boolean).map(x => x.total_low));
+  const row = (label, get, cls = "") => `<tr class="${cls}"><td>${label}</td>${shown.map(([x]) => `<td>${x ? get(x) : ""}</td>`).join("")}</tr>`;
+  const head = (label, note) => `<tr class="sect"><td colspan="${shown.length + 1}">${label}${note ? ` <span>${note}</span>` : ""}</td></tr>`;
+  // Running costs are yearly figures; "Per month" divides them by 12.
+  const per = state.costs.per, div = per === "month" ? 12 : 1, rc = v => money(v / div);
+  // Cash leaving your account each month: the instalment plus the bills. Depreciation is left out, because it is
+  // the car losing value rather than a payment, and the loan already pays for the car.
+  const cashOut = x => x.finance?.monthly != null ? x.finance.monthly + (x.road_tax + x.insurance_low + x.energy + x.extras) / 12 : null;
   return `
-  <div class="head"><div><h2>Cost of ownership</h2><p>The report's three picks side by side, a year of running costs and the loan under MAS rules. Every card on the New EVs and Used cars pages carries the same estimate for its own car.</p></div></div>
-  <div class="cost-table"><table class="t"><thead><tr><th>Per year</th>${p.map(x => `<th>${esc(x.label)}<br><a href="${esc(x.url)}" target="_blank" rel="noopener" style="text-transform:none;letter-spacing:0;font-size:12px;color:var(--accent)">${esc(x.name)}</a></th>`).join("")}</tr></thead><tbody>
-    ${row("Road tax", x => money(x.road_tax))}${row("Insurance, low", x => money(x.insurance_low))}${row("Insurance, high", x => money(x.insurance_high))}
-    ${row("Depreciation", x => money(x.depreciation))}${row("Energy", x => money(x.energy))}${row("Servicing, tyres, parking, ERP", x => money(x.extras))}
-    ${row("Total, low", x => money(x.total_low), "total")}${row("Total, high", x => money(x.total_high), "total")}
-    ${row("Deposit", x => money(x.finance?.deposit))}${row("Loan", x => money(x.finance?.loan))}${row("Monthly over 7 years", x => money(x.finance?.monthly))}${row("Monthly over 5 years", x => money(x.finance?.monthly_short))}
+  <div class="head"><div><h2>Cost of ownership</h2><p>Pick any car on the site in each column: every new car variant and every used listing. Running costs per year or per month, then the deposit and monthly loan under MAS rules. Cash out per month is the 7 year instalment plus road tax, low insurance, energy and upkeep; depreciation is not a payment, so it is left out. It opens on the report's three picks.</p></div></div>
+  <div class="seg" data-f="per" role="group" aria-label="Per year or per month" style="margin:0 0 12px">${[["year", "Per year"], ["month", "Per month"]].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${per === v}">${l}</button>`).join("")}</div>
+  <div class="cost-table"><table class="t costs"><thead><tr><th>Car</th>${shown.map(([x, i]) => `<th>${costSelect(i, state.costs.sel[i], cars)}${x ? `<div class="pickmeta">${esc(x.kind)} · ${money(x.price)}${x.extra ? `<br>${esc(x.extra)}` : ""}<br><a href="${esc(x.url)}" target="_blank" rel="noopener">Listing ↗</a></div>` : ""}</th>`).join("")}</tr></thead><tbody>
+    ${head(`Running costs, per ${per}`, per === "month" ? "the yearly figure divided by 12" : "")}
+    ${row("Road tax", x => rc(x.road_tax))}${row("Insurance, low", x => rc(x.insurance_low))}${row("Insurance, high", x => rc(x.insurance_high))}
+    ${row("Depreciation", x => rc(x.depreciation))}${row("Energy", x => rc(x.energy))}${row("Servicing, tyres, parking, ERP", x => rc(x.extras))}
+    ${row("Total, low", x => `${rc(x.total_low)}${p.filter(Boolean).length > 1 && x.total_low === lowest ? ` <span class="good">lowest</span>` : ""}`, "total")}${row("Total, high", x => rc(x.total_high), "total")}
+    ${head("Buying with the minimum deposit", "one-off amounts, then per month")}
+    ${row("Deposit, one-off", x => money(x.finance?.deposit))}${row("Loan amount", x => money(x.finance?.loan))}
+    ${row("Instalment per month, 7 years", x => money(x.finance?.monthly))}${row("Instalment per month, 5 years", x => money(x.finance?.monthly_short))}
+    ${row("Cash out per month", x => money(cashOut(x)), "total")}
   </tbody></table></div>
   <div class="guide" style="margin-top:16px">
-    <div class="g"><h3>Assumptions</h3><p>${esc(c.assumptions)}</p><p>${int(c.annual_km)} km a year. Petrol 95 at ${D.fuel?.ron95?.toFixed(2) || "n/a"} per litre, the median listed pump price before discounts, ${dmyy(D.fuel?.observed_on)}.</p></div>
+    <div class="g"><h3>Assumptions</h3><p>${esc(c.assumptions)}</p><p>${int(c.annual_km)} km a year. Petrol 95 at ${D.fuel?.ron95?.toFixed(2) || "n/a"} per litre, the median listed pump price before discounts, ${dmyy(D.fuel?.observed_on)}. A new car's depreciation is spread over 10 years; a used car's is the listing's own figure.</p></div>
     <div class="g"><h3>Loan</h3><p>Deposit is the minimum under the MAS rules: 40% of price when OMV is above $20,000, 30% otherwise. Instalments use a flat rate of ${(c.rates.new * 100).toFixed(2)}% for new and ${(c.rates.used * 100).toFixed(2)}% for used cars. The ${c.rates.tenure} year loan costs the most interest; the ${c.rates.short} year figure shows the trade off.</p>
       <p class="links">${(c.insurance_links || []).map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)}</a>`).join("")}</p></div>
   </div>`;
@@ -700,7 +752,13 @@ function show() {
   if (current !== name) { render(name); current = name; window.scrollTo({top: 0, behavior: "instant"}); }
 }
 function wire(el, name) {
-  const st = state[name];
+  el.querySelectorAll('.seg[data-f="per"]').forEach(g => g.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return; state.costs.per = b.dataset.v; render("costs");
+  }));
+  el.querySelectorAll("select.costpick").forEach(s => s.addEventListener("change", () => {
+    state.costs.sel[Number(s.dataset.i)] = s.value; render("costs");
+  }));
+  const st = name === "costs" ? null : state[name];
   if (!st) {
     el.querySelectorAll("[data-sort]").forEach(a => a.addEventListener("click", () => { state.used.sort = a.dataset.sort; state.used.shortlist = false; current = ""; }));
     return;

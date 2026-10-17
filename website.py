@@ -486,7 +486,8 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
         best_new = min(scored, key=lambda v: v.score) if scored else None
     if best_new is not None:
         try:
-            picks.append({"label": "New EV", "name": best_new.display_name, "url": best_new.listing_url, "drivetrain": "ev",
+            card_id = next((f"new-{i}" for i, v in enumerate(new_evs) if v is best_new), None)
+            picks.append({"id": card_id, "label": "New EV", "name": best_new.display_name, "url": best_new.listing_url, "drivetrain": "ev",
                           **_annual(costs.for_new_ev(best_new, cfg, today)), "finance": _fin(best_new.price_with_coe, None, cfg, True)})
         except Exception as exc:
             log.debug("no cost pick for %s: %s", best_new.display_name, exc)
@@ -496,7 +497,8 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
         top, _ = shortlist(pool, cfg, today, brand_sales=sales[kind])
         if top:
             l = top[0]
-            picks.append({"label": label, "name": f"{l.display_name} {l.year or ''}".strip(), "url": l.url, "drivetrain": l.drivetrain.value,
+            picks.append({"id": f"{l.source}-{l.listing_id}", "label": label, "name": f"{l.display_name} {l.year or ''}".strip(), "url": l.url,
+                          "drivetrain": l.drivetrain.value,
                           **_annual(costs.for_used(l, cfg, today, petrol_price)), "finance": _fin(l.price, l.omv, cfg, False)})
 
     ts = cfg.get("top_sellers", {})
