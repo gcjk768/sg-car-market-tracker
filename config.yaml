@@ -105,8 +105,8 @@ ai:
   # Extra CLI flags, for example ["--permission-mode", "plan"].
   extra_args: []
 
-# New LTA releases collected by news_watch.py (LTA's RSS feed) for the News list on the site. A release is kept when its title or summary
-# contains one of the keywords as a whole word.
+# News collected by news_watch.py for the News list on the site: LTA's RSS feed and the press feeds in sources.media_news_feeds.
+# An item from any feed is kept when its title or summary contains one of the keywords as a whole word.
 news:
   interval_minutes: 180
   window: ["08:00", "22:00"]
@@ -114,7 +114,7 @@ news:
              electric vehicle, electric vehicles, road tax, erp, electronic road pricing, vehicle quota system]
   # court and enforcement stories mention ARF and duty but are not rule changes
   exclude: [jail, prison, sentenced, convicted, fined, enforcement blitz]
-  verified_on: "2026-10-07"
+  verified_on: "2026-10-17"
 
 sources:
   # Verify each URL before first use. Note any moves in the README.
@@ -127,7 +127,8 @@ sources:
   # Sgcarmart's published best sellers: Cat A, Cat B and parallel imports, 8 models each, in its own order.
   sgcarmart_best_sellers: "https://www.sgcarmart.com/new-cars/best-selling-car-models"
   # Sgcarmart's 360 degree interior viewer: specCode is the variant photographed, carCode the model id. Model
-  # pages link it from their first photo; the site only links to it, nothing here fetches it.
+  # pages link it from their first photo (non EV model pages too, checked 2026-10-17); the site only links to the
+  # viewer, nothing here fetches it.
   sgcarmart_view360: "https://i.i-sgcm.com/new_cars/pano360_viewer.php?specCode={spec}&carCode={car}"
   sgcarmart_coe_results: "https://www.sgcarmart.com/news/coe_results.php"
   onemotoring_coe: "https://onemotoring.lta.gov.sg/content/onemotoring/home/buying/coe-open-bidding.html"
@@ -141,9 +142,11 @@ sources:
   # LTA's schedule of every bidding exercise in the year (holidays included). The 2027 file is not published yet.
   coe_schedule_pdf: "https://onemotoring.lta.gov.sg/content/dam/onemotoring/Buying/PDF/COE/COE_Bidding_Schedule_for_Year_{year}.pdf"
   lta_news_feed: "https://www.lta.gov.sg/content/ltagov/en/feed.html?category=2&count=60"
-  # Press RSS, filtered by the same news.keywords. robots.txt allows it (Crawl-delay 10 is covered by the throttle). CNA is left out: its RSS path is disallowed.
+  # Press RSS by source name (shown on each news item), filtered by the same news.keywords. The Straits Times robots.txt
+  # allows /news/singapore/rss.xml for every agent with Crawl-delay 10, which the throttle honours (checked 2026-10-17).
+  # CNA is left out: its RSS path is disallowed.
   media_news_feeds:
-    - "https://www.straitstimes.com/news/singapore/rss.xml"
+    The Straits Times: "https://www.straitstimes.com/news/singapore/rss.xml"
   datagov_coe_page: "https://data.gov.sg/datasets/d_69b3380ad7e51aff3a7dcc84eba52b8a/view"
   datagov_coe_resource: "d_69b3380ad7e51aff3a7dcc84eba52b8a"
   fuel_price: "https://www.motorist.sg/petrol-prices"
@@ -803,6 +806,10 @@ official:
   # The same car is priced the same or nearly so on both; trims of a model are usually further apart.
   price_tolerance_pct: 5
   max_age_days: 14
+  # Brands whose robots.txt disallow is read past through the shared Playwright server on the NAS. The owner's
+  # decision of 2026-10-08 allows that fallback; this project honours robots.txt for every brand not listed here.
+  # Mazda: its current price list PDF sits under /Upload, which robots.txt disallows (checked 2026-10-17).
+  playwright_robots_override: [Mazda]
   verified_on: "2026-10-17"
 
 # Full new car price list for the website (petrol and hybrid cars next to the EVs). About 38 pages at Sgcarmart's
@@ -817,6 +824,11 @@ new_cars:
                   Riddara, Fuso, Mitsubishi Fuso, UD, Scania, MAN, Iveco, Daimler, Mercedes-Benz Trucks, Volvo Trucks]
   # Electric vans, pickups and trucks on the list under car makes (checked 2026-10-17).
   exclude_models: [T3, T9R, eTerron 9, Double Cab, EW4, V7, Dispatch, Berlingo Van, ID. Buzz Cargo, eVito, eCitan, Townstar]
+  # Models the listing marks with a 360 view get the exact viewer link from their model page (the EV pages give
+  # it for electric models). At most this many model pages a run, oldest check first: about 15 minutes at the
+  # 30 second crawl delay. A page without a viewer is opened again after view360_recheck_days.
+  view360_pages_per_run: 30
+  view360_recheck_days: 30
   verified_on: "2026-10-17"
 
 used:

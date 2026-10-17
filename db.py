@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Optional
 
@@ -123,7 +123,8 @@ CREATE TABLE IF NOT EXISTS view360 (
     model_id INTEGER PRIMARY KEY,
     url TEXT NOT NULL,
     exact INTEGER NOT NULL DEFAULT 0,
-    seen_on TEXT NOT NULL
+    seen_on TEXT NOT NULL,
+    checked_on TEXT
 );
 CREATE TABLE IF NOT EXISTS fuel_prices (
     observed_on TEXT PRIMARY KEY,
@@ -176,10 +177,13 @@ class Database:
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
         # Columns added after the first release. CREATE TABLE IF NOT EXISTS skips existing tables.
-        try:
-            self.conn.execute("ALTER TABLE fuel_prices ADD COLUMN grades TEXT NOT NULL DEFAULT '{}'")
-        except sqlite3.OperationalError:
-            pass  # already there
+        for sql in ("ALTER TABLE fuel_prices ADD COLUMN grades TEXT NOT NULL DEFAULT '{}'",
+                    "ALTER TABLE view360 ADD COLUMN checked_on TEXT",
+                    "ALTER TABLE used_listings ADD COLUMN image_url TEXT"):
+            try:
+                self.conn.execute(sql)
+            except sqlite3.OperationalError:
+                pass  # already there
         self._migrate_new_car_prices()
 
     def _migrate_new_car_prices(self) -> None:
@@ -367,6 +371,18 @@ class Database:
                           " exact = MAX(view360.exact, excluded.exact), seen_on = excluded.seen_on",
                           (mid, url, int(exact), seen_on.isoformat()))
 
+    def view360_to_check(self, today: date, recheck_days: int, limit: int) -> list[tuple[int, str]]:
+        """[(model id, model page)] without an exact viewer, never opened or last opened recheck_days ago or more,
+        oldest check first."""
+        cutoff = (today - timedelta(days=recheck_days)).isoformat()
+        return [(r["model_id"], r["url"]) for r in self.conn.execute(
+            "SELECT model_id, url FROM view360 WHERE NOT exact AND (checked_on IS NULL OR checked_on <= ?)"
+            " ORDER BY checked_on, model_id LIMIT ?", (cutoff, limit))]   # SQLite sorts NULL (never checked) first
+
+    def view360_checked(self, model_ids: Iterable[int], on: date) -> None:
+        with self.tx() as c:
+            c.executemany("UPDATE view360 SET checked_on = ? WHERE model_id = ?", [(on.isoformat(), mid) for mid in model_ids])
+
     def view360(self) -> dict[int, str]:
         return {r["model_id"]: r["url"] for r in self.conn.execute("SELECT model_id, url FROM view360")}
 
@@ -441,8 +457,8 @@ class Database:
                        (source, listing_id, url, make, model, variant, drivetrain, year, reg_date,
                         mileage_km, owners, price, depreciation_per_year, coe_expiry,
                         coe_years_remaining, omv, arf, dereg_value, engine_cc, power_kw, seller_type,
-                        battery_health, flags, description, first_seen, last_seen, status, scraped_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
+                        battery_health, flags, description, image_url, first_seen, last_seen, status, scraped_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
                        ON CONFLICT(source, listing_id) DO UPDATE SET
                          url = excluded.url, make = excluded.make, model = excluded.model,
                          variant = excluded.variant, drivetrain = excluded.drivetrain,
@@ -454,14 +470,14 @@ class Database:
                          engine_cc = excluded.engine_cc,
                          power_kw = excluded.power_kw, seller_type = excluded.seller_type,
                          battery_health = excluded.battery_health, flags = excluded.flags,
-                         description = excluded.description, last_seen = excluded.last_seen,
+                         description = excluded.description, image_url = excluded.image_url, last_seen = excluded.last_seen,
                          status = 'active', scraped_at = excluded.scraped_at""",
                     (
                         l.source, l.listing_id, l.url, l.make, l.model, l.variant, l.drivetrain.value,
                         l.year, _iso(l.reg_date), l.mileage_km, l.owners, l.price,
                         l.depreciation_per_year, _iso(l.coe_expiry), l.coe_years_remaining,
                         l.omv, l.arf, l.dereg_value, l.engine_cc, l.power_kw, l.seller_type, l.battery_health,
-                        json.dumps(l.flags), l.description, first_seen, seen_on.isoformat(),
+                        json.dumps(l.flags), l.description, l.image_url, first_seen, seen_on.isoformat(),
                         l.scraped_at.isoformat(timespec="seconds"),
                     ),
                 )

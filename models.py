@@ -128,6 +128,7 @@ class UsedListing(BaseModel):
     battery_health: Optional[str] = None
     flags: list[str] = Field(default_factory=list, description="accident, as is, no warranty and similar")
     description: str = ""
+    image_url: Optional[str] = Field(default=None, description="main photo from the listing page; Motorist's is a signed S3 link valid 7 days")
     first_seen: Optional[date] = None
     last_seen: Optional[date] = None
     price_history: list["PricePoint"] = Field(default_factory=list)

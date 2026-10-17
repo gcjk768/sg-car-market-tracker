@@ -1,4 +1,5 @@
-"""LTA news releases from LTA's own RSS feed, filtered to what affects buying and owning a car."""
+"""News from RSS feeds, filtered to what affects buying and owning a car: LTA's own releases feed and the press
+feeds in sources.media_news_feeds (The Straits Times). Both are plain RSS 2.0, so one parser reads them."""
 from __future__ import annotations
 
 import html
@@ -9,6 +10,7 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 
 from scrapers.base import BaseScraper, ScraperUnavailable
+from scrapers.official import BLOCK_MARKERS, Blocked
 
 
 @dataclass(frozen=True)
@@ -17,6 +19,7 @@ class NewsItem:
     link: str
     published: str  # ISO date
     summary: str
+    source: str = "LTA"
 
 
 def _text(node: ET.Element, tag: str) -> str:
@@ -59,10 +62,15 @@ class LtaNewsScraper(BaseScraper):
     def parse(self, text: str) -> list[NewsItem]:
         return parse_feed(text)
 
-    def run(self) -> list[NewsItem]:
+    def run(self, url: str | None = None) -> list[NewsItem]:
+        """Items of one feed, LTA's when no url is given. A challenge page instead of the feed raises Blocked."""
         # the daily page cache would hide a release published after the first check of the day
         self.force = True
-        items = self.parse(self.fetch(self.cfg["sources"]["lta_news_feed"]))
+        url = url or self.cfg["sources"]["lta_news_feed"]
+        text = self.fetch(url)
+        if "<rss" not in text[:3000] and any(m in text[:3000].lower() for m in BLOCK_MARKERS):
+            raise Blocked(url)
+        items = self.parse(text)
         if not items:
-            raise ScraperUnavailable("lta_news: empty feed")
+            raise ScraperUnavailable(f"lta_news: empty feed {url}")
         return items

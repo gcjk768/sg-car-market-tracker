@@ -119,6 +119,8 @@ class UsedScraperBase(BaseScraper):
     sold_marker: ClassVar[Optional[re.Pattern]] = None
     # Site specific label synonyms, lower case, checked before the generic ones.
     labels: ClassVar[dict[str, tuple[str, ...]]] = {}
+    # The listing's main photo on its detail page: CSS selector and the attribute holding the link.
+    photo: ClassVar[tuple[str, str]] = ('meta[property="og:image"]', "content")
 
     GENERIC_LABELS: ClassVar[dict[str, tuple[str, ...]]] = {
         "price": ("price", "asking"),
@@ -283,6 +285,9 @@ class UsedScraperBase(BaseScraper):
                 or is_commercial_model(title, f.get("exclude_models", []))):
             flags.append("commercial vehicle")
         battery = self._label(values, "battery") if drivetrain == Drivetrain.ev else None
+        photo = tree.css_first(self.photo[0])
+        src = photo.attributes.get(self.photo[1]) if photo else None
+        image_url = urljoin(card["url"], src) if src else None
 
         listing = UsedListing(
             source=self.name,
@@ -309,6 +314,7 @@ class UsedScraperBase(BaseScraper):
             battery_health=battery,
             flags=flags,
             description=description[:2000],
+            image_url=image_url if image_url and image_url.startswith("http") else None,
         )
         # A field the page labels but leaves blank ("Mileage N.A.") is not a parser miss, and the
         # model cannot find it either.

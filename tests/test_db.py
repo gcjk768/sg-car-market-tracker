@@ -39,6 +39,17 @@ def test_used_listing_new_then_drop_then_gone(tmp_path):
     assert db.count_gone_since(d2) == 1
 
 
+def test_image_url_column_is_added_to_an_old_database(tmp_path):
+    db = Database(tmp_path / "t.db")
+    db.conn.execute("ALTER TABLE used_listings DROP COLUMN image_url")   # the table as it was before photos
+    db.close()
+    db = Database(tmp_path / "t.db")
+    db.upsert_used_listings([_listing(image_url="https://i.i-sgcm.com/cars_used/202609/1_1.jpg")], date(2026, 10, 17))
+    assert db.active_listings()[0].image_url == "https://i.i-sgcm.com/cars_used/202609/1_1.jpg"
+    db.upsert_used_listings([_listing(image_url="https://i.i-sgcm.com/cars_used/202609/1_2.jpg")], date(2026, 10, 18))
+    assert db.active_listings()[0].image_url == "https://i.i-sgcm.com/cars_used/202609/1_2.jpg"
+
+
 def test_run_bookkeeping(tmp_path):
     db = Database(tmp_path / "t.db")
     today = date(2026, 9, 29)
@@ -58,6 +69,32 @@ def test_fuel_price_roundtrip(tmp_path):
     db.upsert_fuel_price(FuelPrice(observed_on=date(2026, 9, 29), ron95_per_litre=3.48, by_brand={"SPC": 3.46, "Cnergy": 2.54}, source="t"))
     latest = db.latest_fuel_price()
     assert latest.ron95_per_litre == 3.48 and latest.by_brand == {"SPC": 3.46, "Cnergy": 2.54}
+
+
+def test_view360_to_check_skips_exact_and_recent_checks_never_checked_first(tmp_path):
+    db = Database(tmp_path / "t.db")
+    today = date(2026, 10, 17)
+    page = "https://www.sgcarmart.com/new-cars/info/{}/x"
+    db.put_view360({m: page.format(m) for m in (1, 2, 3, 4)}, today, exact=False)
+    db.put_view360({5: "https://i.i-sgcm.com/new_cars/pano360_viewer.php?specCode=1&carCode=5"}, today, exact=True)
+    db.view360_checked([1], date(2026, 9, 17))     # 30 days ago: due again
+    db.view360_checked([2], date(2026, 10, 1))     # 16 days ago: not yet
+    db.view360_checked([3], date(2026, 8, 1))      # oldest check
+    assert db.view360_to_check(today, 30, 10) == [(4, page.format(4)), (3, page.format(3)), (1, page.format(1))]
+    assert db.view360_to_check(today, 30, 2) == [(4, page.format(4)), (3, page.format(3))]
+
+
+def test_view360_checked_on_is_added_to_an_existing_database(tmp_path):
+    import sqlite3
+    old = sqlite3.connect(tmp_path / "t.db")
+    old.execute("CREATE TABLE view360 (model_id INTEGER PRIMARY KEY, url TEXT NOT NULL, exact INTEGER NOT NULL DEFAULT 0, seen_on TEXT NOT NULL)")
+    old.execute("INSERT INTO view360 VALUES (7, 'https://www.sgcarmart.com/new-cars/info/7/x', 0, '2026-10-16')")
+    old.commit()
+    old.close()
+    db = Database(tmp_path / "t.db")
+    assert db.view360_to_check(date(2026, 10, 17), 30, 5) == [(7, "https://www.sgcarmart.com/new-cars/info/7/x")]
+    db.view360_checked([7], date(2026, 10, 17))
+    assert db.view360_to_check(date(2026, 10, 17), 30, 5) == []
 
 
 def test_view360_keeps_the_exact_viewer_and_drops_models_that_lost_it(tmp_path):

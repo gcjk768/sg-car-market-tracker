@@ -1,6 +1,6 @@
 """The website data file: built from the database, every car with its costings, written atomically."""
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 import pytest
 
@@ -159,3 +159,30 @@ def test_cards_carry_the_360_view_of_their_model(cfg, tmp_path, offline):
     rx = next(c for c in data["new_cars"] if c["model"] == "RX 350h Hybrid")
     assert rx["view360"] == "https://www.sgcarmart.com/new-cars/info/21700/lexus-rx-350h-hybrid"
     assert all(c.get("view360") is None for c in data["new_cars"] + data["new_evs"] if c is not rx)
+
+
+def test_used_cards_carry_the_photo_and_drop_expired_signed_links(cfg, tmp_path, offline):
+    db = _db(tmp_path)
+    s3 = "https://motoristprod.s3.ap-southeast-1.amazonaws.com/private_uploads/sale_photo/image/1/thumb_a.jpeg?X-Amz-Expires=604800&X-Amz-Date="
+    now = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    cars = {"3": "https://i.i-sgcm.com/cars_used/202610/3_1.jpg", "4": s3 + now, "5": s3 + "20261001T000000Z", "6": None}
+    db.upsert_used_listings([UsedListing(source="motorist", listing_id=i, url=f"https://x/{i}", make="BYD", model="Dolphin",
+                                         drivetrain=Drivetrain.ev, price=100000, image_url=u) for i, u in cars.items()], TODAY)
+    data = site.build(cfg, db, TODAY, "ua")
+    image = {c["id"]: c["image"] for c in data["used"]}
+    assert image["motorist-3"] == cars["3"]          # Sgcarmart style, unsigned: kept
+    assert image["motorist-4"] == cars["4"]          # signed today, valid 7 days: kept
+    assert image["motorist-5"] is None               # signed 1 October, expired: never shown
+    assert image["motorist-6"] is None
+
+
+def test_live_photo_needs_a_day_of_signature_left():
+    url = "https://s3/x.jpg?X-Amz-Expires=604800&X-Amz-Date=20261010T120000Z"
+    assert site.live_photo(url, datetime(2026, 10, 16, 11, 0, tzinfo=timezone.utc)) == url    # 25 hours left
+    assert site.live_photo(url, datetime(2026, 10, 16, 13, 0, tzinfo=timezone.utc)) is None   # 23 hours left
+    assert site.live_photo("https://s3/x.jpg?X-Amz-Date=bad", datetime(2026, 10, 16, tzinfo=timezone.utc)) is None
+    # Parsable but too big for a timedelta or datetime: no photo, never a crashed site build
+    now = datetime(2026, 10, 17, tzinfo=timezone.utc)
+    assert site.live_photo("https://s3/x.jpg?X-Amz-Date=20261017T000000Z&X-Amz-Expires=99999999999999", now) is None
+    assert site.live_photo("https://s3/x.jpg?X-Amz-Date=99991231T000000Z&X-Amz-Expires=604800", now) is None
+    assert site.live_photo(None, datetime(2026, 10, 16, tzinfo=timezone.utc)) is None

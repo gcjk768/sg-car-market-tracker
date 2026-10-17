@@ -19,7 +19,7 @@ from scrapers.coe import DataGovCoeScraper, ensure_schedule, scrape_coe
 from scrapers.fuel_cnergy import scrape_cnergy
 from scrapers.fuel_price import pick_price, scrape_fuel_price
 from scrapers.new_cars import scrape_new_cars
-from scrapers.new_ev import scrape_new_evs, view360_links
+from scrapers.new_ev import exact_view360, scrape_new_evs, view360_links
 from scrapers.official import scrape_official
 from scrapers.registrations import scrape_body_types, scrape_registrations
 from scrapers.used_carro import CarroUsedScraper
@@ -37,9 +37,9 @@ USED_SCRAPERS = {
 # Scrape steps per --section, in run order.
 SECTION_STEPS = {
     "coe": ("coe",),
-    "new": ("new_ev", "new_cars", "official"),
+    "new": ("new_ev", "new_cars", "view360", "official"),
     "used": ("fuel", "used"),
-    "all": ("fuel", "coe", "used", "new_ev", "new_cars", "official"),
+    "all": ("fuel", "coe", "used", "new_ev", "new_cars", "view360", "official"),
 }
 
 
@@ -184,6 +184,24 @@ class Pipeline:
         except Exception as exc:
             log.error("new car listing failed: %s", exc)
             self.unavailable["new_cars"] = str(exc)
+
+    def run_view360(self) -> None:
+        """Exact 360 viewer links for the models whose page the EV scraper does not open: a capped number of
+        model pages a run, oldest check first. A page without a viewer is not opened again for the recheck days."""
+        nc = self.cfg.get("new_cars", {})
+        if not nc.get("enabled"):
+            return
+        try:
+            todo = self.db.view360_to_check(self.run_date, nc.get("view360_recheck_days", 30), nc.get("view360_pages_per_run", 30))
+            if not todo:
+                return
+            links, checked = exact_view360(self.cfg, self.ua, self.run_date, self.force, todo)
+            self.db.put_view360(links, self.run_date, exact=True)
+            self.db.view360_checked(checked, self.run_date)
+            log.info("360 viewer check: %d model pages, %d exact links", len(checked), len(links))
+            vault.event("🔄", "360 viewer check", f"{len(checked)} model pages, {len(links)} exact links")
+        except Exception as exc:
+            log.error("360 viewer check failed: %s", exc)   # links only; the site keeps the model page link
 
     def run_official(self) -> None:
         """Prices from the brands' own websites."""

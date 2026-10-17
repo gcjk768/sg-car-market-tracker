@@ -1,0 +1,358 @@
+0	24	2	Price figures reflected are accurate at the time of print. Trans Eurokars Pte Ltd reserves the right to amend prices without prior notice.
+0	1949	511	Price figures reflected are accurate at the time of print. Trans Eurokars Pte Ltd reserves the right to amend prices without prior notice.
+0	248	1034	Price list valid from
+0	248	1880	to
+0	31	0	M A Z D A  3  H A T C H B A C K
+0	69	133	M - H Y B R I D
+0	1771	751	M A Z D A  3  H A T C H B A C K / M - H Y B R I D
+0	790	1461	L I S T  P R I C E
+0	790	1845	E F F E C T I V E  P R I C E
+0	790	1008	V A R I A N T
+0	591	735	P R I C E  L I S T :  C A T E G O R Y  A
+0	794	263	C A T E G O R Y  A  M O D E L
+0	317	1643	Updated on
+0	31	1	M A Z D A  2
+0	1025	488	M A Z D A  2
+0	31	0	M A Z D A  3  S E D A N
+0	70	72	M - H Y B R I D
+0	1365	407	M A Z D A  3  S E D A N / M - H Y B R I D
+0	27	1	VES Band A2: 5.2L/100km
+0	1068	420	VES Band A2: 5.2L/100km
+0	27	0	VES Band B: 5.9L/100km
+0	1461	430	VES Band B: 5.9L/100km
+0	27	0	VES Band B: 5.9L/100km
+0	1862	430	VES Band B: 5.9L/100km
+0	996	926	1.5L Hatchback Sports
+0	1222	921	1.5L Sedan Classic Plus
+0	1481	962	1.5L Sedan Luxury
+0	1739	926	1.5L Hatchback Astina
+0	40	2	M A Z D A  S H O W R O O M S
+0	3058	1140	M A Z D A  S H O W R O O M S
+0	24	1	For more information please visit
+0	24	369	www.mazda.com.sg.
+0	24	609	For corporate sales contact
+0	24	912	corporatesales@mazda.com.sg
+0	24	1256	or
+0	57	125	9888 9981. For leasing options contact
+0	57	564	leasing@eurokars.com.sg
+0	57	844	or 9363 5809 / 9107 3244.
+0	3285	722	For more information please visit www.mazda.com.sg. For corporate sales contact corporatesales@mazda.com.sg or / 9888 9981. For leasing options contact leasing@eurokars.com.sg or 9363 5809 / 9107 3244.
+0	27	2	1 Kung Chong Road
+0	27	276	|
+0	27	298	Singapore 159139
+0	66	134	Sales Tel: 6395 8888
+0	3152	730	1 Kung Chong Road  |  Singapore 159139 / Sales Tel: 6395 8888
+0	27	1	23 Leng Kee Road
+0	27	254	|
+0	27	277	Singapore 159095
+0	66	122	Sales Tel: 6603 6118
+0	3152	1487	23 Leng Kee Road  |  Singapore 159095 / Sales Tel: 6603 6118
+0	1348	938	1.5L Sedan Executive
+0	994	1507	$237,888
+0	994	1965	$194,888
+0	1215	1507	$249,888
+0	1348	1507	$255,888
+0	1476	1507	$260,888
+0	1222	1965	$206,888
+0	1348	1965	$212,888
+0	1476	1965	$217,888
+0	1739	1507	$264,888
+0	1739	1965	$221,888
+0	245	1549	08-Oct-2026
+0	245	2020	21-Oct-2026
+0	314	2020	08-Oct-2026
+0	850	0	Price figures reflected are accurate at the time of print. Trans Eurokars Pte Ltd reserves the right to amend prices without prior notice. / Price list valid from                               to                                   / M A Z D A  3  H A T C H B A C K / M - H Y B R I D / L I S T  P R I C E E F F E C T I V E  P R I C EV A R I A N T / P R I C E  L I S T :  C A T E G O R Y  A / C A T E G O R Y  A  M O D E L / Updated on / M A Z D A  2 / M A Z D A  3  S E D A N / M - H Y B R I D / VES Band A2: 5.2L/100km / VES Band B: 5.9L/100km / VES Band B: 5.9L/100km / 1.5L Hatchback Sports / 1.5L Sedan Classic Plus / 1.5L Sedan Luxury / 1.5L Hatchback Astina / M A Z D A  S H O W R O O M S / For more information please visit www.mazda.com.sg. For corporate sales contact corporatesales@mazda.com.sg or / 9888 9981. For leasing options contact leasing@eurokars.com.sg or 9363 5809 / 9107 3244. / 1 Kung Chong Road  |  Singapore 159139 / Sales Tel: 6395 8888 / 23 Leng Kee Road  |  Singapore 159095 / Sales Tel: 6603 6118 / 1.5L Sedan Executive / $237,888 $194,888 / $249,888 / $255,888 / $260,888 / $206,888 / $212,888 / $217,888 / $264,888 $221,888 / 08-Oct-2026 21-Oct-2026 / 08-Oct-2026
+1	496	193	M O D E L
+1	583	193	L I S T  P R I C E
+1	671	193	V E S
+1	758	193	F I N A N C E  A N D  I N S U R A N C E  R E B A T E S
+1	933	193	P R O M O T I O N
+1	1108	193	F I N A L  P R I C E
+1	1196	193	D O W N  P A Y M E N T
+1	1283	193	L O A N  A M O U N T
+1	1371	193	I N T E R E S T  A N D  T E N U R E
+1	1458	193	M O N T H L Y  I N S T A L L M E N T
+1	1546	193	T R A D E  I N
+1	1633	193	O U T S T A N D I N G  L O A N
+1	1721	193	B A L A N C E  P A Y M E N T
+1	1896	193	R E M A R K S
+1	31	51	The following entries, figures and numbers are for illustration purposes only and shall not constitute any binding offer or
+1	76	0	quotation by Trans Eurokars Pte Ltd, nor be construed as creating any binding obligations on the part of Trans Eurokars Pte Ltd.
+1	713	382	The following entries, figures and numbers are for illustration purposes only and shall not constitute any binding offer or / quotation by Trans Eurokars Pte Ltd, nor be construed as creating any binding obligations on the part of Trans Eurokars Pte Ltd.
+1	28	1	Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat. COE (Cat.
+1	67	1	E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same month of successful
+1	106	1	COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 3 years / 100,000km (whichever comes first)
+1	144	1	New Car Warranty and Standard 3 Free servicing - 1st 1,000 km, 5,000 km & 10,000km. Strictly no changes are permitted to model or color after booking. Prices are subject to
+1	183	1	change without prior notice. All prevailing taxes shall be borne by the Customer.
+1	3498	192	Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat. COE (Cat. / E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same month of successful / COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 3 years / 100,000km (whichever comes first) / New Car Warranty and Standard 3 Free servicing - 1st 1,000 km, 5,000 km & 10,000km. Strictly no changes are permitted to model or color after booking. Prices are subject to / change without prior notice. All prevailing taxes shall be borne by the Customer.
+1	28	1	Terms and Conditions apply. Specifications may vary.
+1	105	1	All prices quoted include OBU, Number Plate, Registration fee, 6 months Road Tax, 9% GST and any VES rebate or surcharge where applicable.
+1	144	1	Insurance subsidy subject to in-house insurance plan.
+1	183	1	Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years.
+1	222	1	Additional top up of $1,000 for for Machine Gray or Soul Red Crystal is required on all MAZDA models.
+1	261	1	Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models.
+1	300	1	Trade-In bonus of $35,000.
+1	339	1	^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan.
+1	2536	229	Terms and Conditions apply. Specifications may vary. / All prices quoted include OBU, Number Plate, Registration fee, 6 months Road Tax, 9% GST and any VES rebate or surcharge where applicable. / Insurance subsidy subject to in-house insurance plan. / Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years. / Additional top up of $1,000 for for Machine Gray or Soul Red Crystal is required on all MAZDA models. / Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models. / Trade-In bonus of $35,000. / ^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan.
+1	27	1	COE BIDDING REBATE LEVEL for CAT A:
+1	66	1	$90,000 Guaranteed COE Plan
+1	105	1	$85,000 Non-Guaranteed COE Plan
+1	3239	229	COE BIDDING REBATE LEVEL for CAT A: / $90,000 Guaranteed COE Plan / $85,000 Non-Guaranteed COE Plan
+1	27	0	COE BIDDING PACKAGE:
+1	66	0	Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales Agreement
+1	105	0	("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bid shall be governed by the terms of the
+1	144	0	COE Bidding Agreement.
+1	3239	964	COE BIDDING PACKAGE: / Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales Agreement / ("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bid shall be governed by the terms of the / COE Bidding Agreement.
+1	27	1	Booking Deposits:
+1	81	1	Booking deposit:
+1	81	378	$12,800
+1	115	1	Indent Booking Deposit:
+1	115	376	$25,600
+1	2998	230	Booking Deposits: / Booking deposit:                     $12,800 / Indent Booking Deposit:        $25,600
+1	27	0	Off Peak Car Package:
+1	81	0	Inclusive of 1 year Road Tax, Road Tax
+1	115	0	rebate & OPC rebate
+1	115	355	($17,000)
+1	2998	823	Off Peak Car Package: / Inclusive of 1 year Road Tax, Road Tax / rebate & OPC rebate           ($17,000)
+1	27	1	Rebates & Subsidies:
+1	81	1	In-house finance rebate
+1	81	450	$2,000
+1	115	1	Insurance subsidy for 1 year plan
+1	115	450	$1,000
+1	2998	1421	Rebates & Subsidies: / In-house finance rebate                   $2,000 / Insurance subsidy for 1 year plan    $1,000
+1	27	1	6 Months Road Tax
+1	81	1	1.5L
+1	81	125	$341
+1	2998	2066	6 Months Road Tax / 1.5L         $341
+1	850	0	M O D E L / L I S T  P R I C E / V E S / F I N A N C E  A N D  I N S U R A N C E  R E B A T E S / P R O M O T I O N / F I N A L  P R I C E / D O W N  P A Y M E N T / L O A N  A M O U N T / I N T E R E S T  A N D  T E N U R E / M O N T H L Y  I N S T A L L M E N T / T R A D E  I N / O U T S T A N D I N G  L O A N / B A L A N C E  P A Y M E N T / R E M A R K S / The following entries, figures and numbers are for illustration purposes only and shall not constitute any binding offer or / quotation by Trans Eurokars Pte Ltd, nor be construed as creating any binding obligations on the part of Trans Eurokars Pte Ltd. / Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat. COE (Cat. / E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same month of successful / COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 3 years / 100,000km (whichever comes first) / New Car Warranty and Standard 3 Free servicing - 1st 1,000 km, 5,000 km & 10,000km. Strictly no changes are permitted to model or color after booking. Prices are subject to / change without prior notice. All prevailing taxes shall be borne by the Customer. / Terms and Conditions apply. Specifications may vary. / All prices quoted include OBU, Number Plate, Registration fee, 6 months Road Tax, 9% GST and any VES rebate or surcharge where applicable. / Insurance subsidy subject to in-house insurance plan. / Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years. / Additional top up of $1,000 for for Machine Gray or Soul Red Crystal is required on all MAZDA models. / Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models. / Trade-In bonus of $35,000. / ^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan. / COE BIDDING REBATE LEVEL for CAT A: / $90,000 Guaranteed COE Plan / $85,000 Non-Guaranteed COE Plan / COE BIDDING PACKAGE: / Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales Agreement / ("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bid shall be governed by the terms of the / COE Bidding Agreement. / Booking Deposits: / Booking deposit:                     $12,800 / Indent Booking Deposit:        $25,600 / Off Peak Car Package: / Inclusive of 1 year Road Tax, Road Tax / rebate & OPC rebate           ($17,000) / Rebates & Subsidies: / In-house finance rebate                   $2,000 / Insurance subsidy for 1 year plan    $1,000 / 6 Months Road Tax / 1.5L         $341
+2	248	1034	Price list valid from
+2	248	1880	to
+2	23	1	Price figures reflected are accurate at the time of print. Trans Eurokars Pte Ltd reserves the right to amend prices without prior notice.
+2	1776	985	Price figures reflected are accurate at the time of print. Trans Eurokars Pte Ltd reserves the right to amend prices without prior notice.
+2	31	0	M A Z D A  C X - 5
+2	70	31	M - H Y B R I D
+2	937	853	M A Z D A  C X - 5 / M - H Y B R I D
+2	27	0	VES Band B: 6.9L/100km
+2	1024	829	VES Band B: 6.9L/100km
+2	31	1	M A Z D A  C X - 6 0
+2	1292	847	M A Z D A  C X - 6 0
+2	27	2	VES Band C1: 7.8L/100km
+2	1338	825	VES Band C1: 7.8L/100km
+2	31	2	M A Z D A  C X - 8 0  P H E V
+2	1599	796	M A Z D A  C X - 8 0  P H E V
+2	27	2	VES Band B: 1.6L/100km | 22.5 kWh/100km
+2	1646	709	VES Band B: 1.6L/100km | 22.5 kWh/100km
+2	720	265	C A T E G O R Y  B  M O D E L
+2	720	1461	L I S T  P R I C E
+2	720	1845	E F F E C T I V E  P R I C E
+2	720	1008	V A R I A N T
+2	536	740	P R I C E  L I S T :  C A T E G O R Y  B
+2	317	1656	Updated on
+2	854	1018	2.0L Luxury
+2	1011	962	2.0L Luxury Sports
+2	1246	1018	2.5L Luxury
+2	1557	878	2.5L Luxury Sports (7 seater)
+2	40	1	M A Z D A  S H O W R O O M S
+2	3058	1146	M A Z D A  S H O W R O O M S
+2	24	2	For more information please visit
+2	24	369	www.mazda.com.sg.
+2	24	610	For corporate sales contact
+2	24	913	corporatesales@mazda.com.sg
+2	24	1257	or
+2	57	126	9888 9981. For leasing options contact
+2	57	564	leasing@eurokars.com.sg
+2	57	844	or 9363 5809 / 9107 3244.
+2	3285	727	For more information please visit www.mazda.com.sg. For corporate sales contact corporatesales@mazda.com.sg or / 9888 9981. For leasing options contact leasing@eurokars.com.sg or 9363 5809 / 9107 3244.
+2	27	3	1 Kung Chong Road
+2	27	277	|
+2	27	299	Singapore 159139
+2	66	135	Sales Tel: 6395 8888
+2	3152	735	1 Kung Chong Road  |  Singapore 159139 / Sales Tel: 6395 8888
+2	27	2	23 Leng Kee Road
+2	27	255	|
+2	27	278	Singapore 159095
+2	66	123	Sales Tel: 6603 6118
+2	3152	1492	23 Leng Kee Road  |  Singapore 159095 / Sales Tel: 6603 6118
+2	855	1507	$293,888
+2	1011	1507	$313,888
+2	1245	1507	$370,888
+2	1563	1507	$410,888
+2	854	1965	$245,888
+2	1011	1965	$265,888
+2	1245	1971	$322,888
+2	1563	1971	$362,888
+2	241	1544	08-Oct-2026
+2	314	2010	08-Oct-2026
+2	241	2010	21-Oct-2026
+2	850	0	Price list valid from                               to                                   / Price figures reflected are accurate at the time of print. Trans Eurokars Pte Ltd reserves the right to amend prices without prior notice. / M A Z D A  C X - 5 / M - H Y B R I D / VES Band B: 6.9L/100km / M A Z D A  C X - 6 0 / VES Band C1: 7.8L/100km / M A Z D A  C X - 8 0  P H E V / VES Band B: 1.6L/100km | 22.5 kWh/100km / C A T E G O R Y  B  M O D E L L I S T  P R I C E E F F E C T I V E  P R I C EV A R I A N T /  P R I C E  L I S T :  C A T E G O R Y  B   / Updated on / 2.0L Luxury / 2.0L Luxury Sports / 2.5L Luxury / 2.5L Luxury Sports (7 seater) / M A Z D A  S H O W R O O M S / For more information please visit www.mazda.com.sg. For corporate sales contact corporatesales@mazda.com.sg or / 9888 9981. For leasing options contact leasing@eurokars.com.sg or 9363 5809 / 9107 3244. / 1 Kung Chong Road  |  Singapore 159139 / Sales Tel: 6395 8888 / 23 Leng Kee Road  |  Singapore 159095 / Sales Tel: 6603 6118 / $293,888 / $313,888 / $370,888 / $410,888 / $245,888 / $265,888 / $322,888 / $362,888 / 08-Oct-2026 / 08-Oct-2026 / 21-Oct-2026
+3	496	193	M O D E L
+3	583	193	L I S T  P R I C E
+3	671	193	V E S
+3	758	193	F I N A N C E  A N D  I N S U R A N C E  R E B A T E S
+3	933	193	P R O M O T I O N
+3	1108	193	F I N A L  P R I C E
+3	1196	193	D O W N  P A Y M E N T
+3	1283	193	L O A N  A M O U N T
+3	1371	193	I N T E R E S T  A N D  T E N U R E
+3	1458	193	M O N T H L Y  I N S T A L L M E N T
+3	1546	193	T R A D E  I N
+3	1633	193	O U T S T A N D I N G  L O A N
+3	1721	193	B A L A N C E  P A Y M E N T
+3	1896	193	R E M A R K S
+3	31	51	The following entries, figures and numbers are for illustration purposes only and shall not constitute any binding offer or
+3	76	0	quotation by Trans Eurokars Pte Ltd, nor be construed as creating any binding obligations on the part of Trans Eurokars Pte Ltd.
+3	713	382	The following entries, figures and numbers are for illustration purposes only and shall not constitute any binding offer or / quotation by Trans Eurokars Pte Ltd, nor be construed as creating any binding obligations on the part of Trans Eurokars Pte Ltd.
+3	28	1	Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat.
+3	67	1	COE (Cat. E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same
+3	106	1	month of successful COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 3 years /
+3	144	1	100,000km (whichever comes first) New Car Warranty and Standard 3 Free servicing - 1st 1,000 km, 5,000 km & 10,000km. Strictly no changes are permitted to
+3	183	1	model or color after booking. Prices are subject to change without prior notice. All prevailing taxes shall be borne by the Customer.
+3	3498	229	Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat. / COE (Cat. E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same / month of successful COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 3 years / / 100,000km (whichever comes first) New Car Warranty and Standard 3 Free servicing - 1st 1,000 km, 5,000 km & 10,000km. Strictly no changes are permitted to / model or color after booking. Prices are subject to change without prior notice. All prevailing taxes shall be borne by the Customer.
+3	28	1	Terms and Conditions apply. Specifications may vary.
+3	105	1	All prices quoted include IU, Number Plate, Registration fee, 9% GST and any VES rebate or surcharge where applicable.
+3	144	1	Insurance subsidy subject to in-house insurance plan.
+3	183	1	Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years.
+3	222	1	Additional top up of $1,000 for for Machine Gray or Soul Red Crystal is required on all MAZDA models.
+3	261	1	Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models.
+3	300	1	Trade-In bonus of $40,000.
+3	339	1	^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan.
+3	2536	229	Terms and Conditions apply. Specifications may vary. / All prices quoted include IU, Number Plate, Registration fee, 9% GST and any VES rebate or surcharge where applicable. / Insurance subsidy subject to in-house insurance plan. / Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years. / Additional top up of $1,000 for for Machine Gray or Soul Red Crystal is required on all MAZDA models. / Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models. / Trade-In bonus of $40,000. / ^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan.
+3	27	1	COE BIDDING REBATE LEVEL for CAT B:
+3	66	1	$100,000 Guaranteed COE Plan
+3	105	1	$95,000 Non-Guaranteed COE Plan
+3	3239	229	COE BIDDING REBATE LEVEL for CAT B: / $100,000 Guaranteed COE Plan / $95,000 Non-Guaranteed COE Plan
+3	27	1	COE BIDDING PACKAGE:
+3	66	1	Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales
+3	105	1	Agreement ("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bids shall be governed
+3	144	1	by the terms of the COE Bidding Agreement.
+3	3239	961	COE BIDDING PACKAGE: / Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales / Agreement ("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bids shall be governed / by the terms of the COE Bidding Agreement.
+3	27	1	Booking Deposits:
+3	81	1	Booking deposit
+3	81	360	$12,800
+3	115	1	Indent Booking Deposit
+3	115	358	$25,600
+3	2998	230	Booking Deposits: / Booking deposit                    $12,800 / Indent Booking Deposit       $25,600
+3	27	0	Off Peak Car Package:
+3	81	0	Inclusive of 1 year Road Tax, Road Tax
+3	115	0	rebate & OPC rebate
+3	115	355	($17,000)
+3	2998	823	Off Peak Car Package: / Inclusive of 1 year Road Tax, Road Tax / rebate & OPC rebate           ($17,000)
+3	27	1	Rebates & Subsidies:
+3	81	1	In-house finance rebate
+3	81	450	$2,000
+3	115	1	Insurance subsidy for 1 year plan
+3	115	450	$1,000
+3	2998	1421	Rebates & Subsidies: / In-house finance rebate                   $2,000 / Insurance subsidy for 1 year plan    $1,000
+3	27	1	6 Months Road Tax:
+3	81	1	2.0L
+3	81	193	$605
+3	115	1	2.5L
+3	115	193	$893
+3	2998	2066	6 Months Road Tax:    / 2.0L                  $605 / 2.5L                  $893
+3	850	0	M O D E L / L I S T  P R I C E / V E S / F I N A N C E  A N D  I N S U R A N C E  R E B A T E S / P R O M O T I O N / F I N A L  P R I C E / D O W N  P A Y M E N T / L O A N  A M O U N T / I N T E R E S T  A N D  T E N U R E / M O N T H L Y  I N S T A L L M E N T / T R A D E  I N / O U T S T A N D I N G  L O A N / B A L A N C E  P A Y M E N T / R E M A R K S / The following entries, figures and numbers are for illustration purposes only and shall not constitute any binding offer or / quotation by Trans Eurokars Pte Ltd, nor be construed as creating any binding obligations on the part of Trans Eurokars Pte Ltd. / Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat. / COE (Cat. E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same / month of successful COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 3 years / / 100,000km (whichever comes first) New Car Warranty and Standard 3 Free servicing - 1st 1,000 km, 5,000 km & 10,000km. Strictly no changes are permitted to / model or color after booking. Prices are subject to change without prior notice. All prevailing taxes shall be borne by the Customer. / Terms and Conditions apply. Specifications may vary. / All prices quoted include IU, Number Plate, Registration fee, 9% GST and any VES rebate or surcharge where applicable. / Insurance subsidy subject to in-house insurance plan. / Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years. / Additional top up of $1,000 for for Machine Gray or Soul Red Crystal is required on all MAZDA models. / Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models. / Trade-In bonus of $40,000. / ^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan. / COE BIDDING REBATE LEVEL for CAT B: / $100,000 Guaranteed COE Plan / $95,000 Non-Guaranteed COE Plan / COE BIDDING PACKAGE: / Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales / Agreement ("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bids shall be governed / by the terms of the COE Bidding Agreement. / Booking Deposits: / Booking deposit                    $12,800 / Indent Booking Deposit       $25,600 / Off Peak Car Package: / Inclusive of 1 year Road Tax, Road Tax / rebate & OPC rebate           ($17,000) / Rebates & Subsidies: / In-house finance rebate                   $2,000 / Insurance subsidy for 1 year plan    $1,000 / 6 Months Road Tax:    / 2.0L                  $605 / 2.5L                  $893
+4	248	1034	Price list valid from
+4	248	1880	to
+4	31	1	M A Z D A 6 e  F A S T B A C K
+4	1211	781	M A Z D A 6 e  F A S T B A C K
+4	27	1	VES Band A: 16.1kWh/100km
+4	1261	806	VES Band A: 16.1kWh/100km
+4	914	1461	L I S T  P R I C E
+4	914	1845	E F F E C T I V E  P R I C E
+4	914	1008	V A R I A N T
+4	917	391	E V  M O D E L
+4	1250	1088	GT
+4	1058	1060	Sports
+4	23	2	Price figures reflected are accurate at the time of print. Trans Eurokars Pte Ltd reserves the right to amend prices without prior notice.
+4	1445	591	Price figures reflected are accurate at the time of print. Trans Eurokars Pte Ltd reserves the right to amend prices without prior notice.
+4	650	595	P R I C E  L I S T :  E L E C T R I C  V E H I C L E S
+4	317	1643	Updated on
+4	40	2	M A Z D A  S H O W R O O M S
+4	3068	1084	M A Z D A  S H O W R O O M S
+4	24	1	For more information please visit
+4	24	369	www.mazda.com.sg.
+4	24	609	For corporate sales contact
+4	24	912	corporatesales@mazda.com.sg
+4	24	1256	or
+4	57	125	9888 9981. For leasing options contact
+4	57	564	leasing@eurokars.com.sg
+4	57	844	or 9363 5809 / 9107 3244.
+4	3295	666	For more information please visit www.mazda.com.sg. For corporate sales contact corporatesales@mazda.com.sg or / 9888 9981. For leasing options contact leasing@eurokars.com.sg or 9363 5809 / 9107 3244.
+4	27	2	1 Kung Chong Road
+4	27	276	|
+4	27	298	Singapore 159139
+4	66	134	Sales Tel: 6395 8888
+4	3162	674	1 Kung Chong Road  |  Singapore 159139 / Sales Tel: 6395 8888
+4	27	1	23 Leng Kee Road
+4	27	254	|
+4	27	277	Singapore 159095
+4	66	122	Sales Tel: 6603 6118
+4	3162	1431	23 Leng Kee Road  |  Singapore 159095 / Sales Tel: 6603 6118
+4	239	1545	08-Oct-2026
+4	241	2018	21-Oct-2026
+4	314	2018	08-Oct-2026
+4	1058	1512	$277,888
+4	1253	1512	$283,888
+4	1058	1947	$229,888
+4	1253	1947	$235,888
+4	850	0	Price list valid from                               to                                   / M A Z D A 6 e  F A S T B A C K / VES Band A: 16.1kWh/100km / L I S T  P R I C E E F F E C T I V E  P R I C EV A R I A N TE V  M O D E L / GT / Sports / Price figures reflected are accurate at the time of print. Trans Eurokars Pte Ltd reserves the right to amend prices without prior notice. / P R I C E  L I S T :  E L E C T R I C  V E H I C L E S / Updated on / M A Z D A  S H O W R O O M S / For more information please visit www.mazda.com.sg. For corporate sales contact corporatesales@mazda.com.sg or / 9888 9981. For leasing options contact leasing@eurokars.com.sg or 9363 5809 / 9107 3244. / 1 Kung Chong Road  |  Singapore 159139 / Sales Tel: 6395 8888 / 23 Leng Kee Road  |  Singapore 159095 / Sales Tel: 6603 6118 / 08-Oct-2026 21-Oct-2026 / 08-Oct-2026 / $277,888 / $283,888 / $229,888 / $235,888
+5	496	193	M O D E L
+5	583	193	L I S T  P R I C E
+5	671	193	V E S
+5	758	193	F I N A N C E  A N D  I N S U R A N C E  R E B A T E S
+5	846	193	P R O M O T I O N
+5	1108	193	F I N A L  P R I C E
+5	1196	193	D O W N  P A Y M E N T
+5	1283	193	L O A N  A M O U N T
+5	1371	193	I N T E R E S T  A N D  T E N U R E
+5	1458	193	M O N T H L Y  I N S T A L L M E N T
+5	1546	193	T R A D E  I N
+5	1633	193	O U T S T A N D I N G  L O A N
+5	1721	193	B A L A N C E  P A Y M E N T
+5	1809	193	R E M A R K S
+5	31	51	The following entries, figures and numbers are for illustration purposes only and shall not constitute any binding offer or
+5	76	0	quotation by Trans Eurokars Pte Ltd, nor be construed as creating any binding obligations on the part of Trans Eurokars Pte Ltd.
+5	685	382	The following entries, figures and numbers are for illustration purposes only and shall not constitute any binding offer or / quotation by Trans Eurokars Pte Ltd, nor be construed as creating any binding obligations on the part of Trans Eurokars Pte Ltd.
+5	28	1	Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat. COE (Cat.
+5	67	1	E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same month of successful
+5	106	1	COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 8 years / 160,000km* Battery Warranty, 3
+5	144	1	years / 100,000km* Vehicle Warranty and Scheduled Maintenance for the first 3 years / 60,000km*. Strictly no changes are permitted to model or color after booking. Prices
+5	183	1	are subject to change without prior notice. All prevailing taxes shall be borne by the Customer.
+5	3470	196	Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat. COE (Cat. / E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same month of successful / COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 8 years / 160,000km* Battery Warranty, 3 / years / 100,000km* Vehicle Warranty and Scheduled Maintenance for the first 3 years / 60,000km*. Strictly no changes are permitted to model or color after booking. Prices / are subject to change without prior notice. All prevailing taxes shall be borne by the Customer.
+5	28	1	Terms and Conditions apply. Specifications may vary.
+5	105	1	All prices quoted include IU, Number Plate, Registration fee, 9% GST and any VES rebate or surcharge where applicable.
+5	144	1	Insurance subsidy subject to in-house insurance plan.
+5	183	1	Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years.
+5	222	1	Additional top up of $1,000 for Machine Gray or Soul Red Crystal is required on all MAZDA models.
+5	261	1	Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models.
+5	300	1	Trade-In bonus of $40,000.
+5	339	1	^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan.
+5	2508	196	Terms and Conditions apply. Specifications may vary. / All prices quoted include IU, Number Plate, Registration fee, 9% GST and any VES rebate or surcharge where applicable. / Insurance subsidy subject to in-house insurance plan. / Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years. / Additional top up of $1,000 for Machine Gray or Soul Red Crystal is required on all MAZDA models. / Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models. / Trade-In bonus of $40,000. / ^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan.
+5	27	1	COE BIDDING REBATE LEVEL for CAT B:
+5	66	1	$100,000 Guaranteed COE Plan
+5	105	1	$95,000 Non-Guaranteed COE Plan
+5	3211	196	COE BIDDING REBATE LEVEL for CAT B: / $100,000 Guaranteed COE Plan / $95,000 Non-Guaranteed COE Plan
+5	27	0	COE BIDDING PACKAGE:
+5	66	0	Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales
+5	105	0	Agreement ("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bids shall be governed
+5	144	0	by the terms of the COE Bidding Agreement.
+5	3211	1041	COE BIDDING PACKAGE: / Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales / Agreement ("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bids shall be governed / by the terms of the COE Bidding Agreement.
+5	27	1	Booking Deposits:
+5	81	1	Booking deposit:
+5	81	378	$12,800
+5	115	1	Indent Booking Deposit:
+5	115	376	$25,600
+5	2970	197	Booking Deposits: / Booking deposit:                     $12,800 / Indent Booking Deposit:        $25,600
+5	27	0	Off Peak Car Package:
+5	81	0	Inclusive of 1 year Road Tax, Road Tax
+5	115	0	rebate & OPC rebate
+5	115	355	($17,000)
+5	2970	854	Off Peak Car Package: / Inclusive of 1 year Road Tax, Road Tax / rebate & OPC rebate           ($17,000)
+5	27	1	Rebates & Subsidies:
+5	81	1	In-house finance rebate
+5	81	450	$2,000
+5	115	1	Insurance subsidy for 1 year plan
+5	115	450	$1,000
+5	2970	1493	Rebates & Subsidies: / In-house finance rebate                   $2,000 / Insurance subsidy for 1 year plan    $1,000
+5	19	1	*whichever comes first
+5	3675	229	*whichever comes first
+5	850	0	M O D E L / L I S T  P R I C E / V E S / F I N A N C E  A N D  I N S U R A N C E  R E B A T E S / P R O M O T I O N / F I N A L  P R I C E / D O W N  P A Y M E N T / L O A N  A M O U N T / I N T E R E S T  A N D  T E N U R E / M O N T H L Y  I N S T A L L M E N T / T R A D E  I N / O U T S T A N D I N G  L O A N / B A L A N C E  P A Y M E N T / R E M A R K S / The following entries, figures and numbers are for illustration purposes only and shall not constitute any binding offer or / quotation by Trans Eurokars Pte Ltd, nor be construed as creating any binding obligations on the part of Trans Eurokars Pte Ltd. / Trans Eurokars Pte Ltd reserves the right to revise the COE Bidding Rebate Levels at any time without prior notice. Trans Eurokars reserves the right to use Open Cat. COE (Cat. / E) for registration of any of the above packages, in which event the COE Bidding Rebate Levels shall not apply. All cars are to be registered within the same month of successful / COE bid (or issuance of an Open Cat. COE (Cat. E), where applicable) upon availability of vehicle stock. All new cars come with 8 years / 160,000km* Battery Warranty, 3 / years / 100,000km* Vehicle Warranty and Scheduled Maintenance for the first 3 years / 60,000km*. Strictly no changes are permitted to model or color after booking. Prices / are subject to change without prior notice. All prevailing taxes shall be borne by the Customer. / Terms and Conditions apply. Specifications may vary. / All prices quoted include IU, Number Plate, Registration fee, 9% GST and any VES rebate or surcharge where applicable. / Insurance subsidy subject to in-house insurance plan. / Finance rebate subject to a minimum loan of $60,000, with a tenure of 7 years. / Additional top up of $1,000 for Machine Gray or Soul Red Crystal is required on all MAZDA models. / Additional top up of $2,000 for Artisan Red, Melting Copper and Rhodium White is required on all MAZDA models. / Trade-In bonus of $40,000. / ^Effective Price is 8 Bid Non-Guaranteed COE Plan, additional top up of $5,000 to 8 Bid Guaranteed COE Plan. / COE BIDDING REBATE LEVEL for CAT B: / $100,000 Guaranteed COE Plan / $95,000 Non-Guaranteed COE Plan / COE BIDDING PACKAGE: / Where Trans Eurokars Pte Ltd agrees to bid for a COE on Customer's behalf according to a Vehicle Sales / Agreement ("VSA") entered into between Customer and Trans Eurokars Pte Ltd, such bids shall be governed / by the terms of the COE Bidding Agreement. / Booking Deposits: / Booking deposit:                     $12,800 / Indent Booking Deposit:        $25,600 / Off Peak Car Package: / Inclusive of 1 year Road Tax, Road Tax / rebate & OPC rebate           ($17,000) / Rebates & Subsidies: / In-house finance rebate                   $2,000 / Insurance subsidy for 1 year plan    $1,000 / *whichever comes first

@@ -45,6 +45,7 @@ def test_sgcarmart_list_and_detail(cfg):
     assert listing.seller_type == "dealer"
     assert "battery health report 97%" in listing.description
     assert listing.flags == []
+    assert listing.image_url == "https://i.i-sgcm.com/cars_used/202609/1401001_1.jpg"
 
 
 def test_carro_list_and_detail(cfg):
@@ -92,6 +93,30 @@ def test_motorist_live_detail_page(cfg):
     assert (listing.reg_date, listing.owners, listing.omv) == (date(2022, 6, 15), 1, 73984)
     assert listing.coe_expiry == date(2032, 6, 14)
     assert listing.flags == []
+    # The gallery's first photo, a signed S3 link with its &amp; entities decoded.
+    assert listing.image_url.startswith("https://motoristprod.s3.ap-southeast-1.amazonaws.com/private_uploads/sale_photo/image/3876585/thumb_")
+    assert "X-Amz-Expires=604800&X-Amz-Date=20260929T132147Z&" in listing.image_url
+
+
+# Motorist's detail page as of 2026-10-17, trimmed: og:image is the site logo, the gallery's first photo
+# is not lazy loaded, and a similar car card below carries another listing's photo. Signatures blanked.
+MOTORIST_2026_10 = """<html><head><meta property="og:image" content="https://www.motorist.sg/assets/og-home-f773a2d0.png"></head><body>
+<h1 class="used-car-listing-header vehicle-listing-header">TOYOTA TOWN ACE 1.5GL AUTO</h1><div>$61,800</div>
+<img alt="TOYOTA TOWN ACE 1.5GL AUTO" class="video-thumbnail align-top" fetchpriority="high" src="https://www.motorist.sg/cdn-cgi/image/format=auto,onerror=redirect/https://motorist.sg/photo/sale/4040708/thumb" data-src="https://motoristprod.s3.ap-southeast-1.amazonaws.com/private_uploads/sale_photo/image/4040708/thumb_20260929-475818-1th2vq4.jpeg?X-Amz-Expires=604800&amp;X-Amz-Date=20261016T093536Z&amp;X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=&amp;X-Amz-SignedHeaders=host&amp;X-Amz-Signature=">
+<img alt="TOYOTA TOWN ACE 1.5GL AUTO" class="lazy video-thumbnail align-top" src="data:image/svg+xml,%3Csvg%3E%3C/svg%3E" data-src="https://motoristprod.s3.ap-southeast-1.amazonaws.com/private_uploads/sale_photo/image/4040709/thumb_20260929-3667279-1xig5zt.jpeg?X-Amz-Expires=604800">
+<div class="cc-modal__trigger" data-display-name="SUZUKI SPACIA BASE XF" data-thumbnail="https://motoristprod.s3.ap-southeast-1.amazonaws.com/private_uploads/sale_photo/image/3257957/thumb_x.jpeg"></div>
+</body></html>"""
+
+
+def test_motorist_photo_is_the_gallery_not_og_image(cfg):
+    s = MotoristUsedScraper(cfg, "ua", RUN, group="ice")
+    card = {"listing_id": "56211", "url": "https://www.motorist.sg/used-car/56211/x", "title": "", "price": None}
+    listing = s.parse_detail(MOTORIST_2026_10, card)
+    assert listing.image_url == ("https://motoristprod.s3.ap-southeast-1.amazonaws.com/private_uploads/sale_photo/image/4040708/"
+                                 "thumb_20260929-475818-1th2vq4.jpeg?X-Amz-Expires=604800&X-Amz-Date=20261016T093536Z"
+                                 "&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=&X-Amz-SignedHeaders=host&X-Amz-Signature=")
+    # No photo on the page: no image, never a guess.
+    assert s.parse_detail(MOTORIST_2026_10.replace("video-thumbnail", "x"), card).image_url is None
 
 
 def test_throttle_honours_crawl_delay(monkeypatch):

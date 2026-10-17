@@ -5,7 +5,7 @@ and the day's page cache without scraping anything new.
 
 The site shows every new EV variant on today's price list, the full new car list and every live used
 listing, with the same costings on each card, so it can be browsed by body type, budget, brand and
-drivetrain. LTA news collected by news_watch.py comes from sent_state key news_items.
+drivetrain. LTA and Straits Times news collected by news_watch.py comes from sent_state key news_items.
 """
 from __future__ import annotations
 
@@ -14,9 +14,10 @@ import logging
 import os
 import re
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import parse_qs, urlsplit
 
 import costs
 import insights
@@ -313,6 +314,20 @@ def _changes(l: UsedListing) -> list[dict[str, Any]]:
     return out
 
 
+def live_photo(url: Optional[str], now: datetime) -> Optional[str]:
+    """The listing photo, or None when it is a signed S3 link (Motorist, X-Amz-Date plus X-Amz-Expires) that runs
+    out before tomorrow's rebuild. The daily scrape signs it afresh, so only a source that stopped scraping loses it."""
+    q = parse_qs(urlsplit(url or "").query)
+    if "X-Amz-Date" not in q:
+        return url or None
+    try:
+        signed = datetime.strptime(q["X-Amz-Date"][0], "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        expires = signed + timedelta(seconds=int(q["X-Amz-Expires"][0]))
+    except (KeyError, ValueError, OverflowError):
+        return None
+    return url if expires > now + timedelta(days=1) else None
+
+
 def _used_rank(pop: "Popularity | None", l: UsedListing) -> Optional[int]:
     """The used car's model on Sgcarmart's new car list. The model alone first ("Mazda 3" is the best of its
     bodies), then with the variant, which carries the rest of the name when a site splits it oddly
@@ -326,6 +341,7 @@ def _used_rank(pop: "Popularity | None", l: UsedListing) -> Optional[int]:
 def used_cards(listings: list[UsedListing], cfg: dict[str, Any], today: date, petrol_price: Optional[float],
                sales: dict[str, dict[str, int] | None], pop: "Popularity | None" = None) -> list[dict[str, Any]]:
     out = []
+    now = datetime.now(timezone.utc)
     for l in listings:
         if l.depreciation_per_year is None:
             l.depreciation_per_year = costs.depreciation_used(l, cfg, today)
@@ -334,7 +350,7 @@ def used_cards(listings: list[UsedListing], cfg: dict[str, Any], today: date, pe
         prev, prev_on = _price_change(l)
         reason = reject_reason(l, cfg, today)
         card: dict[str, Any] = {
-            "id": f"{l.source}-{l.listing_id}", "source": l.source, "url": l.url,
+            "id": f"{l.source}-{l.listing_id}", "source": l.source, "url": l.url, "image": live_photo(l.image_url, now),
             "make": l.make, "model": l.model, "variant": l.variant, "name": l.display_name,
             "drivetrain": l.drivetrain.value, "body": body_type(l.make, l.model, l.variant, cfg),
             "year": l.year, "reg_date": l.reg_date.isoformat() if l.reg_date else None,
@@ -577,7 +593,7 @@ def build(cfg: dict[str, Any], db: Database, today: date, user_agent: str, force
         "brands": brands_block(reg, ts.get("ev_models") or {}, model_prices(new_evs, ts.get("ev_models") or {}), cfg,
                                int(ts.get("top_n", 20)), pop),
         "body_months": list(body_months),
-        "news": json.loads(db.get_state("news_items") or "[]"),
+        "news": [{"source": "LTA", **n} for n in json.loads(db.get_state("news_items") or "[]")],   # items stored before the press feeds are LTA
         "bikes": bikes_block(bikes, cfg, today),
         "costs": {"picks": picks, "assumptions": cfg["costs"]["insurance"]["assumptions"].strip(), "annual_km": cfg["costs"]["annual_km"],
                   "insurance_links": cfg["sources"].get("insurance_comparison", []),

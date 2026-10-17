@@ -11,6 +11,7 @@ from selectolax.parser import HTMLParser
 
 from models import CoeCategory, NewEvVariant
 from scrapers.base import BaseScraper, ScraperUnavailable
+from scrapers.official import BLOCK_MARKERS
 from scrapers.parse_utils import clean, first_match, label_values, parse_money, parse_number, tables, text_of
 
 log = logging.getLogger(__name__)
@@ -88,6 +89,39 @@ def view360_links(variants: list[Any]) -> dict[int, str]:
         if m:
             out[int(m.group(1))] = v.view360_url
     return out
+
+
+def exact_view360(cfg: dict[str, Any], user_agent: str, run_date: date, force: bool,
+                  pages: list[tuple[int, str]]) -> tuple[dict[int, str], list[int]]:
+    """Open the given (model id, model page) pages one at a time through the usual fetch (robots.txt, crawl
+    delay, day cache) and read each one's 360 viewer link. Returns ({model id: viewer link}, [model ids
+    checked]). A page that fails counts as checked and waits for the recheck like one without a viewer; a
+    403, 429 or challenge page stops the rest for the day, and that page stays unchecked."""
+    s = SgcarmartNewEvScraper(cfg, user_agent, run_date, force)
+    links: dict[int, str] = {}
+    checked: list[int] = []
+    try:
+        for mid, url in pages:
+            try:
+                html = s.fetch(url)
+            except Exception as exc:
+                resp = getattr(exc.__cause__, "response", None)
+                if resp is not None and resp.status_code in (403, 429):
+                    log.warning("sgcarmart blocked the 360 viewer check, stopped for today: %s", exc)
+                    break
+                log.warning("360 viewer check of %s failed: %s", url, exc)
+                checked.append(mid)
+                continue
+            link = view360_link(html, cfg)
+            if link:
+                links[mid] = link
+            elif any(m in html.lower() for m in BLOCK_MARKERS):
+                log.warning("sgcarmart answered %s with a challenge page, 360 viewer check stopped for today", url)
+                break
+            checked.append(mid)
+    finally:
+        s.close()
+    return links, checked
 
 
 class SgcarmartNewEvScraper(BaseScraper):

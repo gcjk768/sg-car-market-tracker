@@ -12,6 +12,9 @@ class MotoristUsedScraper(UsedScraperBase):
     listing_href = re.compile(r"/used-cars?/(?:[\w-]+/)?(?P<id>\d{4,})(?:[/?#]|$)")
     needs_js = False
     sold_marker = re.compile(r"badge-danger[^>]*>\s*Sold\s*<")
+    # The first photo of the gallery, a signed S3 link valid 7 days. Since October 2026 og:image is the site logo,
+    # and the similar car cards further down carry other listings' photos.
+    photo = ("img.video-thumbnail", "data-src")
     labels = {
         "reg_date": ("registration date", "reg date"),
         "owners": ("no. of owners", "owners"),

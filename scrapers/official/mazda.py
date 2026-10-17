@@ -3,11 +3,15 @@
 The PDFs are a template with the dates, rows and prices stamped on top. pypdf's layout mode drops the stamped
 layer, so this module reads every text run with its position instead (`_runs`) and pairs a variant with the two
 prices on the same line. The model label sits beside its group of rows, so a row takes the nearest label above or
-below it; a row that sits about halfway between two labels is left out.
+below it; a row that sits about halfway between two labels is left out. The October 2026 list prints its labels
+letter spaced ("M A Z D A  C X - 5") in page units about four times larger than the older lists, so labels are
+squeezed back (`_unspace`) and every distance is scaled by the page's height.
 
 Sources: the price list linked from the home page (a dated name such as "081026 Mazda Price List.pdf", found from
 the link, never built by hand) and the two undated copies under /pdf/. The linked list sits under /Upload, which
-robots.txt disallows, so it is skipped; the /pdf/ copies are read but dropped once their validity date has passed.
+robots.txt disallows; it is read through the shared browser only because Mazda is in
+official.playwright_robots_override (the owner's decision of 2026-10-08). The /pdf/ copies are dropped once their
+validity date has passed.
 """
 from __future__ import annotations
 
@@ -15,10 +19,12 @@ import io
 import logging
 import re
 from datetime import date, datetime
-from urllib.parse import quote, urljoin, urlsplit
+from urllib.parse import urljoin
 
-from scrapers.base import BaseScraper, RobotsDisallowed
-from scrapers.official import Blocked, OfficialPrice, OfficialScraper, cheapest
+import httpx
+
+from scrapers.base import FetchError, RobotsDisallowed
+from scrapers.official import OfficialPrice, OfficialScraper, cheapest
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +34,8 @@ UNDATED = ["https://mazda.com.sg/pdf/Mazda-CAT-A-Pricelist.pdf", "https://mazda.
 
 PRICE = re.compile(r"^(?:\$([\d,]+)|P\.O\.A\.)$")
 DATE = re.compile(r"^\d{2}-[A-Z][a-z]{2}-\d{4}$")
-GAP = 10   # points: a row this close to two model labels is ambiguous and left out
+GAP = 10       # points: a row this close to two model labels is ambiguous and left out
+PAGE_H = 800   # page height of the older lists in `_runs` units; GAP and the other distances are set for it
 
 
 def _runs(pdf: bytes) -> str:
@@ -47,6 +54,14 @@ def _runs(pdf: bytes) -> str:
     return "\n".join(out)
 
 
+def _unspace(text: str) -> str:
+    """"M A Z D A  3  H A T C H B A C K / M - H Y B R I D" to "MAZDA 3 HATCHBACK M-HYBRID". Other text is kept."""
+    words = re.split(r" {2,}", text.replace(" / ", "  "))
+    if not all(len(c) == 1 for w in words for c in w.split(" ")):
+        return text
+    return re.sub(r"^MAZDA(?=\S)", "MAZDA ", " ".join(w.replace(" ", "") for w in words))   # "M A Z D A 6 e" has one gap
+
+
 def _title(label: str) -> str:
     """"MAZDA CX-5 M-HYBRID" to "Mazda CX-5 M-Hybrid": long words capitalised, codes (CX, RF, PHEV) kept."""
     return " ".join("-".join(p.capitalize() if p.isalpha() and len(p) > 4 else p for p in w.split("-"))
@@ -58,10 +73,13 @@ def parse(text: str, url: str = "", today: date | None = None) -> list[OfficialP
     runs = []
     for line in text.splitlines():
         page, y, x, t = line.split("\t", 3)
-        runs.append((int(page), int(y), int(x), t))
+        runs.append((int(page), int(y), int(x), _unspace(t)))
+    # ponytail: page height from the lowest run, so a page with a tall footer stretches every tolerance a little.
+    scale = {p: max(1.0, max(y for pp, y, *_ in runs if pp == p) / PAGE_H) for p in {r[0] for r in runs}}
 
     valid = next(((p, y) for p, y, _x, t in runs if t.startswith("Price list valid from")), None)
-    dates = sorted((x, t) for p, y, x, t in runs if valid and p == valid[0] and abs(y - valid[1]) <= 5 and DATE.match(t))
+    dates = sorted((x, t) for p, y, x, t in runs
+                   if valid and p == valid[0] and abs(y - valid[1]) <= 5 * scale[p] and DATE.match(t))
     valid_from, valid_to = (dates[0][1], dates[1][1]) if len(dates) >= 2 else ("", "")
     if today and valid_to and datetime.strptime(valid_to, "%d-%b-%Y").date() < today:
         log.info("mazda: %s expired on %s", url, valid_to)
@@ -69,21 +87,29 @@ def parse(text: str, url: str = "", today: date | None = None) -> list[OfficialP
     footnote = next((t.lstrip("^") for *_, t in runs if t.startswith("^Effective Price is")), "")
     note = " ".join(s for s in (f"Price list valid {valid_from} to {valid_to}." if valid_to else "", footnote) if s)
     includes_coe = "with" if "COE Plan" in footnote else "unknown"
+    ev_pages = {p for p, *_, t in runs if "ELECTRIC VEHICLES" in t}
+    price_pages = {p for p, *_, t in runs if t.startswith("Price list valid from")}   # not the terms pages
 
     rows = []
     for page, y, x, t in runs:
-        if not re.match(r"^\d\.\dL ", t):
+        if page not in price_pages:
             continue
-        prices = sorted((px, pt) for pp, py, px, pt in runs if pp == page and abs(py - y) <= 2 and px > x and PRICE.match(pt))
+        k = scale[page]
+        # A variant is any short cell with exactly a list price and an effective price to its right on its line:
+        # "1.5L Sedan Luxury", or "Sports" and "GT" on the electric page.
+        if PRICE.match(t) or DATE.match(t) or t.startswith(("MAZDA", "VES")) or len(t) > 40:
+            continue
+        prices = sorted((px, pt) for pp, py, px, pt in runs
+                        if pp == page and abs(py - y) <= 2 * k and px > x and PRICE.match(pt))
         if len(prices) != 2 or "P.O.A." in (prices[0][1], prices[1][1]):
             continue   # a template label with no prices beside it, or a price on application
         labels = sorted((abs(ly - y), ly, lx, lt) for lp, ly, lx, lt in runs
                         if lp == page and lt.startswith("MAZDA ") and "SHOWROOM" not in lt and lx < x)
-        if not labels or (len(labels) > 1 and labels[1][0] - labels[0][0] < GAP):
+        if not labels or (len(labels) > 1 and labels[1][0] - labels[0][0] < GAP * k):
             log.info("mazda: no certain model for %r at y=%s, left out", t, y)
             continue
         _d, ly, lx, label = labels[0]
-        sub = [st for sp, sy, sx, st in runs if sp == page and 0 < ly - sy <= 15 and abs(sx - lx) < 40
+        sub = [st for sp, sy, sx, st in runs if sp == page and 0 < ly - sy <= 15 * k and abs(sx - lx) < 40 * k
                and re.fullmatch(r"[A-Z][A-Z -]+", st) and not st.startswith(("MAZDA", "VES"))]
         model = _title(" ".join([label, *sub]))
         list_price, effective = (int(p[1].strip("$").replace(",", "")) for p in prices)
@@ -91,27 +117,25 @@ def parse(text: str, url: str = "", today: date | None = None) -> list[OfficialP
         rows.append(OfficialPrice(
             make=BRAND, model=model, variant=t, price=cheapest(packages, list_price), includes_coe=includes_coe,
             list_price=list_price, packages=packages,
-            fuel="hybrid" if re.search(r"HYBRID|PHEV", model, re.I) else "", source_url=url, note=note))
+            fuel="hybrid" if re.search(r"HYBRID|PHEV", model, re.I) else "ev" if page in ev_pages else "",
+            source_url=url, note=note))
     return rows
 
 
 def _pdf_runs(s: OfficialScraper, url: str) -> str:
-    """Like OfficialScraper.pdf (robots, throttle, day cache) but in `_runs` format. Empty for a missing file."""
+    """Like OfficialScraper.pdf (robots, throttle, day cache, browser fallback) but in `_runs` format. Empty for a
+    missing file."""
     key = url + "#runs"
     cached = s._read_cache(key)
     if cached is not None:
         return cached
-    if not s._allowed(url):
-        raise RobotsDisallowed(url)
-    BaseScraper._throttle.wait(urlsplit(url).netloc)
-    log.info("GET %s", url)
-    resp = s.client.get(quote(url, safe=":/?=&%"))
-    if resp.status_code in (403, 429):
-        raise Blocked(url)
-    if resp.status_code == 404:
-        return ""
-    resp.raise_for_status()
-    text = _runs(resp.content)
+    try:
+        data = s.pdf_bytes(url)
+    except FetchError as exc:   # plain or through the browser, an HTTP error is the cause
+        if isinstance(exc.__cause__, httpx.HTTPStatusError) and exc.__cause__.response.status_code == 404:
+            return ""
+        raise
+    text = _runs(data)
     s._write_cache(key, text)
     return text
 
