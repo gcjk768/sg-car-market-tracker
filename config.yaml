@@ -95,7 +95,7 @@ ai:
   enabled: true
   command: /app/claude-shim
   # Model alias or id passed to the CLI. Leave null for the CLI default.
-  model: haiku
+  model: claude-haiku-5-5
   timeout_seconds: 1800
   max_input_chars: 12000
   # Hard cap on CLI calls per run so a broken parser cannot run up a bill.
