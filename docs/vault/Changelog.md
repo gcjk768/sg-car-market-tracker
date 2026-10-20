@@ -1,8 +1,12 @@
 ---
 tags: [active]
-updated: 2026-10-17
+updated: 2026-10-20
 ---
 # Changelog
+
+## 2026-10-20
+- chore: `claude -p` fallback. The compose file mounts `/volume1/docker/claude-fallback` at `/fb` (read-only) and puts it first on PATH; its `claude` wrapper runs the real claude on `ANTHROPIC_API_KEY` and, if that call fails because the API credit, spend limit or key is gone, re-runs the same call once on the subscription (`CLAUDE_FALLBACK_OAUTH_TOKEN` or the saved login) for the next 10 minutes. On that run it drops `--bare` and maps explicit model ids to the aliases haiku/sonnet/opus. A 429 or 5xx never triggers it.
+- chore: Claude calls billed to the API key (ANTHROPIC_API_KEY, prepaid credit) instead of the subscription token. model haiku -> claude-haiku-5-5.
 
 ## 2026-10-17
 * feat: alerts on the website, on request, since Telegram is gone. All in the browser (`site/index.html`, between the `alerts:begin` and `alerts:end` markers). A star on every new car card, used car card and table row; starred cars show in a Watchlist at the top of Today with today's price against the price when starred (green ▼ drop, red ▲ rise, grey unchanged, "gone" when no longer listed; a new model missing for one build is held, not called gone, because the EV scrape skips models for a day now and then). "Since your last visit" compares this build with the last one the browser saw: new shortlisted used cars, used price moves, new car price changes, COE moves, new news, starred cars gone, six rows each, linking to the cards; a count badge on the Today nav item. Stored in localStorage (`watch`, `snap`) by stable keys (used: source and listing id; new: make, model, variant), never card positions. One browser only. Tests: `tests/test_site_alerts.py` (runs the page logic in node, skipped without it).
